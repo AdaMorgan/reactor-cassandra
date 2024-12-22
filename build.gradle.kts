@@ -21,7 +21,7 @@ dependencies {
     compileOnly(libs.jetbrains.annotations)
 
     //Logger
-    api(libs.slf4j)
+    //api(libs.slf4j)
 
     //Collections Utility
     api(libs.commons.collections)
@@ -34,11 +34,21 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)
-    testImplementation(libs.logback.classic)
+    //testImplementation(libs.logback.classic)
+
+    implementation(files("libs/DataLib.jar"))
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+configure<SourceSetContainer> {
+    register("examples") {
+        java.srcDir("src/examples/java")
+        compileClasspath += sourceSets["main"].output
+        runtimeClasspath += sourceSets["main"].output
+    }
 }
 
 val jar by tasks.getting(Jar::class) {
