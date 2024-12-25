@@ -16,9 +16,7 @@ repositories {
 
 dependencies {
     //Apache Cassandra Native Driver
-
-    //Code safety
-    compileOnly(libs.jetbrains.annotations)
+    implementation(libs.cassandra)
 
     //Logger
     //api(libs.slf4j)
@@ -29,7 +27,6 @@ dependencies {
     compileOnly(libs.jna)
 
     //General Utility
-    implementation(libs.cassandra)
     implementation(libs.trove4j)
 
     testImplementation(libs.junit)
