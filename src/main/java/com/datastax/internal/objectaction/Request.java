@@ -76,4 +76,8 @@ public final class Request<T>
         ObjectActionImpl.LOG.trace("Handling response for request with route {}", this.route);
         this.action.handleSuccess(this, response);
     }
+
+    public String getRoute() {
+        return route;
+    }
 }

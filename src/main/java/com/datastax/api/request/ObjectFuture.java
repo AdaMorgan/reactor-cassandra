@@ -1,6 +1,7 @@
 package com.datastax.api.request;
 
 import com.datastax.internal.objectaction.ObjectActionImpl;
+import com.datastax.internal.objectaction.ObjectFactoryImpl;
 import com.datastax.internal.objectaction.Request;
 
 import java.util.concurrent.CompletableFuture;
@@ -17,6 +18,8 @@ public class ObjectFuture<T> extends CompletableFuture<T>
     public ObjectFuture(final ObjectActionImpl<T> restAction)
     {
         this.request = new Request<>(restAction, this::complete, this::completeExceptionally);
+
+        ((ObjectFactoryImpl) restAction.getObjectFactory()).getRequester().execute(request);
     }
 
     @Override
