@@ -1,9 +1,11 @@
-package com.datastax.internal.objectaction;
+package com.datastax.internal;
 
 import com.datastax.annotations.Nonnull;
+import com.datastax.api.ObjectFactory;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.internal.request.Requester;
 import com.datastax.internal.utils.config.ThreadingConfig;
 
 import java.util.List;

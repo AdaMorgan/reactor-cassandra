@@ -1,7 +1,9 @@
-package com.datastax.internal.objectaction;
+package com.datastax.internal;
 
 import com.datastax.annotations.Nonnull;
 import com.datastax.annotations.Nullable;
+import com.datastax.api.ObjectFactory;
+import com.datastax.api.request.ObjectAction;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.RetryPolicy;
@@ -9,6 +11,7 @@ import com.datastax.internal.utils.config.ThreadingConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 
 public class ObjectFactoryBuilder {
     private final AuthProvider provider;
@@ -36,11 +39,8 @@ public class ObjectFactoryBuilder {
     }
 
     @Nonnull
-    public ObjectFactoryBuilder withClusterName(String name) {
-        DCAwareRoundRobinPolicy policy = DCAwareRoundRobinPolicy.builder()
-                .withLocalDc(name)
-                .build();
-        this.builder = this.builder.withClusterName(name).withLoadBalancingPolicy(policy);
+    public ObjectFactoryBuilder withClusterName(String name, Function<String, DCAwareRoundRobinPolicy> policy) {
+        this.builder = this.builder.withClusterName(name).withLoadBalancingPolicy(policy.apply(name));
         return this;
     }
 

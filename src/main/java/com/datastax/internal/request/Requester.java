@@ -1,7 +1,8 @@
-package com.datastax.internal.objectaction;
+package com.datastax.internal.request;
 
 import com.datastax.driver.core.Row;
-import org.slf4j.LoggerFactory;
+import com.datastax.api.ObjectFactory;
+import com.datastax.internal.ObjectFactoryImpl;
 
 import java.util.List;
 

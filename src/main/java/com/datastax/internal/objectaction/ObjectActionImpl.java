@@ -1,15 +1,32 @@
 package com.datastax.internal.objectaction;
 
+import com.datastax.api.ObjectFactory;
+import com.datastax.api.request.ObjectAction;
 import com.datastax.api.request.ObjectFuture;
+import com.datastax.internal.ObjectFactoryImpl;
+import com.datastax.internal.request.Request;
+import com.datastax.internal.request.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public class ObjectActionImpl<T> implements ObjectAction<T>
 {
-    public static final Logger LOG = LoggerFactory.getLogger(ObjectAction.class);
+    public static final Logger LOG = LoggerFactory.getLogger(ObjectActionImpl.class);
+
+    private final Consumer<? super T> DEFAULT_SUCCESS = o -> {};
+
+    private final Consumer<? super Throwable> DEFAULT_FAILURE = error -> {
+        if (error instanceof TimeoutException) {
+            LOG.debug(error.getMessage());
+        } else {
+            LOG.error("RestAction queue returned failure: [{}] {}", error.getClass().getSimpleName(), error.getMessage());
+        }
+    };
 
     private final ObjectFactory connectionFactory;
     private final String route;
@@ -34,15 +51,16 @@ public class ObjectActionImpl<T> implements ObjectAction<T>
     }
 
     @Override
-    public void queue()
+    public void queue(Consumer<? super T> success, Consumer<? super Throwable> failure)
     {
+        if (success == null)
+            success = DEFAULT_SUCCESS;
+        if (failure == null)
+            failure = DEFAULT_FAILURE;
 
-    }
+        Request<T> request = new Request<>(this, success, failure);
 
-    @Override
-    public void complete()
-    {
-
+        ((ObjectFactoryImpl) this.connectionFactory).getRequester().execute(request);
     }
 
     @Override
@@ -51,7 +69,7 @@ public class ObjectActionImpl<T> implements ObjectAction<T>
         return new ObjectFuture<>(this);
     }
 
-    protected void handleSuccess(Request<T> request, Response response)
+    public void handleSuccess(Request<T> request, Response response)
     {
         request.onSuccess(handler == null ? null : handler.apply(request, response));
     }

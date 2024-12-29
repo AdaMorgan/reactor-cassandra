@@ -1,13 +1,13 @@
 package com.datastax.api.request;
 
 import com.datastax.internal.objectaction.ObjectActionImpl;
-import com.datastax.internal.objectaction.ObjectFactoryImpl;
-import com.datastax.internal.objectaction.Request;
+import com.datastax.internal.ObjectFactoryImpl;
+import com.datastax.internal.request.Request;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Implementation of {@link CompletableFuture} used for {@link com.datastax.internal.objectaction.ObjectAction#submit()}.
+ * Implementation of {@link CompletableFuture} used for {@link ObjectAction#submit()}.
  *
  * @param <T> The result type
  */

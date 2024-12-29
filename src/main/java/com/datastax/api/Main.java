@@ -1,8 +1,8 @@
 package com.datastax.api;
 
 import com.datastax.internal.objectaction.ObjectActionImpl;
-import com.datastax.internal.objectaction.ObjectFactoryBuilder;
-import com.datastax.internal.objectaction.ObjectFactoryImpl;
+import com.datastax.internal.ObjectFactoryBuilder;
+import com.datastax.internal.ObjectFactoryImpl;
 import org.example.data.DataObject;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
 
 public class Main {
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+    public static void main(String[] args) {
         ObjectFactoryImpl factory = ObjectFactoryBuilder.create("cassandra", "cassandra")
                 .withHost("127.0.0.1")
                 .withPort(9042)

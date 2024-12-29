@@ -1,4 +1,4 @@
-package com.datastax.internal.objectaction;
+package com.datastax.internal.request;
 
 import com.datastax.annotations.Nonnull;
 import com.datastax.driver.core.ColumnDefinitions;

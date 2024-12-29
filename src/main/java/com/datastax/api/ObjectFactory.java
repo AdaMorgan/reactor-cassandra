@@ -1,4 +1,4 @@
-package com.datastax.internal.objectaction;
+package com.datastax.api;
 
 import com.datastax.annotations.Nonnull;
 

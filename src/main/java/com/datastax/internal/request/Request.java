@@ -1,7 +1,8 @@
-package com.datastax.internal.objectaction;
+package com.datastax.internal.request;
 
 import com.datastax.api.audit.ThreadLocalReason;
-import com.datastax.internal.request.CallbackContext;
+import com.datastax.internal.objectaction.ObjectActionImpl;
+import com.datastax.internal.ObjectFactoryImpl;
 
 import java.util.function.Consumer;
 
