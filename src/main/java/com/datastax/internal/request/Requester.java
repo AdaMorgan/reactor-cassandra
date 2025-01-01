@@ -17,8 +17,16 @@ public class Requester
 
     public <R> void execute(Request<R> request)
     {
-        List<Row> execute = ((ObjectFactoryImpl) connectionFactory).execute(request.getRoute());
-        new WorkTask<>(request).handleResponse(execute);
+        try
+        {
+            List<Row> execute = ((ObjectFactoryImpl) connectionFactory).execute(request.getRoute());
+
+            new WorkTask<>(request).handleResponse(execute);
+        }
+        catch (Throwable t)
+        {
+            request.onFailure(t);
+        }
     }
 
     private static class WorkTask<T>

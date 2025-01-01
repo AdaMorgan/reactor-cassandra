@@ -1,40 +1,25 @@
 package com.datastax.api;
 
-import com.datastax.internal.objectaction.ObjectActionImpl;
-import com.datastax.internal.ObjectFactoryBuilder;
-import com.datastax.internal.ObjectFactoryImpl;
-import org.example.data.DataObject;
-import org.slf4j.LoggerFactory;
+import com.datastax.api.sharding.DefaultObjectManagerBuilder;
 
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.net.InetSocketAddress;
 
 public class Main {
 
     public static void main(String[] args) {
-        ObjectFactoryImpl factory = ObjectFactoryBuilder.create("cassandra", "cassandra")
-                .withHost("127.0.0.1")
-                .withPort(9042)
-                .build();
+        DefaultObjectManagerBuilder.create("cassandra", "cassandra", (username, password) -> {
+            return new InetSocketAddress("127.0.0.1", 9042);
+        }).build();
 
-        ExecutorService executorService = Executors.newFixedThreadPool(50, Thread::new);
 
-        for (int i = 0; i < 50; i++) {
-            executorService.execute(() -> {
-                ObjectActionImpl<List<DataObject>> clients = new ObjectActionImpl<>(factory, "SELECT * FROM system.clients", ((request, response) -> {
-                    return response.getObject();
-                }));
-
-                try {
-                    List<DataObject> dataObjects = clients.submit().get();
-
-                    LoggerFactory.getLogger(Main.class).info(dataObjects.size() + " data objects");
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
+//        ExecutorService executorService = Executors.newFixedThreadPool(50, Thread::new);
+//
+//        executorService.execute(() -> {
+//            new ObjectActionImpl<List<DataObject>>(factory, "SELECT * FROM system.clients", ((request, response) -> {
+//                return response.getObject();
+//            })).queue(success -> {
+//                System.out.println(success.size());
+//            });
+//        });
     }
 }
