@@ -2,11 +2,9 @@ package com.datastax.internal.utils.config;
 
 import com.datastax.annotations.Nonnull;
 import com.datastax.annotations.Nullable;
-import com.datastax.api.sharding.ThreadPoolProvider;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ThreadPoolExecutor;
 
 public class ThreadingConfig {
     private ExecutorService callbackPool;

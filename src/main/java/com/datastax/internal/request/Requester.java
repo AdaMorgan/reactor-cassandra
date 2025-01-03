@@ -1,7 +1,7 @@
 package com.datastax.internal.request;
 
-import com.datastax.driver.core.Row;
 import com.datastax.api.ObjectFactory;
+import com.datastax.driver.core.Row;
 import com.datastax.internal.ObjectFactoryImpl;
 
 import java.util.List;

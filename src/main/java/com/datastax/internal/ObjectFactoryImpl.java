@@ -2,6 +2,7 @@ package com.datastax.internal;
 
 import com.datastax.annotations.Nonnull;
 import com.datastax.api.ObjectFactory;
+import com.datastax.api.sharding.ObjectManager;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -13,13 +14,19 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
-public class ObjectFactoryImpl implements ObjectFactory {
+public class ObjectFactoryImpl implements ObjectFactory
+{
     protected final Session info;
     protected final Cluster cluster;
     protected final ThreadingConfig threadConfig;
     protected final Requester requester;
 
-    public ObjectFactoryImpl(Cluster info, ThreadingConfig threadConfig) {
+    protected ObjectFactory.ShardInfo shardInfo;
+
+    protected ObjectManager objectManager = null;
+
+    public ObjectFactoryImpl(Cluster info, ThreadingConfig threadConfig)
+    {
         this.cluster = info;
         this.info = info.newSession();
         this.threadConfig = threadConfig;
@@ -31,6 +38,12 @@ public class ObjectFactoryImpl implements ObjectFactory {
     public ExecutorService getCallbackPool()
     {
         return threadConfig.getCallbackPool();
+    }
+
+    @Nonnull
+    @Override
+    public ShardInfo getShardInfo() {
+        return shardInfo == null ? ShardInfo.SINGLE : shardInfo;
     }
 
     @Nonnull
@@ -49,8 +62,15 @@ public class ObjectFactoryImpl implements ObjectFactory {
         return this.info.execute(route).all();
     }
 
-    public void login()
+    public void setShardManager(ObjectManager objectManager)
     {
+        this.objectManager = objectManager;
+    }
+
+    public void login(ShardInfo shardInfo)
+    {
+        this.shardInfo = shardInfo;
+
         try
         {
             this.cluster.connect();

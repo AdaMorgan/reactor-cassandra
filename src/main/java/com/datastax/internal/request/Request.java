@@ -1,8 +1,8 @@
 package com.datastax.internal.request;
 
 import com.datastax.api.audit.ThreadLocalReason;
-import com.datastax.internal.objectaction.ObjectActionImpl;
 import com.datastax.internal.ObjectFactoryImpl;
+import com.datastax.internal.objectaction.ObjectActionImpl;
 
 import java.util.function.Consumer;
 
@@ -21,7 +21,7 @@ public final class Request<T>
         this.action = action;
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
-        this.route = action.getRoute();
+        this.route = action.finalizeRoute();
         this.localReason = ThreadLocalReason.getCurrent();
     }
 

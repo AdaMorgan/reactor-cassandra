@@ -10,6 +10,7 @@ dependencyResolutionManagement {
             library("trove4j",               "net.sf.trove4j",           "core"                     ).version("3.1.0")
             library("commons-collections",   "org.apache.commons",       "commons-collections4"     ).version("4.4")
             library("commons-lang3",         "org.apache.commons",       "commons-lang3"            ).version("3.14.0")
+            library("commons-text",          "org.apache.commons",       "commons-text"             ).version("1.13.0")
             library("junit",                 "org.junit.jupiter",        "junit-jupiter"            ).version("5.10.2")
             //library("slf4j",                 "org.slf4j",                "slf4j-api"                ).version("2.0.0")
         }

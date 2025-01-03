@@ -3,17 +3,26 @@ package com.datastax.api.sharding;
 import com.datastax.annotations.Nonnull;
 import com.datastax.api.ObjectFactory;
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.internal.ObjectFactoryImpl;
+import com.datastax.internal.utils.config.ShardingConfig;
 import com.datastax.internal.utils.config.ThreadingConfig;
 import com.datastax.internal.utils.sharding.ThreadingProviderConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
 
 public class DefaultObjectManager implements ObjectManager
 {
+    public static final Logger LOG = LoggerFactory.getLogger(DefaultObjectManager.class);
+
     /**
      * The executor that is used by the ShardManager internally to create new JDA instances.
      */
@@ -44,13 +53,35 @@ public class DefaultObjectManager implements ObjectManager
      * {@link ThreadingProviderConfig} containing a series of {@link ThreadPoolProvider} instances for shard specific configuration.
      */
     protected final ThreadingProviderConfig threadingConfig;
-    private final BiFunction<String, String, InetSocketAddress> address;
+    protected final ShardingConfig shardingConfig;
+    protected final BiFunction<String, String, InetSocketAddress> address;
 
-    public DefaultObjectManager(BiFunction<String, String, InetSocketAddress> address, Collection<Integer> shards, ThreadingProviderConfig threadingConfig) {
+    public DefaultObjectManager(BiFunction<String, String, InetSocketAddress> address, Collection<Integer> shardIds, ThreadingProviderConfig threadingConfig, ShardingConfig shardingConfig)
+    {
         this.address = address;
         this.threadingConfig = threadingConfig;
+        this.shardingConfig = shardingConfig == null ? ShardingConfig.getDefault() : shardingConfig;
         this.executor = createExecutor(this.threadingConfig.getThreadFactory());
         this.shutdownHook = new Thread(this::shutdown, "Cassandra Shutdown Hook");
+
+        synchronized (queue)
+        {
+            if (getShardsTotal() != -1)
+            {
+                if (shardIds == null)
+                {
+                    this.shards = new HashMap<>(getShardsTotal());
+                    for (int i = 0; i < getShardsTotal(); i++)
+                        this.queue.add(i);
+                }
+                else
+                {
+                    this.shards = new HashMap<>(shardIds.size());
+
+                    shardIds.stream().distinct().sorted().forEach(this.queue::add);
+                }
+            }
+        }
     }
 
     /**
@@ -70,6 +101,8 @@ public class DefaultObjectManager implements ObjectManager
 
     protected ObjectFactoryImpl buildInstance(Cluster cluster, final int shardId)
     {
+        this.retrieveShardTotal(cluster);
+
         ExecutorPair<ExecutorService> callbackPair = resolveExecutor(threadingConfig.getCallbackPoolProvider(), shardId);
         ExecutorService callbackPool = callbackPair.executor;
         boolean shutdownCallbackPool = callbackPair.automaticShutdown;
@@ -78,6 +111,11 @@ public class DefaultObjectManager implements ObjectManager
         threadingConfig.setCallbackPool(callbackPool, shutdownCallbackPool);
 
         ObjectFactoryImpl factory = new ObjectFactoryImpl(cluster, threadingConfig);
+
+        final ObjectFactory.ShardInfo shardInfo = new ObjectFactory.ShardInfo(shardId, getShardsTotal());
+
+        factory.setShardManager(this);
+        factory.login(shardInfo);
 
         return factory;
     }
@@ -92,7 +130,14 @@ public class DefaultObjectManager implements ObjectManager
 
             Cluster.Builder builder = Cluster.builder();
 
+            InetSocketAddress address = this.address.apply(username, password);
+
+            builder.withAuthProvider(new PlainTextAuthProvider(username, password));
+            builder.addContactPointsWithPorts(address);
+
             factory = buildInstance(builder.build(), shardId);
+
+            System.out.println(this.shards == null);
 
             this.shards.put(shardId, factory);
         }
@@ -110,9 +155,15 @@ public class DefaultObjectManager implements ObjectManager
             Runtime.getRuntime().addShutdownHook(shutdownHook);
     }
 
+    @Override
+    public int getShardsTotal()
+    {
+        return this.shardingConfig.getShardsTotal();
+    }
+
     @Nonnull
     @Override
-    public Map<Integer, ObjectFactory> getShards()
+    public Map<Integer, ObjectFactory> getShardCache()
     {
         return shards;
     }
@@ -125,6 +176,25 @@ public class DefaultObjectManager implements ObjectManager
 
         this.threadingConfig.shutdown();
     }
+
+    private synchronized void retrieveShardTotal(Cluster cluster)
+    {
+        if (getShardsTotal() != -1)
+            return;
+
+        LOG.debug("Fetching shard total");
+
+        int shardTotal = 1;
+
+        this.shardingConfig.setShardsTotal(shardTotal);
+        this.shards = new HashMap<>(shardTotal);
+
+        synchronized (queue)
+        {
+            for (int i = 0; i < shardTotal; i++)
+                queue.add(i);
+        }
+	}
 
     protected static <E extends ExecutorService> ExecutorPair<E> resolveExecutor(ThreadPoolProvider<? extends E> provider, int shardId)
     {
@@ -149,5 +219,4 @@ public class DefaultObjectManager implements ObjectManager
             this.automaticShutdown = automaticShutdown;
         }
     }
-
 }

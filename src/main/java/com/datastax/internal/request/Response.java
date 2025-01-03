@@ -19,33 +19,27 @@ public final class Response {
     }
 
     @Nonnull
-    public List<DataObject> getObject() {
+    public List<DataObject> getObject()
+    {
         return this.rows.map(this::getObject).map(DataObject::new).collect(Collectors.toList());
     }
 
     @Nonnull
-    public List<Map<String, Object>> getMap() {
+    public List<Map<String, Object>> getMap()
+    {
         return this.rows.map(this::getObject).collect(Collectors.toList());
     }
 
     @Nonnull
-    private Map<String, Object> getObject(Row row) {
+    private Map<String, Object> getObject(Row row)
+    {
         Map<String, Object> result = new HashMap<>();
 
-        for (ColumnDefinitions.Definition definition : row.getColumnDefinitions().asList()) {
+        for (ColumnDefinitions.Definition definition : row.getColumnDefinitions().asList())
+        {
             result.put(definition.getName(), row.getObject(definition.getName()));
         }
 
         return result;
-
-
-
-//        return row.getColumnDefinitions().asList().stream().collect(Collectors.toMap(key -> {
-//            System.out.println(key.getName());
-//            return key.getName();
-//        }, value -> {
-//            System.out.println(value.getName());
-//            return row.getObject(value.getName());
-//        }));
     }
 }

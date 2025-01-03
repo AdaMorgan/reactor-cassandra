@@ -14,6 +14,14 @@ repositories {
     mavenCentral()
 }
 
+configure<SourceSetContainer> {
+    register("examples") {
+        java.srcDir("src/examples/java")
+        compileClasspath += sourceSets["main"].output
+        runtimeClasspath += sourceSets["main"].output
+    }
+}
+
 dependencies {
     //Apache Cassandra Native Driver
     implementation(libs.cassandra)
@@ -31,21 +39,21 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)
+    implementation(libs.commons.text)
     //testImplementation(libs.logback.classic)
+
+    //Sets the dependencies for the examples
+    configurations["examplesImplementation"].withDependencies {
+        addAll(configurations["api"].allDependencies)
+        addAll(configurations["implementation"].allDependencies)
+        addAll(configurations["compileOnly"].allDependencies)
+    }
 
     implementation(files("libs/DataLib.jar"))
 }
 
 tasks.test {
     useJUnitPlatform()
-}
-
-configure<SourceSetContainer> {
-    register("examples") {
-        java.srcDir("src/examples/java")
-        compileClasspath += sourceSets["main"].output
-        runtimeClasspath += sourceSets["main"].output
-    }
 }
 
 val jar by tasks.getting(Jar::class) {
@@ -58,9 +66,9 @@ tasks.withType<JavaCompile> {
 
     val args = mutableListOf("-Xlint:deprecation", "-Xlint:unchecked")
 
-    if (javaVersion.isJava9Compatible) {
+    if (javaVersion.isJava11) {
         args.add("--release")
-        args.add("8")
+        args.add("11")
     }
 
     doFirst {
