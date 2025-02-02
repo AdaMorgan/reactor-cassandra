@@ -9,9 +9,9 @@ import java.util.function.Predicate;
 
 public class FilterObjectAction<I> extends ObjectActionOperator<I, I>
 {
-    protected final Predicate<I> condition;
+    protected final Predicate<? super I> condition;
 
-    public FilterObjectAction(ObjectAction<I> action, Predicate<I> condition)
+    public FilterObjectAction(ObjectAction<I> action, Predicate<? super I> condition)
     {
         super(action);
         this.condition = condition;

@@ -4,6 +4,7 @@ import com.datastax.annotations.CheckReturnValue;
 import com.datastax.annotations.Nonnull;
 import com.datastax.annotations.Nullable;
 import com.datastax.api.request.objectaction.operator.FilterObjectAction;
+import com.datastax.api.request.objectaction.operator.FlatMapObjectAction;
 import com.datastax.api.request.objectaction.operator.MapObjectAction;
 import com.datastax.internal.objectaction.ObjectActionImpl;
 import com.datastax.internal.utils.Checks;
@@ -28,14 +29,6 @@ public interface ObjectAction<T>
         return ObjectActionImpl.getDefaultFailure();
     }
 
-    @Nonnull
-    @CheckReturnValue
-    default <R> ObjectAction<R> map(@Nonnull Function<? super T, ? extends R> map)
-    {
-        Checks.notNull(map, "Function");
-        return new MapObjectAction<>(this, map);
-    }
-
     default void queue()
     {
         queue(null);
@@ -46,10 +39,37 @@ public interface ObjectAction<T>
         queue(success, null);
     }
 
-    default ObjectAction<T> filter(@Nonnull Predicate<T> predicate)
+    void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
+
+    @Nonnull
+    @CheckReturnValue
+    default <R> ObjectAction<R> map(@Nonnull Function<? super T, ? extends R> map)
     {
-        Checks.notNull(predicate, "Predicate");
-        return new FilterObjectAction<>(this, predicate);
+        Checks.notNull(map, "Function");
+        return new MapObjectAction<>(this, map);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <O> ObjectAction<O> flatMap(@Nonnull Function<? super T, ? extends ObjectAction<O>> flatMap)
+    {
+        Checks.notNull(flatMap, "Function");
+        return flatMap(null, flatMap);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <O> ObjectAction<O> flatMap(@Nullable Predicate<? super T> condition, @Nonnull Function<? super T, ? extends ObjectAction<O>> flatMap)
+    {
+        Checks.notNull(flatMap, "Function");
+        return new FlatMapObjectAction<>(this, condition, flatMap);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default ObjectAction<T> filter(@Nonnull Predicate<? super T> condition)
+    {
+        return new FilterObjectAction<>(this, condition);
     }
 
     default List<T> toList()
@@ -57,8 +77,8 @@ public interface ObjectAction<T>
         return null;
     }
 
-    void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
-
+    @Nonnull
+    @CheckReturnValue
     CompletableFuture<T> submit();
 
     static boolean isPassContext()
