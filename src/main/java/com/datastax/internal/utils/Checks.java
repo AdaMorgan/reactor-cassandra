@@ -11,7 +11,7 @@ public class Checks {
             throw new IllegalArgumentException(name + " may not be null");
     }
 
-    public static void notNegative(final int n, String name)
+    public static void notNegative(final int n, final String name)
     {
         if (n < 0)
             throw new IllegalArgumentException(name + " may not be negative");

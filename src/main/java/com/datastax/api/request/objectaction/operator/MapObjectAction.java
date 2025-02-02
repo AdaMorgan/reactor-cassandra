@@ -21,9 +21,7 @@ public class MapObjectAction<I, O> extends ObjectActionOperator<I, O>
     @Override
     public void queue(@Nullable Consumer<? super O> success, @Nullable Consumer<? super Throwable> failure)
     {
-        handle(action, failure,
-                (result) -> doSuccess(success, function.apply(result))
-        );
+        handle(action, failure, (result) -> doSuccess(success, function.apply(result)));
     }
 
     @Override

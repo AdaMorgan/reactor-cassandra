@@ -27,7 +27,7 @@ dependencies {
     implementation(libs.cassandra)
 
     //Logger
-    //api(libs.slf4j)
+    api(libs.slf4j)
 
     //Collections Utility
     api(libs.commons.collections)
@@ -36,11 +36,11 @@ dependencies {
 
     //General Utility
     implementation(libs.trove4j)
+    implementation(libs.commons.text)
+    implementation(libs.jetbrains.annotations)
 
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)
-    implementation(libs.commons.text)
-    //testImplementation(libs.logback.classic)
 
     //Sets the dependencies for the examples
     configurations["examplesImplementation"].withDependencies {

@@ -137,8 +137,6 @@ public class DefaultObjectManager implements ObjectManager
 
             factory = buildInstance(builder.build(), shardId);
 
-            System.out.println(this.shards == null);
-
             this.shards.put(shardId, factory);
         }
         catch (final Exception e)
