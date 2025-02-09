@@ -42,6 +42,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)
 
+    implementation("io.netty:netty-all:4.1.75.Final")
+
     //Sets the dependencies for the examples
     configurations["examplesImplementation"].withDependencies {
         addAll(configurations["api"].allDependencies)

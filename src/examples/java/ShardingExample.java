@@ -20,7 +20,9 @@ public class ShardingExample {
         ObjectRoute.CompileRoute compiledRoute = new ObjectRoute(route).compile("tt.tt2998", "1","1062323251105234977", "tt.tt", "0");
 
         build.getShards().forEach(shard -> {
-            CompletableFuture<Integer> submit = new ObjectActionImpl<List<DataObject>>(shard, compiledRoute, ((request, response) -> response.getObject())).map(List::size).filter(c -> c == 2)
+            CompletableFuture<Integer> submit = new ObjectActionImpl<List<DataObject>>(shard, compiledRoute, ((request, response) -> response.getObject()))
+                    .map(List::size)
+                    .filter(c -> c == 2)
                     .submit();
 
             try

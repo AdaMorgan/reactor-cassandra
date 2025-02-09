@@ -180,7 +180,7 @@ public class DefaultObjectManager implements ObjectManager
         if (getShardsTotal() != -1)
             return;
 
-        LOG.debug("Fetching shard total");
+        //LOG.debug("Fetching shard total");
 
         int shardTotal = 1;
 
