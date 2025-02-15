@@ -29,6 +29,14 @@ dependencies {
     //Logger
     api(libs.slf4j)
 
+    //Netty
+    implementation(libs.netty)
+
+    //micrometer
+    implementation(libs.micrometer.core)
+    implementation(libs.micrometer.tracing)
+    implementation(libs.micrometer.bridge)
+
     //Collections Utility
     api(libs.commons.collections)
 
@@ -41,8 +49,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)
-
-    implementation("io.netty:netty-all:4.1.75.Final")
 
     //Sets the dependencies for the examples
     configurations["examplesImplementation"].withDependencies {
