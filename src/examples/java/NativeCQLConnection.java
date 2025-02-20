@@ -110,25 +110,23 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         }
 
         public ByteBuf createStartupMessage() {
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeByte(0x04); // Версия протокола (4)
-            buffer.writeByte(0x00); // Флаги
-            buffer.writeByte(0x00); // Stream ID
-            buffer.writeByte(0x01); // Opcode (STARTUP)
-            buffer.writeInt(0); // Длина тела (пока неизвестна)
-
             ImmutableMap.Builder<String, String> options = new ImmutableMap.Builder<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
-            options.put(COMPRESSION_OPTION, "");
-            options.put(NO_COMPACT_OPTION, "true");
+            //options.put(COMPRESSION_OPTION, "");
+            //options.put(NO_COMPACT_OPTION, "true");
             options.put(DRIVER_VERSION_OPTION, "3.12.2-SNAPSHOT");
             options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
 
             ByteBuf body = Unpooled.buffer();
             Writer.writeStringMap(options.build(), body);
 
-            buffer.writeInt(body.readableBytes()); // Обновляем длину тела
-            buffer.writeBytes(body); // Добавляем тело сообщения
+            ByteBuf buffer = Unpooled.buffer();
+            buffer.writeByte(0x04); // version protocol
+            buffer.writeByte(0x00); // flags
+            buffer.writeByte(0x00); // stream od
+            buffer.writeByte(0x02); // Opcode (STARTUP)
+            buffer.writeInt(body.readableBytes()); // length body
+            buffer.writeBytes(body); // body
 
             return buffer;
         }
@@ -154,7 +152,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
         @Override
         protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-            out.add(msg.copy());
+            out.add(msg.retain());
         }
     }
 
@@ -169,19 +167,15 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-            System.out.println("Received raw data: " + msg.readableBytes() + " bytes");
-
             System.out.println(msg.toString(StandardCharsets.UTF_8));
-            //System.out.println(ByteBufUtil.prettyHexDump(msg));
 
             if (msg.readableBytes() > 0) {
                 byte opcodeByte = msg.readByte();
-                int opcode = Byte.toUnsignedInt(opcodeByte); // Преобразуем в беззнаковый int
+                int opcode = Byte.toUnsignedInt(opcodeByte);
                 System.out.println("Opcode: " + opcode);
 
                 if (opcode == 0x03) { // AUTHENTICATE opcode
                     System.out.println("Server requires authentication");
-                    // Отправьте AUTH_RESPONSE
                 } else if (opcode == 0x0E) { // AUTH_CHALLENGE opcode
                     ByteBuf authResponse = this.initializer.createAuthResponse(ctx);
                     ctx.writeAndFlush(authResponse);
