@@ -2,7 +2,10 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -49,8 +52,9 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception
     {
-        ByteBuf startupMessage = this.initializer.createStartupMessage();
-        ctx.writeAndFlush(startupMessage);
+        ByteBuf startup = this.initializer.createStartupMessage(ctx);
+
+        ctx.writeAndFlush(startup.retain());
     }
 
     @Override
@@ -92,46 +96,53 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         private static final String CQL_VERSION_OPTION = "CQL_VERSION";
         private static final String CQL_VERSION = "3.0.0";
         private static final String DRIVER_VERSION_OPTION = "DRIVER_VERSION";
+        private static final String DRIVER_VERSION = "0.1.0";
+
         private static final String DRIVER_NAME_OPTION = "DRIVER_NAME";
-        private static final String DRIVER_NAME = "Apache Cassandra Java Driver";
+        private static final String DRIVER_NAME = "mmorrii one love!";
 
         static final String COMPRESSION_OPTION = "COMPRESSION";
         static final String NO_COMPACT_OPTION = "NO_COMPACT";
 
 
-        public ByteBuf createAuthResponse(ChannelHandlerContext ctx) {
+        public ByteBuf createAuthResponse(ChannelHandlerContext ctx)
+        {
             byte[] initialToken = initialResponse();
             ByteBuf buffer = ctx.alloc().buffer(initialToken.length);
             buffer.writeByte(0x0F); // AUTH_RESPONSE opcode
-            buffer.writeInt(0); // Stream ID
+            buffer.writeByte(0); // Stream ID
             buffer.writeInt(initialToken.length);
             buffer.writeBytes(initialToken);
             return buffer;
         }
 
-        public ByteBuf createStartupMessage() {
+        public ByteBuf createStartupMessage(ChannelHandlerContext context)
+        {
+            ByteBuf buffer = context.alloc().buffer();
+
+            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(0x00); // Флаги
+            buffer.writeShort(0x00); // Stream ID
+            buffer.writeByte(0x01); // Opcode (STARTUP)
+
             ImmutableMap.Builder<String, String> options = new ImmutableMap.Builder<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
             //options.put(COMPRESSION_OPTION, "");
-            //options.put(NO_COMPACT_OPTION, "true");
-            options.put(DRIVER_VERSION_OPTION, "3.12.2-SNAPSHOT");
+            options.put(NO_COMPACT_OPTION, "true");
+            options.put(DRIVER_VERSION_OPTION, DRIVER_VERSION);
             options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
 
             ByteBuf body = Unpooled.buffer();
             Writer.writeStringMap(options.build(), body);
 
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeByte(0x04); // version protocol
-            buffer.writeByte(0x00); // flags
-            buffer.writeByte(0x00); // stream od
-            buffer.writeByte(0x02); // Opcode (STARTUP)
-            buffer.writeInt(body.readableBytes()); // length body
-            buffer.writeBytes(body); // body
+            buffer.writeInt(body.readableBytes()); // Обновляем длину тела
+            buffer.writeBytes(body); // Добавляем тело сообщения
 
             return buffer;
         }
 
-        public byte[] initialResponse() {
+        public byte[] initialResponse()
+        {
             byte[] initialToken = new byte[username.length + password.length + 2];
             initialToken[0] = 0;
             System.arraycopy(username, 0, initialToken, 1, username.length);
@@ -151,12 +162,14 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         }
 
         @Override
-        protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-            out.add(msg.retain());
+        protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception
+        {
+            out.add(msg);
         }
     }
 
-    private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
+    private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
+    {
 
         private final Initializer initializer;
 
@@ -166,37 +179,36 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-            System.out.println(msg.toString(StandardCharsets.UTF_8));
+        protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
+        {
+            int version = byteBuf.readByte(); // Версия протокола
+            int flags = byteBuf.readByte();   // Флаги
+            int streamId = byteBuf.readShort(); // Stream ID
+            int opcode = byteBuf.readByte();  // Код операции
+            int length = byteBuf.readInt();   // Длина тела фрейма
 
-            if (msg.readableBytes() > 0) {
-                byte opcodeByte = msg.readByte();
-                int opcode = Byte.toUnsignedInt(opcodeByte);
-                System.out.println("Opcode: " + opcode);
+            System.out.println("version: " + version + " flags: " + flags + " streamId: " + streamId + " opcode: " + opcode + " length: " + length);
 
-                if (opcode == 0x03) { // AUTHENTICATE opcode
-                    System.out.println("Server requires authentication");
-                } else if (opcode == 0x0E) { // AUTH_CHALLENGE opcode
-                    ByteBuf authResponse = this.initializer.createAuthResponse(ctx);
-                    ctx.writeAndFlush(authResponse);
-                } else {
-                    System.out.println("Unknown opcode: " + opcode);
-                }
+            if (opcode == 0x03) {
+                System.out.println("Success!");
             }
         }
     }
 
     public static final class Writer
     {
-        public static void writeStringMap(Map<String, String> m, ByteBuf cb) {
+        public static void writeStringMap(Map<String, String> m, ByteBuf cb)
+        {
             cb.writeShort(m.size());
-            for (Map.Entry<String, String> entry : m.entrySet()) {
+            for (Map.Entry<String, String> entry : m.entrySet())
+            {
                 writeString(entry.getKey(), cb);
                 writeString(entry.getValue(), cb);
             }
         }
 
-        public static void writeString(String str, ByteBuf cb) {
+        public static void writeString(String str, ByteBuf cb)
+        {
             byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
             cb.writeShort(bytes.length);
             cb.writeBytes(bytes);
