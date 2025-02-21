@@ -14,7 +14,9 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
+import org.apache.commons.lang3.CharSet;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -120,7 +122,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(0x09); // Версия протокола (4)
             buffer.writeByte(0x00); // Флаги
             buffer.writeShort(0x00); // Stream ID
             buffer.writeByte(0x01); // Opcode (STARTUP)
@@ -189,9 +191,9 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
             System.out.println("version: " + version + " flags: " + flags + " streamId: " + streamId + " opcode: " + opcode + " length: " + length);
 
-            if (opcode == 0x03) {
-                System.out.println("Success!");
-            }
+            byteBuf.readerIndex(4);
+            String body = byteBuf.readCharSequence(length - 2, CharsetUtil.UTF_8).toString();
+            System.out.println("body: " + body);
         }
     }
 
