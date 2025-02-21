@@ -17,6 +17,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -147,6 +148,42 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             return buffer;
         }
 
+        public ByteBuf registerMessage(ChannelHandlerContext context)
+        {
+            ByteBuf buffer = context.alloc().buffer();
+
+            buffer.writeByte(0x04);
+            buffer.writeByte(0x00);
+            buffer.writeShort(0x00);
+            buffer.writeByte(0x0B);
+
+            ArrayList<String> list = new ArrayList<>();
+
+            list.add("SCHEMA_CHANGE");
+
+            ByteBuf body = Unpooled.buffer();
+            Writer.writeStringList(list, body);
+
+            buffer.writeInt(body.readableBytes()); // Обновляем длину тела
+            buffer.writeBytes(body); // Добавляем тело сообщения
+
+            return buffer;
+        }
+
+        public ByteBuf createMessageOptions(ChannelHandlerContext context)
+        {
+            ByteBuf buffer = context.alloc().buffer();
+
+            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(0x00); // Флаги
+            buffer.writeShort(0x00); // Stream ID
+            buffer.writeByte(0x05); // Opcode (STARTUP)
+
+            buffer.writeInt(0);
+
+            return buffer;
+        }
+
         public byte[] initialResponse()
         {
             byte[] initialToken = new byte[username.length + password.length + 2];
@@ -195,12 +232,33 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
             System.out.println("version: " + version + " flags: " + flags + " streamId: " + streamId + " opcode: " + opcode + " length: " + length);
 
-            System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
+            if (opcode != 0x06)
+            {
+                System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
+            }
+            else
+            {
+                System.out.println(byteBuf.toString(CharsetUtil.UTF_8));
+            }
 
-            if (opcode == 0x03) {
+            if (opcode == 0x03)
+            {
                 ByteBuf authResponse = this.initializer.createAuthResponse(ctx);
 
                 ctx.writeAndFlush(authResponse);
+            }
+
+            if (opcode == 0x10)
+            {
+                ByteBuf options = this.initializer.createMessageOptions(ctx);
+
+                ctx.writeAndFlush(options);
+            }
+
+            if (opcode == 0x06)
+            {
+                ByteBuf registerMessage = this.initializer.registerMessage(ctx);
+                ctx.writeAndFlush(registerMessage);
             }
         }
     }
@@ -215,6 +273,14 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
                 writeString(entry.getKey(), cb);
                 writeString(entry.getValue(), cb);
             }
+        }
+
+        public static void writeStringList(List<String> list, ByteBuf cb)
+        {
+            cb.writeShort(list.size());
+            list.forEach(element -> {
+                writeString(element, cb);
+            });
         }
 
         public static void writeString(String str, ByteBuf cb)
