@@ -1,3 +1,5 @@
+import com.datastax.driver.core.exceptions.DriverInternalError;
+import com.datastax.driver.core.exceptions.FrameTooLongException;
 import com.google.common.collect.ImmutableMap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -10,11 +12,11 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.codec.*;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -111,7 +113,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         public ByteBuf createAuthResponse(ChannelHandlerContext ctx)
         {
             byte[] initialToken = initialResponse();
-            ByteBuf buffer = ctx.alloc().buffer(initialToken.length);
+            ByteBuf buffer = Unpooled.buffer(initialToken.length);
 
             buffer.writeByte(0x04); // Версия протокола (4)
             buffer.writeByte(0x00); // Флаги
@@ -134,8 +136,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
             ImmutableMap.Builder<String, String> options = new ImmutableMap.Builder<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
+
             //options.put(COMPRESSION_OPTION, "");
-            options.put(NO_COMPACT_OPTION, "true");
+            //options.put(NO_COMPACT_OPTION, "true");
+
             options.put(DRIVER_VERSION_OPTION, DRIVER_VERSION);
             options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
 
@@ -160,12 +164,43 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             ArrayList<String> list = new ArrayList<>();
 
             list.add("SCHEMA_CHANGE");
+            //list.add("TOPOLOGY_CHANGE");
+            //list.add("STATUS_CHANGE");
 
             ByteBuf body = Unpooled.buffer();
             Writer.writeStringList(list, body);
 
             buffer.writeInt(body.readableBytes()); // Обновляем длину тела
             buffer.writeBytes(body); // Добавляем тело сообщения
+
+            return buffer;
+        }
+
+        public ByteBuf createQuery(ChannelHandlerContext context)
+        {
+            String query = "SELECT * FROM system.local";
+
+            ByteBuf buffer = context.alloc().buffer();
+
+            // Заголовок фрейма
+            buffer.writeByte(0x04); // Версия протокола (v4)
+            buffer.writeByte(0x00); // Флаги
+            buffer.writeShort(0x00); // Stream ID
+            buffer.writeByte(0x07); // Код операции (QUERY)
+
+            // Временное значение длины (заменим позже)
+            int bodyLengthIndex = buffer.writerIndex();
+            buffer.writeInt(0);
+
+            // Тело фрейма
+            int bodyStartIndex = buffer.writerIndex();
+            Writer.writeLongString(query, buffer); // Записываем запрос
+            buffer.writeShort(0x0001); // Consistency level (например, ONE)
+            buffer.writeByte(0x00); // Флаги запроса
+
+            // Обновляем длину тела фрейма
+            int bodyLength = buffer.writerIndex() - bodyStartIndex;
+            buffer.setInt(bodyLengthIndex, bodyLength);
 
             return buffer;
         }
@@ -205,9 +240,9 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         }
 
         @Override
-        protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception
+        protected void encode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
         {
-            out.add(msg);
+            out.add(byteBuf);
         }
     }
 
@@ -232,34 +267,48 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
             System.out.println("version: " + version + " flags: " + flags + " streamId: " + streamId + " opcode: " + opcode + " length: " + length);
 
-            if (opcode != 0x06)
-            {
-                System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
-            }
-            else
-            {
-                System.out.println(byteBuf.toString(CharsetUtil.UTF_8));
-            }
+            ByteBuf message = null;
 
             if (opcode == 0x03)
             {
-                ByteBuf authResponse = this.initializer.createAuthResponse(ctx);
-
-                ctx.writeAndFlush(authResponse);
+                message = this.initializer.createAuthResponse(ctx);
             }
 
             if (opcode == 0x10)
             {
-                ByteBuf options = this.initializer.createMessageOptions(ctx);
-
-                ctx.writeAndFlush(options);
+                message = this.initializer.createMessageOptions(ctx);
             }
 
             if (opcode == 0x06)
             {
-                ByteBuf registerMessage = this.initializer.registerMessage(ctx);
-                ctx.writeAndFlush(registerMessage);
+                message = this.initializer.registerMessage(ctx);
             }
+
+            if (opcode == 0x02)
+            {
+                message = this.initializer.createQuery(ctx);
+            }
+
+            if (opcode == 0x00)
+            {
+                System.err.println(byteBuf.toString(CharsetUtil.UTF_8));
+            }
+
+            if (message != null)
+            {
+                setFlag(message, 0x01);
+                ctx.writeAndFlush(message);
+            }
+        }
+
+        public void setFlag(ByteBuf buffer, int flag)
+        {
+            int flagsIndex = 2;
+
+            // Читаем текущие флаги
+            byte flags = buffer.getByte(flagsIndex);
+
+            buffer.setByte(flagsIndex, flag);
         }
     }
 
@@ -278,15 +327,21 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         public static void writeStringList(List<String> list, ByteBuf cb)
         {
             cb.writeShort(list.size());
-            list.forEach(element -> {
-                writeString(element, cb);
-            });
+            list.forEach(element -> writeString(element, cb));
         }
 
         public static void writeString(String str, ByteBuf cb)
         {
             byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
             cb.writeShort(bytes.length);
+            cb.writeBytes(bytes);
+        }
+
+        public static void writeLongString(String str, ByteBuf cb)
+        {
+            byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
+
+            cb.writeInt(bytes.length);
             cb.writeBytes(bytes);
         }
     }
