@@ -1,14 +1,7 @@
-import com.datastax.driver.core.exceptions.DriverInternalError;
-import com.datastax.driver.core.exceptions.FrameTooLongException;
 import com.google.common.collect.ImmutableMap;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
+import io.netty.buffer.*;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -16,22 +9,32 @@ import io.netty.handler.codec.*;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
-import io.netty.util.ReferenceCountUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements Runnable
 {
     private final Bootstrap client;
     private final NioEventLoopGroup group;
 
+    private static final int PROTOCOL_VERSION = 0x04;
+    
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 9042;
     private final Initializer initializer;
     private final Bootstrap handler;
+
+    private static Function<Integer, Integer> streamId = (id) ->
+    {
+        if (id < 32768)
+            return id;
+        else
+            throw new IllegalArgumentException("Invalid stream id: " + id);
+    };
 
     public NativeCQLConnection()
     {
@@ -39,7 +42,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         this.group = new NioEventLoopGroup();
         this.initializer = new Initializer(this, "cassandra", "cassandra");
 
-        this.handler = this.client.group(this.group).channel(NioSocketChannel.class).handler(this.initializer);
+        this.handler = this.client.group(this.group)
+                .channel(NioSocketChannel.class)
+                .handler(this.initializer)
+                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
     }
 
     public static void main(String[] args)
@@ -73,7 +79,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         cause.printStackTrace();
     }
 
-    private static final class Initializer extends ChannelInitializer<SocketChannel>
+    private final class Initializer extends ChannelInitializer<SocketChannel>
     {
         private final ChannelHandler handler;
         private final byte[] username;
@@ -115,10 +121,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             byte[] initialToken = initialResponse();
             ByteBuf buffer = Unpooled.buffer(initialToken.length);
 
-            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
             buffer.writeByte(0x00); // Флаги
             buffer.writeShort(0x00); // Stream ID
-            buffer.writeByte(0x0F); // Opcode (STARTUP)
+            buffer.writeByte(0x0F); // Opcode (AUTH_RESPONSE)
 
             buffer.writeInt(initialToken.length);
             buffer.writeBytes(initialToken);
@@ -129,7 +135,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
             buffer.writeByte(0x00); // Флаги
             buffer.writeShort(0x00); // Stream ID
             buffer.writeByte(0x01); // Opcode (STARTUP)
@@ -156,7 +162,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(0x04);
+            buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
             buffer.writeShort(0x00);
             buffer.writeByte(0x0B);
@@ -176,16 +182,14 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             return buffer;
         }
 
-        public ByteBuf createQuery(ChannelHandlerContext context)
+        public ByteBuf createQuery(ChannelHandlerContext context, String query)
         {
-            String query = "SELECT * FROM system.local";
-
             ByteBuf buffer = context.alloc().buffer();
 
             // Заголовок фрейма
-            buffer.writeByte(0x04); // Версия протокола (v4)
+            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (v4)
             buffer.writeByte(0x00); // Флаги
-            buffer.writeShort(0x00); // Stream ID
+            buffer.writeShort(streamId.apply(0x00)); // Stream ID
             buffer.writeByte(0x07); // Код операции (QUERY)
 
             // Временное значение длины (заменим позже)
@@ -209,10 +213,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(0x04); // Версия протокола (4)
+            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
             buffer.writeByte(0x00); // Флаги
             buffer.writeShort(0x00); // Stream ID
-            buffer.writeByte(0x05); // Opcode (STARTUP)
+            buffer.writeByte(0x05); // Opcode (OPTIONS)
 
             buffer.writeInt(0);
 
@@ -248,8 +252,13 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
     private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
     {
-
         private final Initializer initializer;
+
+        public boolean isFull = true;
+        public int size = 0;
+        public int finalSize = 0;
+
+        public ByteBuf buffer = Unpooled.buffer();
 
         public MessageDecoder(Initializer initializer)
         {
@@ -259,13 +268,38 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
         {
-            int version = byteBuf.readByte(); // Версия протокола
-            int flags = byteBuf.readByte();   // Флаги
-            int streamId = byteBuf.readShort(); // Stream ID
-            int opcode = byteBuf.readByte();  // Код операции
-            int length = byteBuf.readInt();   // Длина тела фрейма
+            if (!isFull) {
+                int size = buffer.readableBytes();
+                this.size = this.size + size;
 
-            System.out.println("version: " + version + " flags: " + flags + " streamId: " + streamId + " opcode: " + opcode + " length: " + length);
+                //System.out.println(ByteBufUtil.prettyHexDump(buffer));
+
+                //buffer.resetReaderIndex();
+                buffer = Unpooled.compositeBuffer().addComponents(true, buffer, byteBuf);
+                //buffer.writeBytes(buffer, this.size);
+
+                System.out.println(ByteBufUtil.prettyHexDump(buffer));
+            } else {
+                buffer = byteBuf.copy();
+            }
+
+            final int versionByte = (256 + buffer.readByte());
+
+            int version = versionByte & 0x7F; // Версия протокола
+            int flags = buffer.readByte();   // Флаги
+            int streamId = buffer.readShort(); // Stream ID
+            int opcode = buffer.readByte();  // Код операции
+
+            boolean isResponse = (versionByte & 0x80) != 0;
+
+            int length = buffer.readInt();   // Длина тела фрейма
+            int lengthBuffer = buffer.readableBytes();
+
+            if (length != lengthBuffer) {
+                isFull = false;
+                finalSize = length;
+                size = lengthBuffer;
+            }
 
             ByteBuf message = null;
 
@@ -286,29 +320,23 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
 
             if (opcode == 0x02)
             {
-                message = this.initializer.createQuery(ctx);
-            }
-
-            if (opcode == 0x00)
-            {
-                System.err.println(byteBuf.toString(CharsetUtil.UTF_8));
+                message = this.initializer.createQuery(ctx, "SELECT * FROM system.clients");
             }
 
             if (message != null)
             {
-                setFlag(message, 0x01);
                 ctx.writeAndFlush(message);
             }
-        }
 
-        public void setFlag(ByteBuf buffer, int flag)
-        {
-            int flagsIndex = 2;
+            System.out.println("version = " + version + " | isResponse = " + isResponse + " | flags = " + flags + " | streamId = " + streamId + " | opcode = " + opcode + " | length = " + length);
+            //System.out.println(ByteBufUtil.prettyHexDump(buffer));
 
-            // Читаем текущие флаги
-            byte flags = buffer.getByte(flagsIndex);
-
-            buffer.setByte(flagsIndex, flag);
+            if (finalSize <= size)
+            {
+                finalSize = 0;
+                size = 0;
+                buffer.clear();
+            }
         }
     }
 
