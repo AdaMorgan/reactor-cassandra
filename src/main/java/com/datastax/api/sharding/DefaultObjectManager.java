@@ -2,8 +2,6 @@ package com.datastax.api.sharding;
 
 import com.datastax.annotations.Nonnull;
 import com.datastax.api.ObjectFactory;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.internal.ObjectFactoryImpl;
 import com.datastax.internal.utils.config.ShardingConfig;
 import com.datastax.internal.utils.config.ThreadingConfig;
@@ -99,9 +97,9 @@ public class DefaultObjectManager implements ObjectManager
         return Executors.newSingleThreadScheduledExecutor(factory);
     }
 
-    protected ObjectFactoryImpl buildInstance(Cluster cluster, final int shardId)
+    protected ObjectFactoryImpl buildInstance(final int shardId)
     {
-        this.retrieveShardTotal(cluster);
+        this.retrieveShardTotal();
 
         ExecutorPair<ExecutorService> callbackPair = resolveExecutor(threadingConfig.getCallbackPoolProvider(), shardId);
         ExecutorService callbackPool = callbackPair.executor;
@@ -110,7 +108,7 @@ public class DefaultObjectManager implements ObjectManager
         ThreadingConfig threadingConfig = new ThreadingConfig();
         threadingConfig.setCallbackPool(callbackPool, shutdownCallbackPool);
 
-        ObjectFactoryImpl factory = new ObjectFactoryImpl(cluster, threadingConfig);
+        ObjectFactoryImpl factory = new ObjectFactoryImpl(threadingConfig);
 
         final ObjectFactory.ShardInfo shardInfo = new ObjectFactory.ShardInfo(shardId, getShardsTotal());
 
@@ -128,14 +126,7 @@ public class DefaultObjectManager implements ObjectManager
         {
             final int shardId = this.queue.isEmpty() ? 0 : this.queue.peek();
 
-            Cluster.Builder builder = Cluster.builder();
-
-            InetSocketAddress address = this.address.apply(username, password);
-
-            builder.withAuthProvider(new PlainTextAuthProvider(username, password));
-            builder.addContactPointsWithPorts(address);
-
-            factory = buildInstance(builder.build(), shardId);
+            factory = buildInstance(shardId);
 
             this.shards.put(shardId, factory);
         }
@@ -175,7 +166,7 @@ public class DefaultObjectManager implements ObjectManager
         this.threadingConfig.shutdown();
     }
 
-    private synchronized void retrieveShardTotal(Cluster cluster)
+    private synchronized void retrieveShardTotal()
     {
         if (getShardsTotal() != -1)
             return;

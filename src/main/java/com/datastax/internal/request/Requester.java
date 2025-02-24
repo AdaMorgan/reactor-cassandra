@@ -1,10 +1,6 @@
 package com.datastax.internal.request;
 
 import com.datastax.api.ObjectFactory;
-import com.datastax.driver.core.Row;
-import com.datastax.internal.ObjectFactoryImpl;
-
-import java.util.List;
 
 public class Requester
 {
@@ -19,9 +15,7 @@ public class Requester
     {
         try
         {
-            List<Row> execute = ((ObjectFactoryImpl) connectionFactory).execute(request.getRoute());
 
-            new WorkTask<>(request).handleResponse(execute);
         }
         catch (Throwable t)
         {
@@ -37,9 +31,8 @@ public class Requester
             this.request = request;
         }
 
-        private void handleResponse(List<Row> rows)
+        private void handleResponse()
         {
-            this.request.handleResponse(new Response(rows));
         }
     }
 }

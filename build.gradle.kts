@@ -23,9 +23,6 @@ configure<SourceSetContainer> {
 }
 
 dependencies {
-    //Apache Cassandra Native Driver
-    implementation(libs.cassandra)
-
     //Logger
     api(libs.slf4j)
 

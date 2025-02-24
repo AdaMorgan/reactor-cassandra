@@ -1,17 +1,19 @@
-import com.google.common.collect.ImmutableMap;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.*;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.*;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.util.CharsetUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -22,13 +24,13 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
     private final NioEventLoopGroup group;
 
     private static final int PROTOCOL_VERSION = 0x04;
-    
+
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 9042;
     private final Initializer initializer;
     private final Bootstrap handler;
 
-    private static Function<Integer, Integer> streamId = (id) ->
+    private static final Function<Integer, Integer> streamId = (id) ->
     {
         if (id < 32768)
             return id;
@@ -42,10 +44,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         this.group = new NioEventLoopGroup();
         this.initializer = new Initializer(this, "cassandra", "cassandra");
 
-        this.handler = this.client.group(this.group)
-                .channel(NioSocketChannel.class)
-                .handler(this.initializer)
-                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        this.handler = this.client.group(this.group).channel(NioSocketChannel.class).handler(this.initializer).option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
     }
 
     public static void main(String[] args)
@@ -79,7 +78,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         cause.printStackTrace();
     }
 
-    private final class Initializer extends ChannelInitializer<SocketChannel>
+    private static final class Initializer extends ChannelInitializer<SocketChannel>
     {
         private final ChannelHandler handler;
         private final byte[] username;
@@ -98,7 +97,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             channel.pipeline().addLast(new MessageDecoder(this));
             channel.pipeline().addLast(new MessageEncoder(this));
 
-            channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            //channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
 
             channel.pipeline().addLast(this.handler);
         }
@@ -121,10 +120,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             byte[] initialToken = initialResponse();
             ByteBuf buffer = Unpooled.buffer(initialToken.length);
 
-            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
-            buffer.writeByte(0x00); // Флаги
-            buffer.writeShort(0x00); // Stream ID
-            buffer.writeByte(0x0F); // Opcode (AUTH_RESPONSE)
+            buffer.writeByte(PROTOCOL_VERSION);
+            buffer.writeByte(0x00);
+            buffer.writeShort(0x00);
+            buffer.writeByte(0x0F);
 
             buffer.writeInt(initialToken.length);
             buffer.writeBytes(initialToken);
@@ -135,12 +134,12 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
-            buffer.writeByte(0x00); // Флаги
-            buffer.writeShort(0x00); // Stream ID
-            buffer.writeByte(0x01); // Opcode (STARTUP)
+            buffer.writeByte(PROTOCOL_VERSION);
+            buffer.writeByte(0x00);
+            buffer.writeShort(0x00);
+            buffer.writeByte(0x01);
 
-            ImmutableMap.Builder<String, String> options = new ImmutableMap.Builder<>();
+            Map<String, String> options = new HashMap<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
 
             //options.put(COMPRESSION_OPTION, "");
@@ -150,10 +149,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
 
             ByteBuf body = Unpooled.buffer();
-            Writer.writeStringMap(options.build(), body);
+            Writer.writeStringMap(options, body);
 
-            buffer.writeInt(body.readableBytes()); // Обновляем длину тела
-            buffer.writeBytes(body); // Добавляем тело сообщения
+            buffer.writeInt(body.readableBytes());
+            buffer.writeBytes(body);
 
             return buffer;
         }
@@ -176,8 +175,8 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             ByteBuf body = Unpooled.buffer();
             Writer.writeStringList(list, body);
 
-            buffer.writeInt(body.readableBytes()); // Обновляем длину тела
-            buffer.writeBytes(body); // Добавляем тело сообщения
+            buffer.writeInt(body.readableBytes());
+            buffer.writeBytes(body);
 
             return buffer;
         }
@@ -186,23 +185,18 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            // Заголовок фрейма
-            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (v4)
-            buffer.writeByte(0x00); // Флаги
-            buffer.writeShort(streamId.apply(0x00)); // Stream ID
-            buffer.writeByte(0x07); // Код операции (QUERY)
-
-            // Временное значение длины (заменим позже)
+            buffer.writeByte(PROTOCOL_VERSION);
+            buffer.writeByte(0x00);
+            buffer.writeShort(streamId.apply(0x00));
+            buffer.writeByte(0x07);
             int bodyLengthIndex = buffer.writerIndex();
             buffer.writeInt(0);
 
-            // Тело фрейма
             int bodyStartIndex = buffer.writerIndex();
-            Writer.writeLongString(query, buffer); // Записываем запрос
-            buffer.writeShort(0x0001); // Consistency level (например, ONE)
-            buffer.writeByte(0x00); // Флаги запроса
+            Writer.writeLongString(query, buffer);
+            buffer.writeShort(0x0001);
+            buffer.writeByte(0x00);
 
-            // Обновляем длину тела фрейма
             int bodyLength = buffer.writerIndex() - bodyStartIndex;
             buffer.setInt(bodyLengthIndex, bodyLength);
 
@@ -213,10 +207,10 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         {
             ByteBuf buffer = context.alloc().buffer();
 
-            buffer.writeByte(PROTOCOL_VERSION); // Версия протокола (4)
-            buffer.writeByte(0x00); // Флаги
-            buffer.writeShort(0x00); // Stream ID
-            buffer.writeByte(0x05); // Opcode (OPTIONS)
+            buffer.writeByte(PROTOCOL_VERSION);
+            buffer.writeByte(0x00);
+            buffer.writeShort(0x00);
+            buffer.writeByte(0x05);
 
             buffer.writeInt(0);
 
@@ -253,12 +247,8 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
     private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
     {
         private final Initializer initializer;
-
-        public boolean isFull = true;
-        public int size = 0;
-        public int finalSize = 0;
-
-        public ByteBuf buffer = Unpooled.buffer();
+        private ByteBuf accumulatedBuffer = null;
+        private int expectedLength = - 1;
 
         public MessageDecoder(Initializer initializer)
         {
@@ -266,40 +256,127 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
+        protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception
         {
-            if (!isFull) {
-                int size = buffer.readableBytes();
-                this.size = this.size + size;
+            if (accumulatedBuffer == null)
+            {
+                byte versionHeaderByte = buffer.readByte();
+                int version = (256 + versionHeaderByte) & 0x7F;
+                boolean isResponse = ((256 + versionHeaderByte) & 0x80) != 0;
 
-                //System.out.println(ByteBufUtil.prettyHexDump(buffer));
+                byte flags = buffer.readByte();
+                short streamId = buffer.readShort();
+                byte opcode = buffer.readByte();
+                int length = buffer.readInt();
 
-                //buffer.resetReaderIndex();
-                buffer = Unpooled.compositeBuffer().addComponents(true, buffer, byteBuf);
-                //buffer.writeBytes(buffer, this.size);
+                expectedLength = length;
 
-                System.out.println(ByteBufUtil.prettyHexDump(buffer));
-            } else {
-                buffer = byteBuf.copy();
+                accumulatedBuffer = ctx.alloc().buffer(expectedLength);
+
+                accumulatedBuffer.writeByte(versionHeaderByte);
+                accumulatedBuffer.writeByte(flags);
+                accumulatedBuffer.writeShort(streamId);
+                accumulatedBuffer.writeByte(opcode);
+                accumulatedBuffer.writeInt(length);
+                accumulatedBuffer.writeBytes(buffer);
+            }
+            else
+            {
+                accumulatedBuffer.writeBytes(buffer);
             }
 
-            final int versionByte = (256 + buffer.readByte());
+            if (accumulatedBuffer.readableBytes() >= expectedLength + 9)
+            {
+                ByteBuf fullFrame = accumulatedBuffer;
+                accumulatedBuffer = null;
+                expectedLength = - 1;
 
-            int version = versionByte & 0x7F; // Версия протокола
-            int flags = buffer.readByte();   // Флаги
-            int streamId = buffer.readShort(); // Stream ID
-            int opcode = buffer.readByte();  // Код операции
-
-            boolean isResponse = (versionByte & 0x80) != 0;
-
-            int length = buffer.readInt();   // Длина тела фрейма
-            int lengthBuffer = buffer.readableBytes();
-
-            if (length != lengthBuffer) {
-                isFull = false;
-                finalSize = length;
-                size = lengthBuffer;
+                processFullFrame(ctx, fullFrame, out);
             }
+        }
+
+        private void processResultResponse(ByteBuf buffer) {
+            int kind = buffer.readInt();
+
+            switch (kind) {
+                case 2: // SELECT
+                    processRowsResult(buffer);
+                    break;
+                case 1: // VOID
+                    System.out.println("Received VOID result");
+                    break;
+                case 3: // SET_KEYSPACE
+                    System.out.println("Received SET_KEYSPACE result");
+                    break;
+                default:
+                    System.out.println("Received unknown result type: " + kind);
+                    break;
+            }
+        }
+
+        private void processRowsResult(ByteBuf buffer) {
+            int flags = buffer.readInt();
+            int columnsCount = buffer.readInt();
+
+            boolean globalTablesSpec = (flags & 0x01) != 0;
+
+            List<ColumnMetadata> columns = new ArrayList<>();
+            for (int i = 0; i < columnsCount; i++) {
+                String keyspace = globalTablesSpec ? null : readString(buffer);
+                String table = globalTablesSpec ? null : readString(buffer);
+                String name = readString(buffer);
+                int type = buffer.readUnsignedShort();
+                columns.add(new ColumnMetadata(keyspace, table, name, type));
+            }
+
+            int rowsCount = buffer.readInt();
+            for (int i = 0; i < rowsCount; i++) {
+                for (ColumnMetadata column : columns) {
+                    int length = buffer.readInt();
+                    if (length < 0) {
+                        System.out.println(column.name + ": null");
+                    } else {
+                        byte[] value = new byte[length];
+                        buffer.readBytes(value);
+                        System.out.println(column.name + ": " + new String(value, StandardCharsets.UTF_8));
+                    }
+                }
+            }
+        }
+
+        public static class ColumnMetadata {
+            protected final String keyspace;
+            public String table;
+            public final String name;
+            final int type;
+
+            ColumnMetadata(String keyspace, String table, String name, int type) {
+                this.keyspace = keyspace;
+                this.table = table;
+                this.name = name;
+                this.type = type;
+            }
+        }
+
+        private String readString(ByteBuf buffer) {
+            int length = buffer.readUnsignedShort();
+            byte[] bytes = new byte[length];
+            buffer.readBytes(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+
+        private void processFullFrame(ChannelHandlerContext ctx, ByteBuf fullFrame, List<Object> out)
+        {
+            byte versionHeaderByte = fullFrame.readByte();
+            int version = (256 + versionHeaderByte) & 0x7F;
+            boolean isResponse = ((256 + versionHeaderByte) & 0x80) != 0;
+
+            byte flags = fullFrame.readByte();
+            short streamId = fullFrame.readShort();
+            byte opcode = fullFrame.readByte();
+            int length = fullFrame.readInt();
+
+            info(version, isResponse, flags, streamId, opcode, length, fullFrame);
 
             ByteBuf message = null;
 
@@ -323,21 +400,33 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
                 message = this.initializer.createQuery(ctx, "SELECT * FROM system.clients");
             }
 
+            if (opcode == 0x08)
+            {
+                processResultResponse(fullFrame);
+            }
+
             if (message != null)
             {
                 ctx.writeAndFlush(message);
             }
 
-            System.out.println("version = " + version + " | isResponse = " + isResponse + " | flags = " + flags + " | streamId = " + streamId + " | opcode = " + opcode + " | length = " + length);
-            //System.out.println(ByteBufUtil.prettyHexDump(buffer));
-
-            if (finalSize <= size)
-            {
-                finalSize = 0;
-                size = 0;
-                buffer.clear();
-            }
+            fullFrame.release();
         }
+
+        private void info(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
+        {
+            String message = String.format("version = %s | isResponse = %s | flags = %s | streamId = %s | opcode = %s | length = %s", version, isResponse, flags, streamId, opcode, length);
+            System.out.println(message);
+
+            System.out.println(ByteBufUtil.prettyHexDump(buffer));
+        }
+    }
+
+    private void info(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length)
+    {
+        String message = String.format("version = %s | isResponse = %s | flags = %s | streamId = %s | opcode = %s | length = %s", version, isResponse, flags, streamId, opcode, length);
+
+        System.out.println(message);
     }
 
     public static final class Writer
