@@ -10,15 +10,17 @@ public final class Request<T>
 {
     private final ObjectFactoryImpl objectFactory;
     private final ObjectActionImpl<T> action;
+    private final boolean shouldQueue;
     private final Consumer<? super T> onSuccess;
     private final Consumer<? super Throwable> onFailure;
     private final String route;
     private final String localReason;
 
-    public Request(ObjectActionImpl<T> action, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure)
+    public Request(ObjectActionImpl<T> action, final boolean shouldQueue, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure)
     {
         this.objectFactory = (ObjectFactoryImpl) action.getObjectFactory();
         this.action = action;
+        this.shouldQueue = shouldQueue;
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
         this.route = action.finalizeRoute();
@@ -70,6 +72,11 @@ public final class Request<T>
                 }
             }
         });
+    }
+
+    public boolean shouldQueue()
+    {
+        return shouldQueue;
     }
 
     public void handleResponse(Response response)

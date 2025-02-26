@@ -1,6 +1,5 @@
 package com.datastax.internal.request;
 
-import com.datastax.annotations.Nonnull;
 import org.example.data.DataObject;
 
 import java.util.List;
@@ -13,7 +12,6 @@ public final class Response {
         this.rows = rows.stream();
     }
 
-    @Nonnull
     public List<DataObject> getObject()
     {
         //return this.rows.map(this::getObject).map(DataObject::new).collect(Collectors.toList());

@@ -58,7 +58,7 @@ public class ObjectActionImpl<T> implements ObjectAction<T>
         if (failure == null)
             failure = DEFAULT_FAILURE;
 
-        Request<T> request = new Request<>(this, success, failure);
+        Request<T> request = new Request<>(this, true, success, failure);
 
         ((ObjectFactoryImpl) this.connectionFactory).getRequester().execute(request);
     }
@@ -74,12 +74,12 @@ public class ObjectActionImpl<T> implements ObjectAction<T>
     }
 
     @Override
-    public CompletableFuture<T> submit()
+    public CompletableFuture<T> submit(boolean shouldQueue)
     {
-        return new ObjectFuture<>(this);
+        return new ObjectFuture<>(this, shouldQueue);
     }
 
-    public static boolean isPassContext()
+    public boolean isPassContext()
     {
         return true;
     }

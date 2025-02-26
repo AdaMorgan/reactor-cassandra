@@ -30,7 +30,7 @@ public class FilterObjectAction<I> extends ObjectActionOperator<I, I>
     }
 
     @Override
-    public CompletableFuture<I> submit()
+    public CompletableFuture<I> submit(boolean shouldQueue)
     {
         CompletableFuture<I> future = new CompletableFuture<>();
         CompletableFuture<I> handle = this.action.submit();

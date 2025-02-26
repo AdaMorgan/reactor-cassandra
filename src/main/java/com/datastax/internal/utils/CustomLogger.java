@@ -83,7 +83,7 @@ public class CustomLogger
     private CustomLogger() {}
 
     /**
-     * Disables the automatic fallback logger that JDA uses when no SLF4J implementation is found.
+     * Disables the automatic fallback logger, when no SLF4J implementation is found.
      *
      * @param enabled
      *        False, to disable the fallback logger

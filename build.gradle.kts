@@ -26,6 +26,9 @@ dependencies {
     //Logger
     api(libs.slf4j)
 
+    //Code safety
+    compileOnly(libs.jsr)
+
     //Netty
     implementation(libs.netty)
 
@@ -37,12 +40,11 @@ dependencies {
     //Collections Utility
     api(libs.commons.collections)
 
-    compileOnly(libs.jna)
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.10.1")
 
     //General Utility
     implementation(libs.trove4j)
     implementation(libs.commons.text)
-    implementation(libs.jetbrains.annotations)
 
     testImplementation(libs.junit)
     testImplementation(libs.commons.lang3)

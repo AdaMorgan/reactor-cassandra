@@ -1,8 +1,5 @@
 package com.datastax.api.audit;
 
-import com.datastax.annotations.Nonnull;
-import com.datastax.annotations.Nullable;
-
 public final class ThreadLocalReason
 {
     private static ThreadLocal<String> currentReason;
@@ -13,12 +10,12 @@ public final class ThreadLocalReason
     }
 
     /**
-     * Sets the current reason that should be used for {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}.
+     * Sets the current reason that should be used for {@link AuditableObjectAction AuditableObjectAction}.
      *
      * @param reason
      *        The reason to use, or {@code null} to reset
      */
-    public static void setCurrent(@Nullable String reason)
+    public static void setCurrent(String reason)
     {
         if (reason != null)
         {
@@ -42,11 +39,10 @@ public final class ThreadLocalReason
     }
 
     /**
-     * The current reason that should be used for {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}.
+     * The current reason that should be used for {@link AuditableObjectAction AuditableObjectAction}.
      *
      * @return The current thread-local reason, or null
      */
-    @Nullable
     public static String getCurrent()
     {
         return currentReason == null ? null : currentReason.get();
@@ -61,8 +57,7 @@ public final class ThreadLocalReason
      *
      * @return The closable instance
      */
-    @Nonnull
-    public static Closable closable(@Nullable String reason)
+    public static Closable closable(String reason)
     {
         return new Closable(reason);
     }
@@ -74,7 +69,7 @@ public final class ThreadLocalReason
     {
         private final String previous;
 
-        public Closable(@Nullable String reason)
+        public Closable(String reason)
         {
             this.previous = getCurrent();
             setCurrent(reason);

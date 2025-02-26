@@ -1,6 +1,5 @@
 package com.datastax.internal.objectaction.operator;
 
-import com.datastax.annotations.Nullable;
 import com.datastax.api.exceptions.ContextException;
 import com.datastax.api.request.ObjectAction;
 import com.datastax.internal.objectaction.ObjectActionImpl;
@@ -48,13 +47,18 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O> {
         }, catcher);
     }
 
-    @Nullable
-    protected Consumer<? super Throwable> contextWrap(@Nullable Consumer<? super Throwable> callback)
+    protected Consumer<? super Throwable> contextWrap(Consumer<? super Throwable> callback)
     {
         if (callback instanceof ContextException.ContextConsumer)
             return callback;
-        else if (ObjectActionImpl.isPassContext())
+        else if (this.action.isPassContext())
             return ContextException.here(callback == null ? ObjectAction.getDefaultFailure() : callback);
         return callback;
+    }
+
+    @Override
+    public boolean isPassContext()
+    {
+        return this.action.isPassContext();
     }
 }

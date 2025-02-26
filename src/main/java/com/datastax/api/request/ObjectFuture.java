@@ -13,11 +13,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ObjectFuture<T> extends CompletableFuture<T>
 {
-    final Request<T> request;
+    protected final Request<T> request;
 
-    public ObjectFuture(final ObjectActionImpl<T> restAction)
+    public ObjectFuture(final ObjectActionImpl<T> restAction, final boolean shouldQueue)
     {
-        this.request = new Request<>(restAction, this::complete, this::completeExceptionally);
+        this.request = new Request<>(restAction, shouldQueue, this::complete, this::completeExceptionally);
 
         ((ObjectFactoryImpl) restAction.getObjectFactory()).getRequester().execute(request);
     }

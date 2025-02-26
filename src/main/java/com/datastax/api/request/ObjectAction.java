@@ -1,8 +1,6 @@
 package com.datastax.api.request;
 
 import com.datastax.annotations.CheckReturnValue;
-import com.datastax.annotations.Nonnull;
-import com.datastax.annotations.Nullable;
 import com.datastax.api.request.objectaction.operator.FilterObjectAction;
 import com.datastax.api.request.objectaction.operator.FlatMapObjectAction;
 import com.datastax.api.request.objectaction.operator.MapObjectAction;
@@ -17,13 +15,11 @@ import java.util.function.Predicate;
 
 public interface ObjectAction<T>
 {
-    @Nonnull
     static Consumer<Object> getDefaultSuccess()
     {
         return ObjectActionImpl.getDefaultSuccess();
     }
 
-    @Nonnull
     static Consumer<? super Throwable> getDefaultFailure()
     {
         return ObjectActionImpl.getDefaultFailure();
@@ -34,40 +30,36 @@ public interface ObjectAction<T>
         queue(null);
     }
 
-    default void queue(@Nullable Consumer<? super T> success)
+    default void queue(Consumer<? super T> success)
     {
         queue(success, null);
     }
 
-    void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
+    void queue(Consumer<? super T> success, Consumer<? super Throwable> failure);
 
-    @Nonnull
     @CheckReturnValue
-    default <R> ObjectAction<R> map(@Nonnull Function<? super T, ? extends R> map)
+    default <R> ObjectAction<R> map(Function<? super T, ? extends R> map)
     {
         Checks.notNull(map, "Function");
         return new MapObjectAction<>(this, map);
     }
 
-    @Nonnull
     @CheckReturnValue
-    default <O> ObjectAction<O> flatMap(@Nonnull Function<? super T, ? extends ObjectAction<O>> flatMap)
+    default <O> ObjectAction<O> flatMap(Function<? super T, ? extends ObjectAction<O>> flatMap)
     {
         Checks.notNull(flatMap, "Function");
         return flatMap(null, flatMap);
     }
 
-    @Nonnull
     @CheckReturnValue
-    default <O> ObjectAction<O> flatMap(@Nullable Predicate<? super T> condition, @Nonnull Function<? super T, ? extends ObjectAction<O>> flatMap)
+    default <O> ObjectAction<O> flatMap(Predicate<? super T> condition, Function<? super T, ? extends ObjectAction<O>> flatMap)
     {
         Checks.notNull(flatMap, "Function");
         return new FlatMapObjectAction<>(this, condition, flatMap);
     }
 
-    @Nonnull
     @CheckReturnValue
-    default ObjectAction<T> filter(@Nonnull Predicate<? super T> condition)
+    default ObjectAction<T> filter(Predicate<? super T> condition)
     {
         return new FilterObjectAction<>(this, condition);
     }
@@ -77,12 +69,14 @@ public interface ObjectAction<T>
         return null;
     }
 
-    @Nonnull
     @CheckReturnValue
-    CompletableFuture<T> submit();
-
-    static boolean isPassContext()
+    default CompletableFuture<T> submit()
     {
-        return ObjectActionImpl.isPassContext();
+        return submit(true);
     }
+
+    @CheckReturnValue
+    CompletableFuture<T> submit(boolean shouldQueue);
+
+    boolean isPassContext();
 }

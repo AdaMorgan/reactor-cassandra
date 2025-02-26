@@ -1,6 +1,5 @@
 package com.datastax.api.request.objectaction.operator;
 
-import com.datastax.annotations.Nullable;
 import com.datastax.api.request.ObjectAction;
 import com.datastax.internal.objectaction.operator.ObjectActionOperator;
 import com.datastax.internal.utils.Checks;
@@ -28,12 +27,15 @@ public class FlatMapObjectAction<I, O> extends ObjectActionOperator<I, O>
     }
 
     @Override
-    public void queue(@Nullable Consumer<? super O> success, @Nullable Consumer<? super Throwable> failure)
+    public void queue(Consumer<? super O> success, Consumer<? super Throwable> failure)
     {
         Consumer<? super Throwable> catcher = contextWrap(failure);
-        handle(action, catcher, (result) -> {
-            if (condition != null && !condition.test(result))
+        handle(action, catcher, (result) ->
+        {
+            if (condition != null && ! condition.test(result))
+            {
                 return;
+            }
 
             ObjectAction<O> then = supply(result);
             Checks.notNull(then, "FlatMap");
@@ -42,9 +44,9 @@ public class FlatMapObjectAction<I, O> extends ObjectActionOperator<I, O>
     }
 
     @Override
-    public CompletableFuture<O> submit()
+    public CompletableFuture<O> submit(boolean shouldQueue)
     {
-        return this.action.submit().thenCompose((result) ->
+        return this.action.submit(shouldQueue).thenCompose((result) ->
         {
             if (condition != null && ! condition.test(result))
             {
@@ -53,7 +55,7 @@ public class FlatMapObjectAction<I, O> extends ObjectActionOperator<I, O>
                 return future;
             }
 
-            return supply(result).submit();
+            return supply(result).submit(shouldQueue);
         });
     }
 }

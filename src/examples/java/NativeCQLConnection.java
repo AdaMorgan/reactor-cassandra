@@ -1,3 +1,4 @@
+import com.datastax.internal.request.ErrorResponse;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -9,14 +10,15 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements Runnable
 {
@@ -33,9 +35,13 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
     private static final Function<Integer, Integer> streamId = (id) ->
     {
         if (id < 32768)
+        {
             return id;
+        }
         else
+        {
             throw new IllegalArgumentException("Invalid stream id: " + id);
+        }
     };
 
     public NativeCQLConnection()
@@ -97,7 +103,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             channel.pipeline().addLast(new MessageDecoder(this));
             channel.pipeline().addLast(new MessageEncoder(this));
 
-            //channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
 
             channel.pipeline().addLast(this.handler);
         }
@@ -203,6 +209,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             return buffer;
         }
 
+        @Nonnull
         public ByteBuf createMessageOptions(ChannelHandlerContext context)
         {
             ByteBuf buffer = context.alloc().buffer();
@@ -247,8 +254,7 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
     private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
     {
         private final Initializer initializer;
-        private ByteBuf accumulatedBuffer = null;
-        private int expectedLength = - 1;
+        private final LinkedList<ByteBuf> queue = new LinkedList<>();
 
         public MessageDecoder(Initializer initializer)
         {
@@ -258,20 +264,16 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception
         {
-            if (accumulatedBuffer == null)
+            if (queue.isEmpty() || isLast())
             {
                 byte versionHeaderByte = buffer.readByte();
-                int version = (256 + versionHeaderByte) & 0x7F;
-                boolean isResponse = ((256 + versionHeaderByte) & 0x80) != 0;
 
                 byte flags = buffer.readByte();
                 short streamId = buffer.readShort();
                 byte opcode = buffer.readByte();
                 int length = buffer.readInt();
 
-                expectedLength = length;
-
-                accumulatedBuffer = ctx.alloc().buffer(expectedLength);
+                ByteBuf accumulatedBuffer = ctx.alloc().buffer(length);
 
                 accumulatedBuffer.writeByte(versionHeaderByte);
                 accumulatedBuffer.writeByte(flags);
@@ -279,26 +281,32 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
                 accumulatedBuffer.writeByte(opcode);
                 accumulatedBuffer.writeInt(length);
                 accumulatedBuffer.writeBytes(buffer);
+
+                this.queue.add(accumulatedBuffer);
             }
             else
             {
-                accumulatedBuffer.writeBytes(buffer);
+                this.queue.getLast().writeBytes(buffer);
             }
 
-            if (accumulatedBuffer.readableBytes() >= expectedLength + 9)
+            if (isLast())
             {
-                ByteBuf fullFrame = accumulatedBuffer;
-                accumulatedBuffer = null;
-                expectedLength = - 1;
-
+                ByteBuf fullFrame = this.queue.getLast();
                 processFullFrame(ctx, fullFrame, out);
             }
         }
 
-        private void processResultResponse(ByteBuf buffer) {
+        public boolean isLast()
+        {
+            return ! this.queue.isEmpty() && (this.queue.getLast().readableBytes() >= this.queue.getLast().getInt(5));
+        }
+
+        private void processResultResponse(ByteBuf buffer)
+        {
             int kind = buffer.readInt();
 
-            switch (kind) {
+            switch (kind)
+            {
                 case 2: // SELECT
                     processRowsResult(buffer);
                     break;
@@ -314,51 +322,65 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             }
         }
 
-        private void processRowsResult(ByteBuf buffer) {
+        private void processRowsResult(ByteBuf buffer)
+        {
             int flags = buffer.readInt();
             int columnsCount = buffer.readInt();
 
             boolean globalTablesSpec = (flags & 0x01) != 0;
 
+            int length = buffer.readUnsignedShort();
+
+            Supplier<String> message = () -> {
+                byte[] bytes = new byte[length];
+                buffer.readBytes(bytes);
+                return new String(bytes, StandardCharsets.UTF_8);
+            };
+
             List<ColumnMetadata> columns = new ArrayList<>();
-            for (int i = 0; i < columnsCount; i++) {
-                String keyspace = globalTablesSpec ? null : readString(buffer);
-                String table = globalTablesSpec ? null : readString(buffer);
-                String name = readString(buffer);
+            for (int i = 0; i < columnsCount; i++)
+            {
+                String keyspace = globalTablesSpec ? null : message.get();
+                String table = globalTablesSpec ? null : message.get();
+                String name = message.get();
                 int type = buffer.readUnsignedShort();
                 columns.add(new ColumnMetadata(keyspace, table, name, type));
             }
 
             int rowsCount = buffer.readInt();
-            for (int i = 0; i < rowsCount; i++) {
-                for (ColumnMetadata column : columns) {
-                    int length = buffer.readInt();
-                    if (length < 0) {
-                        System.out.println(column.name + ": null");
-                    } else {
-                        byte[] value = new byte[length];
-                        buffer.readBytes(value);
-                        System.out.println(column.name + ": " + new String(value, StandardCharsets.UTF_8));
+            for (int i = 0; i < rowsCount; i++)
+            {
+                for (ColumnMetadata column : columns)
+                {
+                    if (length >= 0)
+                    {
+                        if (column.type == Column.Type.INET)
+                        {
+
+                        }
                     }
                 }
             }
         }
 
-        public static class ColumnMetadata {
-            protected final String keyspace;
-            public String table;
+        public static class ColumnMetadata
+        {
+            public final String keyspace;
+            public final String table;
             public final String name;
-            final int type;
+            public final Column.Type type;
 
-            ColumnMetadata(String keyspace, String table, String name, int type) {
+            ColumnMetadata(String keyspace, String table, String name, int type)
+            {
                 this.keyspace = keyspace;
                 this.table = table;
                 this.name = name;
-                this.type = type;
+                this.type = Column.Type.fromId(type);
             }
         }
 
-        private String readString(ByteBuf buffer) {
+        private String readString(ByteBuf buffer)
+        {
             int length = buffer.readUnsignedShort();
             byte[] bytes = new byte[length];
             buffer.readBytes(bytes);
@@ -375,8 +397,6 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
             short streamId = fullFrame.readShort();
             byte opcode = fullFrame.readByte();
             int length = fullFrame.readInt();
-
-            info(version, isResponse, flags, streamId, opcode, length, fullFrame);
 
             ByteBuf message = null;
 
@@ -410,23 +430,18 @@ public class NativeCQLConnection extends ChannelInboundHandlerAdapter implements
                 ctx.writeAndFlush(message);
             }
 
-            fullFrame.release();
+            if (opcode == 0x00)
+            {
+                error(version, isResponse, flags, streamId, opcode, length, fullFrame);
+            }
         }
 
-        private void info(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
+        private void error(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
         {
-            String message = String.format("version = %s | isResponse = %s | flags = %s | streamId = %s | opcode = %s | length = %s", version, isResponse, flags, streamId, opcode, length);
-            System.out.println(message);
-
-            System.out.println(ByteBufUtil.prettyHexDump(buffer));
+            int codeError = buffer.readInt();
+            String message = readString(buffer);
+            System.err.println(ErrorResponse.fromCode(codeError).name() + ": " + message);
         }
-    }
-
-    private void info(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length)
-    {
-        String message = String.format("version = %s | isResponse = %s | flags = %s | streamId = %s | opcode = %s | length = %s", version, isResponse, flags, streamId, opcode, length);
-
-        System.out.println(message);
     }
 
     public static final class Writer

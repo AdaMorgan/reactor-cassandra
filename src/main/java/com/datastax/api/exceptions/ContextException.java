@@ -1,7 +1,6 @@
 package com.datastax.api.exceptions;
 
 
-import com.datastax.annotations.Nonnull;
 import com.datastax.internal.utils.Helpers;
 
 import java.util.function.Consumer;
@@ -18,7 +17,6 @@ public class ContextException extends Exception
      *
      * @return Wrapping failure consumer around {@code Throwable::printStackTrace}
      */
-    @Nonnull
     public static Consumer<Throwable> herePrintingTrace()
     {
         return here(Throwable::printStackTrace);
@@ -33,8 +31,7 @@ public class ContextException extends Exception
      *
      * @return Wrapper of the provided consumer that will append a context with the current stack-trace
      */
-    @Nonnull
-    public static Consumer<Throwable> here(@Nonnull Consumer<? super Throwable> acceptor)
+    public static Consumer<Throwable> here(Consumer<? super Throwable> acceptor)
     {
         return new ContextConsumer(new ContextException(), acceptor);
     }

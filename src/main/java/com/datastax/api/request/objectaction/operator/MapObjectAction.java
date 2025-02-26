@@ -1,6 +1,5 @@
 package com.datastax.api.request.objectaction.operator;
 
-import com.datastax.annotations.Nullable;
 import com.datastax.api.request.ObjectAction;
 import com.datastax.internal.objectaction.operator.ObjectActionOperator;
 
@@ -19,13 +18,13 @@ public class MapObjectAction<I, O> extends ObjectActionOperator<I, O>
     }
 
     @Override
-    public void queue(@Nullable Consumer<? super O> success, @Nullable Consumer<? super Throwable> failure)
+    public void queue(Consumer<? super O> success, Consumer<? super Throwable> failure)
     {
         handle(action, failure, (result) -> doSuccess(success, function.apply(result)));
     }
 
     @Override
-    public CompletableFuture<O> submit() {
+    public CompletableFuture<O> submit(boolean shouldQueue) {
         return action.submit().thenApply(function);
     }
 }
