@@ -310,7 +310,22 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public boolean isLast()
         {
+            return isLast(false);
+        }
+
+        public boolean isLast(boolean state)
+        {
+            if (state)
+            {
+                System.out.println(this.queue.getLast().readableBytes() + ">=" + this.queue.getLast().getInt(5));
+            }
             return !this.queue.isEmpty() && (this.queue.getLast().readableBytes() >= this.queue.getLast().getInt(5));
+        }
+
+        public boolean isLast(ByteBuf message)
+        {
+            System.out.println(message.readableBytes() + ">=" + message.getInt(5));
+            return (message.readableBytes() >= message.getInt(5));
         }
 
         private ByteBuf processResultResponse(ByteBuf buffer)
@@ -422,22 +437,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             int length = byteBuf.readInt();
 
             ByteBuf message = handle(opcode, byteBuf);
+            message.resetReaderIndex();
 
-            if (message != null && isLast())
+            System.out.println(opcode);
+            System.out.println(ByteBufUtil.prettyHexDump(message));
+
+            if (opcode != 0x08) //NOT WORKING!
             {
-                if (opcode != 0x08) //NOT WORKING!
-                {
-                    ctx.writeAndFlush(message.retain());
-                    byteBuf.retain();
-                    out.add(message);
-                }
-                else
-                {
-                    message = this.queue.getLast();
-                    message.retain();
-                    out.add(message);
-                }
+                ctx.writeAndFlush(message.retain());
             }
+
+            message.retain();
+            out.add(message);
         }
 
         private ByteBuf error(ByteBuf buffer)
