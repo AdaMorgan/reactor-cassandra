@@ -1,4 +1,4 @@
-package com.datastax.internal.request;
+package com.datastax.internal.requests;
 
 import com.datastax.api.audit.ThreadLocalReason;
 import com.datastax.internal.ObjectFactoryImpl;

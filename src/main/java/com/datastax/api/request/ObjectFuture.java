@@ -2,7 +2,7 @@ package com.datastax.api.request;
 
 import com.datastax.internal.ObjectFactoryImpl;
 import com.datastax.internal.objectaction.ObjectActionImpl;
-import com.datastax.internal.request.Request;
+import com.datastax.internal.requests.Request;
 
 import java.util.concurrent.CompletableFuture;
 

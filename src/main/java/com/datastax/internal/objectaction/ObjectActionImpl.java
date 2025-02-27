@@ -4,9 +4,9 @@ import com.datastax.api.ObjectFactory;
 import com.datastax.api.request.ObjectAction;
 import com.datastax.api.request.ObjectFuture;
 import com.datastax.internal.ObjectFactoryImpl;
-import com.datastax.internal.request.ObjectRoute;
-import com.datastax.internal.request.Request;
-import com.datastax.internal.request.Response;
+import com.datastax.internal.requests.ObjectRoute;
+import com.datastax.internal.requests.Request;
+import com.datastax.internal.requests.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

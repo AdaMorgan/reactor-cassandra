@@ -1,7 +1,7 @@
 package com.datastax.internal;
 
 import com.datastax.api.ObjectFactory;
-import com.datastax.internal.request.Requester;
+import com.datastax.internal.requests.Requester;
 import com.datastax.internal.utils.config.ThreadingConfig;
 
 import java.util.concurrent.ExecutorService;

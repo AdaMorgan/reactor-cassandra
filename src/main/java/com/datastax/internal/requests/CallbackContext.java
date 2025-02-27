@@ -1,4 +1,4 @@
-package com.datastax.internal.request;
+package com.datastax.internal.requests;
 
 public class CallbackContext implements AutoCloseable
 {

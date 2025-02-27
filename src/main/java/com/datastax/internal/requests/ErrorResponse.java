@@ -1,4 +1,4 @@
-package com.datastax.internal.request;
+package com.datastax.internal.requests;
 
 import javax.annotation.Nonnull;
 
