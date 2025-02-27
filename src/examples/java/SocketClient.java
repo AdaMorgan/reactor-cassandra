@@ -19,7 +19,6 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class SocketClient extends ChannelInboundHandlerAdapter implements Runnable
 {
@@ -33,7 +32,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
     private final Initializer initializer;
     private final Bootstrap handler;
 
-    private static final Function<Integer, Integer> streamId = (id) ->
+    private static final Function<Integer, Integer> isStreamId = (id) ->
     {
         if (id < 32768)
         {
@@ -194,13 +193,13 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             return buffer;
         }
 
-        public ByteBuf createQuery(String query)
+        public ByteBuf createQuery(int streamId, String query)
         {
             ByteBuf buffer = Unpooled.buffer();
 
             buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
-            buffer.writeShort(streamId.apply(0x00));
+            buffer.writeShort(isStreamId.apply(streamId));
             buffer.writeByte(SocketCode.QUERY);
             int bodyLengthIndex = buffer.writerIndex();
             buffer.writeInt(0);
@@ -244,7 +243,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public ByteBuf onReady()
         {
-            return this.createQuery("SELECT * FROM system.clients");
+            return this.createQuery(5, "SELECT * FROM system.clients");
         }
     }
 
@@ -424,16 +423,17 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
             ByteBuf message = handle(opcode, byteBuf);
 
-            if (message != null)
+            if (message != null && isLast())
             {
-                if (opcode != 0x08)
+                if (opcode != 0x08) //NOT WORKING!
                 {
                     ctx.writeAndFlush(message.retain());
                     byteBuf.retain();
-                    out.add(byteBuf);
+                    out.add(message);
                 }
                 else
                 {
+                    message = this.queue.getLast();
                     message.retain();
                     out.add(message);
                 }
