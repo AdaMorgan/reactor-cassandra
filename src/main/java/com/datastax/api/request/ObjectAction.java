@@ -64,11 +64,6 @@ public interface ObjectAction<T>
         return new FilterObjectAction<>(this, condition);
     }
 
-    default List<T> toList()
-    {
-        return null;
-    }
-
     @CheckReturnValue
     default CompletableFuture<T> submit()
     {

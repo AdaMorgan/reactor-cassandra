@@ -11,8 +11,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -105,7 +103,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         @Override
         protected void initChannel(SocketChannel channel) throws Exception
         {
-            channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            //channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
 
             channel.pipeline().addLast(new MessageDecoder(this));
             channel.pipeline().addLast(new MessageEncoder(this));
@@ -243,7 +241,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public ByteBuf onReady()
         {
-            return this.createQuery(5, "SELECT * FROM system.clients");
+            return new CassandraExecuteExample().prepare(4, 0, "SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
         }
     }
 
@@ -285,7 +283,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                 byte opcode = buffer.readByte();
                 int length = buffer.readInt();
 
-                ByteBuf accumulatedBuffer = ctx.alloc().buffer(length);
+                ByteBuf accumulatedBuffer = Unpooled.buffer(length);
 
                 accumulatedBuffer.writeByte(versionHeaderByte);
                 accumulatedBuffer.writeByte(flags);
@@ -324,30 +322,37 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public boolean isLast(ByteBuf message)
         {
-            System.out.println(message.readableBytes() + ">=" + message.getInt(5));
             return (message.readableBytes() >= message.getInt(5));
         }
 
-        private ByteBuf processResultResponse(ByteBuf buffer)
+        private ByteBuf processResultResponse(ByteBuf byteBuf, int streamId)
         {
-            int kind = buffer.readInt();
+            int kind = byteBuf.readInt();
 
             switch (kind)
             {
-                case 2: // SELECT
-                    return processRowsResult(buffer);
-                case 1: // VOID
-                    System.out.println("Received VOID result");
+                case 0x0001:
+                    System.out.println("Void: for results carrying no information.");
                     break;
-                case 3: // SET_KEYSPACE
-                    System.out.println("Received SET_KEYSPACE result");
+                case 0x0002:
+                    System.out.println("Rows: for results to select queries, returning a set of rows.");
+                    return processRowsResult(byteBuf);
+                case 0x0003:
+                    System.out.println("Set_keyspace: the result to a `use` query.");
+                    break;
+                case 0x0004:
+                    System.out.println("Prepared: result to a PREPARE message.");
+                    System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
+                    return new CassandraExecuteExample().execute(byteBuf, 0);
+                case 0x0005:
+                    System.out.println("Schema_change: the result to a schema altering query.");
                     break;
                 default:
                     System.out.println("Received unknown result type: " + kind);
                     break;
             }
 
-            return buffer;
+            return null;
         }
 
         private ByteBuf processRowsResult(ByteBuf buffer)
@@ -404,12 +409,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             }
         }
 
-        public ByteBuf handle(int opcode, ByteBuf buffer)
+        public ByteBuf handle(int opcode, ByteBuf buffer, int streamId)
         {
             switch (opcode)
             {
                 case SocketCode.ERROR:
-                    return this.error(buffer);
+                    return this.error(buffer, streamId);
                 case SocketCode.AUTHENTICATE:
                     return this.initializer.login();
                 case SocketCode.AUTH_SUCCESS:
@@ -419,7 +424,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                 case SocketCode.READY:
                     return this.initializer.onReady();
                 case SocketCode.RESULT:
-                    return this.processResultResponse(buffer);
+                    return this.processResultResponse(buffer, streamId);
                 default:
                     throw new UnsupportedOperationException("Unsupported opcode: " + opcode);
             }
@@ -436,29 +441,21 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             byte opcode = byteBuf.readByte();
             int length = byteBuf.readInt();
 
-            ByteBuf message = handle(opcode, byteBuf);
-            message.resetReaderIndex();
+            ByteBuf message = handle(opcode, byteBuf, streamId);
 
-            System.out.println(opcode);
-            System.out.println(ByteBufUtil.prettyHexDump(message));
+            ctx.writeAndFlush(message.retain());
 
-            if (opcode != 0x08) //NOT WORKING!
-            {
-                ctx.writeAndFlush(message.retain());
-            }
-
-            message.retain();
-            out.add(message);
+            byteBuf.resetReaderIndex();
+            out.add(byteBuf.retain());
         }
 
-        private ByteBuf error(ByteBuf buffer)
+        private ByteBuf error(ByteBuf buffer, int streamId)
         {
+            System.out.println(ByteBufUtil.prettyHexDump(buffer));
             int codeError = buffer.readInt();
             String message = buffer.readCharSequence(buffer.readUnsignedShort(), StandardCharsets.UTF_8).toString();
 
-            System.err.println(ErrorResponse.fromCode(codeError).name() + ": " + message);
-
-            return null;
+            throw new RuntimeException(streamId + " || " + ErrorResponse.fromCode(codeError).name() + ": " + message);
         }
     }
 
