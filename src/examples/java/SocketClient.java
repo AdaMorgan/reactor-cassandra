@@ -87,17 +87,20 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         cause.printStackTrace();
     }
 
-    private static final class Initializer extends ChannelInitializer<SocketChannel>
+    static final class Initializer extends ChannelInitializer<SocketChannel>
     {
         private final ChannelHandler handler;
         private final byte[] username;
         private final byte[] password;
+        private final CassandraExecuteExample prepare;
 
         public Initializer(ChannelHandler handler, String username, String password)
         {
             this.handler = handler;
             this.username = username.getBytes(StandardCharsets.UTF_8);
             this.password = password.getBytes(StandardCharsets.UTF_8);
+
+            this.prepare = new CassandraExecuteExample(this);
         }
 
         @Override
@@ -203,6 +206,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             buffer.writeInt(0);
 
             int bodyStartIndex = buffer.writerIndex();
+
             Writer.writeLongString(query, buffer);
             buffer.writeShort(0x0001);
             buffer.writeByte(0x00);
@@ -241,7 +245,9 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public ByteBuf onReady()
         {
-            return new CassandraExecuteExample().prepare(4, 0, "SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
+            return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
+
+            //return this.createQuery(0, "SELECT * FROM system.clients");
         }
     }
 
@@ -274,7 +280,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception
         {
-            if (queue.isEmpty() || isLast())
+            if (queue.isEmpty() || hasHeader(buffer, false))
             {
                 byte versionHeaderByte = buffer.readByte();
 
@@ -293,36 +299,62 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                 accumulatedBuffer.writeBytes(buffer);
 
                 this.queue.add(accumulatedBuffer);
+                buffer.resetReaderIndex();
+
+                processFullFrame(ctx, buffer, out);
             }
             else
             {
-                this.queue.getLast().writeBytes(buffer);
-            }
+                System.out.println(ByteBufUtil.prettyHexDump(buffer));
 
-            if (isLast())
+                ByteBuf last = this.queue.getLast().copy();
+                last.writeBytes(buffer);
+
+
+                buffer.resetReaderIndex();
+
+                if (hasHeader(buffer, true))
+                {
+                    processFullFrame(ctx, last, out);
+                }
+            }
+        }
+
+        public boolean hasHeader(ByteBuf byteBuf, boolean isDebug)
+        {
+            final int HEADER_LENGTH = 9;
+            final ByteBuf lastElement = this.queue.getLast();
+            final ByteBuf newElement = byteBuf.copy();
+            int opcode = lastElement.getByte(4);
+            int bodyLength = lastElement.getInt(5); // Читаем length (длина тела фрейма)
+
+            int flagsLast = lastElement.getShort(7);
+
+            // Проверяем флаги
+            boolean hasGlobalTablesSpec = (flagsLast & 0x0001) != 0;
+            boolean hasMorePages = (flagsLast & 0x0002) != 0;
+            boolean noMetadata = (flagsLast & 0x0004) != 0;
+
+            int flagsNew = newElement.getShort(7);
+            boolean hasMorePagesNew = (flagsNew & 0x0002) != 0;
+
+            //lastElement.setShort(7, flagsNew);
+
+            if (isDebug)
             {
-                ByteBuf fullFrame = this.queue.getLast();
-                processFullFrame(ctx, fullFrame, out);
+                if (opcode == 0x08)
+                {
+                    System.out.println("result: " + newElement.getInt(15));
+                }
+
+                System.out.println("Global_tables_spec: " + hasGlobalTablesSpec);
+                System.out.println("Has_more_pages: " + hasMorePages);
+                System.out.println("No_metadata: " + noMetadata);
+
+                System.out.println(ByteBufUtil.prettyHexDump(lastElement));
             }
-        }
 
-        public boolean isLast()
-        {
-            return isLast(false);
-        }
-
-        public boolean isLast(boolean state)
-        {
-            if (state)
-            {
-                System.out.println(this.queue.getLast().readableBytes() + ">=" + this.queue.getLast().getInt(5));
-            }
-            return !this.queue.isEmpty() && (this.queue.getLast().readableBytes() >= this.queue.getLast().getInt(5));
-        }
-
-        public boolean isLast(ByteBuf message)
-        {
-            return (message.readableBytes() >= message.getInt(5));
+            return !hasMorePages;
         }
 
         private ByteBuf processResultResponse(ByteBuf byteBuf, int streamId)
@@ -336,14 +368,14 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                     break;
                 case 0x0002:
                     System.out.println("Rows: for results to select queries, returning a set of rows.");
-                    return processRowsResult(byteBuf);
+                    new CQLResultReader().readMetadata(byteBuf);
+                    break;
                 case 0x0003:
                     System.out.println("Set_keyspace: the result to a `use` query.");
                     break;
                 case 0x0004:
                     System.out.println("Prepared: result to a PREPARE message.");
-                    System.out.println(ByteBufUtil.prettyHexDump(byteBuf));
-                    return new CassandraExecuteExample().execute(byteBuf, 0);
+                    return this.initializer.prepare.execute(byteBuf, 0);
                 case 0x0005:
                     System.out.println("Schema_change: the result to a schema altering query.");
                     break;
@@ -353,60 +385,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             }
 
             return null;
-        }
-
-        private ByteBuf processRowsResult(ByteBuf buffer)
-        {
-            int flags = buffer.readInt();
-            int columnsCount = buffer.readInt();
-
-            boolean globalTablesSpec = (flags & 0x01) != 0;
-
-            String message = buffer.readCharSequence(buffer.readUnsignedShort(), StandardCharsets.UTF_8).toString();
-
-            List<ColumnMetadata> columns = new ArrayList<>();
-
-            for (int i = 0; i < columnsCount; i++)
-            {
-                String keyspace = globalTablesSpec ? null : message;
-                String table = globalTablesSpec ? null : message;
-                int type = buffer.readUnsignedShort();
-                columns.add(new ColumnMetadata(keyspace, table, message, type));
-            }
-
-            //            int rowsCount = buffer.readInt();
-            //
-            //            for (int i = 0; i < rowsCount; i++)
-            //            {
-            //                for (ColumnMetadata column : columns)
-            //                {
-            //                    if (length >= 0)
-            //                    {
-            //                        if (column.type == Column.Type.INET)
-            //                        {
-            //
-            //                        }
-            //                    }
-            //                }
-            //            }
-
-            return this.queue.getLast();
-        }
-
-        public static class ColumnMetadata
-        {
-            public final String keyspace;
-            public final String table;
-            public final String name;
-            public final Column.Type type;
-
-            ColumnMetadata(String keyspace, String table, String name, int type)
-            {
-                this.keyspace = keyspace;
-                this.table = table;
-                this.name = name;
-                this.type = Column.Type.fromId(type);
-            }
         }
 
         public ByteBuf handle(int opcode, ByteBuf buffer, int streamId)
@@ -443,7 +421,10 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
             ByteBuf message = handle(opcode, byteBuf, streamId);
 
-            ctx.writeAndFlush(message.retain());
+            if (message != null)
+            {
+                ctx.writeAndFlush(message.retain());
+            }
 
             byteBuf.resetReaderIndex();
             out.add(byteBuf.retain());
@@ -451,7 +432,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         private ByteBuf error(ByteBuf buffer, int streamId)
         {
-            System.out.println(ByteBufUtil.prettyHexDump(buffer));
             int codeError = buffer.readInt();
             String message = buffer.readCharSequence(buffer.readUnsignedShort(), StandardCharsets.UTF_8).toString();
 
