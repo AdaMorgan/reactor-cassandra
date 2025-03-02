@@ -2,7 +2,6 @@ package com.datastax.api;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -276,36 +275,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
+        protected void decode(ChannelHandlerContext ctx, ByteBuf frame, List<Object> out) throws Exception
         {
-            if (this.queue.isEmpty())
-            {
-                this.processFullFrame(ctx, byteBuf.copy(), out);
-                this.queue.addLast(byteBuf.copy());
-            }
-            else
-            {
-                ByteBuf lastElement = queue.getLast();
-
-                int length = lastElement.getInt(5);
-
-                System.out.println(ByteBufUtil.prettyHexDump(lastElement));
-                System.out.println(lastElement.readableBytes() + byteBuf.readableBytes() + " != " + (length + 9));
-
-                if (lastElement.readableBytes() + byteBuf.readableBytes() == length + 9)
-                {
-                    queue.addLast(byteBuf);
-                    decode(ctx, byteBuf, out);
-                }
-                else
-                {
-                    byteBuf.resetReaderIndex();
-                    queue.addLast(byteBuf);
-                    processFullFrame(ctx, byteBuf.copy(), out);
-                }
-            }
+            this.queue.addLast(frame);
+            processFullFrame(ctx, frame, out);
         }
-
 
         private ByteBuf processResultResponse(ByteBuf byteBuf, int streamId)
         {
