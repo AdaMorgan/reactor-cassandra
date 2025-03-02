@@ -1,5 +1,5 @@
-import com.datastax.internal.requests.ErrorResponse;
-import com.datastax.internal.requests.SocketCode;
+package com.datastax.api;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -92,7 +92,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         private final ChannelHandler handler;
         private final byte[] username;
         private final byte[] password;
-        private final CassandraExecuteExample prepare;
 
         public Initializer(ChannelHandler handler, String username, String password)
         {
@@ -100,7 +99,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             this.username = username.getBytes(StandardCharsets.UTF_8);
             this.password = password.getBytes(StandardCharsets.UTF_8);
 
-            this.prepare = new CassandraExecuteExample(this);
         }
 
         @Override
@@ -182,8 +180,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             ArrayList<String> list = new ArrayList<>();
 
             list.add("SCHEMA_CHANGE");
-            //list.add("TOPOLOGY_CHANGE");
-            //list.add("STATUS_CHANGE");
+            list.add("TOPOLOGY_CHANGE");
+            list.add("STATUS_CHANGE");
 
             ByteBuf body = Unpooled.buffer();
             Writer.writeStringList(list, body);
@@ -245,9 +243,9 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
         public ByteBuf onReady()
         {
-            return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
+            //return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
 
-            //return this.createQuery(0, "SELECT * FROM system.clients");
+            return this.createQuery(0, "SELECT * FROM system.clients");
         }
     }
 
@@ -278,84 +276,36 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception
+        protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
         {
-            if (queue.isEmpty() || hasHeader(buffer, false))
+            if (this.queue.isEmpty())
             {
-                byte versionHeaderByte = buffer.readByte();
-
-                byte flags = buffer.readByte();
-                short streamId = buffer.readShort();
-                byte opcode = buffer.readByte();
-                int length = buffer.readInt();
-
-                ByteBuf accumulatedBuffer = Unpooled.buffer(length);
-
-                accumulatedBuffer.writeByte(versionHeaderByte);
-                accumulatedBuffer.writeByte(flags);
-                accumulatedBuffer.writeShort(streamId);
-                accumulatedBuffer.writeByte(opcode);
-                accumulatedBuffer.writeInt(length);
-                accumulatedBuffer.writeBytes(buffer);
-
-                this.queue.add(accumulatedBuffer);
-                buffer.resetReaderIndex();
-
-                processFullFrame(ctx, buffer, out);
+                this.processFullFrame(ctx, byteBuf.copy(), out);
+                this.queue.addLast(byteBuf.copy());
             }
             else
             {
-                System.out.println(ByteBufUtil.prettyHexDump(buffer));
+                ByteBuf lastElement = queue.getLast();
 
-                ByteBuf last = this.queue.getLast().copy();
-                last.writeBytes(buffer);
-
-
-                buffer.resetReaderIndex();
-
-                if (hasHeader(buffer, true))
-                {
-                    processFullFrame(ctx, last, out);
-                }
-            }
-        }
-
-        public boolean hasHeader(ByteBuf byteBuf, boolean isDebug)
-        {
-            final int HEADER_LENGTH = 9;
-            final ByteBuf lastElement = this.queue.getLast();
-            final ByteBuf newElement = byteBuf.copy();
-            int opcode = lastElement.getByte(4);
-            int bodyLength = lastElement.getInt(5); // Читаем length (длина тела фрейма)
-
-            int flagsLast = lastElement.getShort(7);
-
-            // Проверяем флаги
-            boolean hasGlobalTablesSpec = (flagsLast & 0x0001) != 0;
-            boolean hasMorePages = (flagsLast & 0x0002) != 0;
-            boolean noMetadata = (flagsLast & 0x0004) != 0;
-
-            int flagsNew = newElement.getShort(7);
-            boolean hasMorePagesNew = (flagsNew & 0x0002) != 0;
-
-            //lastElement.setShort(7, flagsNew);
-
-            if (isDebug)
-            {
-                if (opcode == 0x08)
-                {
-                    System.out.println("result: " + newElement.getInt(15));
-                }
-
-                System.out.println("Global_tables_spec: " + hasGlobalTablesSpec);
-                System.out.println("Has_more_pages: " + hasMorePages);
-                System.out.println("No_metadata: " + noMetadata);
+                int length = lastElement.getInt(5);
 
                 System.out.println(ByteBufUtil.prettyHexDump(lastElement));
-            }
+                System.out.println(lastElement.readableBytes() + byteBuf.readableBytes() + " != " + (length + 9));
 
-            return !hasMorePages;
+                if (lastElement.readableBytes() + byteBuf.readableBytes() == length + 9)
+                {
+                    queue.addLast(byteBuf);
+                    decode(ctx, byteBuf, out);
+                }
+                else
+                {
+                    byteBuf.resetReaderIndex();
+                    queue.addLast(byteBuf);
+                    processFullFrame(ctx, byteBuf.copy(), out);
+                }
+            }
         }
+
 
         private ByteBuf processResultResponse(ByteBuf byteBuf, int streamId)
         {
@@ -368,14 +318,13 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                     break;
                 case 0x0002:
                     System.out.println("Rows: for results to select queries, returning a set of rows.");
-                    new CQLResultReader().readMetadata(byteBuf);
                     break;
                 case 0x0003:
                     System.out.println("Set_keyspace: the result to a `use` query.");
                     break;
                 case 0x0004:
                     System.out.println("Prepared: result to a PREPARE message.");
-                    return this.initializer.prepare.execute(byteBuf, 0);
+                    break;
                 case 0x0005:
                     System.out.println("Schema_change: the result to a schema altering query.");
                     break;
@@ -408,7 +357,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             }
         }
 
-        private void processFullFrame(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out)
+        public void processFullFrame(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out)
         {
             byte versionHeaderByte = byteBuf.readByte();
             int version = (256 + versionHeaderByte) & 0x7F;
@@ -423,7 +372,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
             if (message != null)
             {
-                ctx.writeAndFlush(message.retain());
+                ctx.writeAndFlush(message);
             }
 
             byteBuf.resetReaderIndex();

@@ -1,12 +1,10 @@
+package com.datastax.api;
+
 import java.io.Serializable;
-import java.util.LinkedList;
-import java.util.Queue;
 
 public interface Column
 {
     String getName();
-
-    Type getType();
 
     enum Type implements Serializable
     {

@@ -1,4 +1,4 @@
-package com.datastax.internal.utils;
+package com.datastax.api;
 
 import org.slf4j.Marker;
 import org.slf4j.event.Level;

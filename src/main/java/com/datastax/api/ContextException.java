@@ -1,7 +1,4 @@
-package com.datastax.api.exceptions;
-
-
-import com.datastax.internal.utils.Helpers;
+package com.datastax.api;
 
 import java.util.function.Consumer;
 

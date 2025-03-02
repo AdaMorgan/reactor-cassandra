@@ -1,3 +1,5 @@
+package com.datastax.api;
+
 import io.netty.buffer.ByteBuf;
 
 public class ColumnImpl implements Column
@@ -15,11 +17,5 @@ public class ColumnImpl implements Column
     public String getName()
     {
         return this.name;
-    }
-
-    @Override
-    public Type getType()
-    {
-        return Column.Type.fromId(this.type);
     }
 }

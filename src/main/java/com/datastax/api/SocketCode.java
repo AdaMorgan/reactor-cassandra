@@ -1,4 +1,4 @@
-package com.datastax.internal.requests;
+package com.datastax.api;
 
 public final class SocketCode
 {

@@ -1,4 +1,4 @@
-package com.datastax.internal.utils;
+package com.datastax.api;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ public class CustomLogger
         try
         {
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            Class<?> fallbackLoggerClass = Class.forName("com.datastax.internal.utils.FallbackLogger");
+            Class<?> fallbackLoggerClass = Class.forName("com.datastax.api.FallbackLogger");
             constructor = lookup.findConstructor(fallbackLoggerClass, MethodType.methodType(void.class, String.class));
         }
         catch (
@@ -141,7 +141,7 @@ public class CustomLogger
         logger.warn("Using fallback logger due to missing SLF4J implementation.");
         logger.warn("Please setup a logging framework.");
         logger.warn("You can use logging setup guide https://logback.qos.ch/manual/configuration.html");
-        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use CustomLogger.setFallbackLoggerEnabled(false)");
+        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use com.datastax.api.CustomLogger.setFallbackLoggerEnabled(false)");
     }
 
     private static Logger newFallbackLogger(String name)
