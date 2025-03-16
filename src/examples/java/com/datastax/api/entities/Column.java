@@ -1,4 +1,6 @@
-package com.datastax.api;
+package com.datastax.api.entities;
+
+import com.datastax.api.CustomInfo;
 
 import java.io.Serializable;
 

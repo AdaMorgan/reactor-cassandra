@@ -8,7 +8,8 @@ plugins {
 }
 
 group = "reactor-cassandra"
-val javaVersion = JavaVersion.current()
+
+val javaVersion = JavaVersion.VERSION_1_8
 
 repositories {
     mavenCentral()
@@ -39,8 +40,6 @@ dependencies {
 
     //Collections Utility
     api(libs.commons.collections)
-
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.10.1")
 
     //General Utility
     implementation(libs.trove4j)

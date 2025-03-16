@@ -1,5 +1,8 @@
 package com.datastax.api;
 
+import com.datastax.api.exceptions.ErrorResponse;
+import com.datastax.internal.requests.SocketCode;
+import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -150,7 +153,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
             buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.STARTUP);
+            buffer.writeByte(com.datastax.internal.requests.SocketCode.STARTUP);
 
             Map<String, String> options = new HashMap<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
@@ -177,7 +180,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
             buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.REGISTER);
+            buffer.writeByte(com.datastax.internal.requests.SocketCode.REGISTER);
 
             ArrayList<String> list = new ArrayList<>();
 
@@ -194,29 +197,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             return buffer;
         }
 
-        public ByteBuf createQuery(int streamId, String query)
-        {
-            ByteBuf buffer = Unpooled.buffer();
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(isStreamId.apply(streamId));
-            buffer.writeByte(SocketCode.QUERY);
-            int bodyLengthIndex = buffer.writerIndex();
-            buffer.writeInt(0);
-
-            int bodyStartIndex = buffer.writerIndex();
-
-            Writer.writeLongString(query, buffer);
-            buffer.writeShort(0x0001);
-            buffer.writeByte(0x00);
-
-            int bodyLength = buffer.writerIndex() - bodyStartIndex;
-            buffer.setInt(bodyLengthIndex, bodyLength);
-
-            return buffer;
-        }
-
         public ByteBuf createMessageOptions()
         {
             ByteBuf buffer = Unpooled.buffer();
@@ -224,7 +204,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
             buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.OPTIONS);
+            buffer.writeByte(com.datastax.internal.requests.SocketCode.OPTIONS);
 
             buffer.writeInt(0);
 
@@ -243,7 +223,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             return initialToken.array();
         }
 
-        public void onReady()
+        public void ready()
         {
             //return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
 
@@ -319,16 +299,16 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
         {
             switch (opcode)
             {
-                case SocketCode.ERROR:
+                case com.datastax.internal.requests.SocketCode.ERROR:
                     return this.error(buffer, streamId);
-                case SocketCode.AUTHENTICATE:
+                case com.datastax.internal.requests.SocketCode.AUTHENTICATE:
                     return this.initializer.login();
-                case SocketCode.AUTH_SUCCESS:
+                case com.datastax.internal.requests.SocketCode.AUTH_SUCCESS:
                     return this.initializer.createMessageOptions();
-                case SocketCode.SUPPORTED:
+                case com.datastax.internal.requests.SocketCode.SUPPORTED:
                     return this.initializer.registerMessage();
-                case SocketCode.READY:
-                    this.initializer.onReady();
+                case com.datastax.internal.requests.SocketCode.READY:
+                    this.initializer.ready();
                     return null;
                 case SocketCode.RESULT:
                     return this.processResultResponse(buffer);
