@@ -1,4 +1,4 @@
-package com.datastax.api;
+package com.datastax.internal.utils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.ServiceLoader;
 
 /**
- * This class serves as a LoggerFactory for Library internals.
- * <br>It will either return a Logger from a SLF4J implementation via {@link org.slf4j.LoggerFactory} if present,
+ * This class serves as a LoggerFactory for {@link com.datastax.api.Library} internals.
+ * <br>It will either return a Logger from a SLF4J implementation via {@link LoggerFactory} if present,
  * or an instance of a custom {@link FallbackLogger}.
  * <p>
  * It also has the utility method {@link #getLazyString(LazyEvaluation)} which is used to lazily construct Strings for Logging.
@@ -34,7 +34,7 @@ public class CustomLogger
 
     /**
      * Whether an implementation of {@link SLF4JServiceProvider} was found.
-     * <br>If false, Library will use its fallback logger.
+     * <br>If false, {@link com.datastax.api.Library} will use its fallback logger.
      *
      * <p>The fallback logger can be disabled with {@link #setFallbackLoggerEnabled(boolean)}
      * or using the system property {@value #DISABLE_FALLBACK_PROPERTY_NAME}.
@@ -64,7 +64,7 @@ public class CustomLogger
         try
         {
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            Class<?> fallbackLoggerClass = Class.forName("com.datastax.api.FallbackLogger");
+            Class<?> fallbackLoggerClass = Class.forName("com.datastax.internal.utils.FallbackLogger");
             constructor = lookup.findConstructor(fallbackLoggerClass, MethodType.methodType(void.class, String.class));
         }
         catch (
@@ -94,7 +94,7 @@ public class CustomLogger
     }
 
     /**
-     * Will get the {@link org.slf4j.Logger} with the given log-name
+     * Will get the {@link Logger} with the given log-name
      * or create and cache a fallback logger if there is no SLF4J implementation present.
      * <p>
      * The fallback logger uses a constant logging configuration and prints directly to {@link System#err}.
@@ -115,7 +115,7 @@ public class CustomLogger
     }
 
     /**
-     * Will get the {@link org.slf4j.Logger} for the given Class
+     * Will get the {@link Logger} for the given Class
      * or create and cache a fallback logger if there is no SLF4J implementation present.
      * <p>
      * The fallback logger uses a constant logging configuration and prints directly to {@link System#err}.
@@ -141,7 +141,7 @@ public class CustomLogger
         logger.warn("Using fallback logger due to missing SLF4J implementation.");
         logger.warn("Please setup a logging framework.");
         logger.warn("You can use logging setup guide https://logback.qos.ch/manual/configuration.html");
-        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use com.datastax.api.CustomLogger.setFallbackLoggerEnabled(false)");
+        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use com.datastax.internal.utils.CustomLogger.setFallbackLoggerEnabled(false)");
     }
 
     private static Logger newFallbackLogger(String name)

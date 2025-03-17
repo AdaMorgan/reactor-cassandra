@@ -1,5 +1,8 @@
-package com.datastax.api;
+package com.datastax.test;
 
+import com.datastax.api.exceptions.ErrorResponse;
+import com.datastax.internal.requests.SocketCode;
+import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -11,14 +14,13 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.util.CharsetUtil;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.Function;
 
-public class SocketClient extends ChannelInboundHandlerAdapter implements Runnable
+public class SocketClient extends ChannelInboundHandlerAdapter
 {
     public static final Logger LOG = CustomLogger.getLog(SocketClient.class);
 
@@ -28,18 +30,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
     private static final int PORT = 9042;
     private final Initializer initializer;
     private final Bootstrap handler;
-
-    private static final Function<Integer, Integer> isStreamId = (id) ->
-    {
-        if (id < 32768)
-        {
-            return id;
-        }
-        else
-        {
-            throw new IllegalArgumentException("Invalid stream id: " + id);
-        }
-    };
 
     public SocketClient()
     {
@@ -55,11 +45,10 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
 
     public static void main(String[] args)
     {
-        new SocketClient().run();
+        new SocketClient().connect();
     }
 
-    @Override
-    public void run()
+    public synchronized void connect()
     {
         handler.connect(HOST, PORT);
     }
@@ -79,7 +68,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
     }
 
     @Override
-    public void channelInactive(@NotNull ChannelHandlerContext ctx) throws Exception
+    public void channelInactive(@Nonnull ChannelHandlerContext ctx) throws Exception
     {
 
     }
@@ -135,7 +124,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             buffer.writeByte(PROTOCOL_VERSION);
             buffer.writeByte(0x00);
             buffer.writeShort(0x00);
-            buffer.writeByte(0x0F);
+            buffer.writeByte(SocketCode.AUTH_RESPONSE);
 
             buffer.writeInt(initialToken.length);
             buffer.writeBytes(initialToken);
@@ -194,29 +183,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             return buffer;
         }
 
-        public ByteBuf createQuery(int streamId, String query)
-        {
-            ByteBuf buffer = Unpooled.buffer();
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(isStreamId.apply(streamId));
-            buffer.writeByte(SocketCode.QUERY);
-            int bodyLengthIndex = buffer.writerIndex();
-            buffer.writeInt(0);
-
-            int bodyStartIndex = buffer.writerIndex();
-
-            Writer.writeLongString(query, buffer);
-            buffer.writeShort(0x0001);
-            buffer.writeByte(0x00);
-
-            int bodyLength = buffer.writerIndex() - bodyStartIndex;
-            buffer.setInt(bodyLengthIndex, bodyLength);
-
-            return buffer;
-        }
-
         public ByteBuf createMessageOptions()
         {
             ByteBuf buffer = Unpooled.buffer();
@@ -243,13 +209,14 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
             return initialToken.array();
         }
 
-        public void onReady()
+        public ByteBuf ready()
         {
             //return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
 
             //return this.createQuery(0, "SELECT * FROM system.clients");
 
             LOG.info("Finished Loading!");
+            return null;
         }
     }
 
@@ -328,8 +295,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter implements Runnab
                 case SocketCode.SUPPORTED:
                     return this.initializer.registerMessage();
                 case SocketCode.READY:
-                    this.initializer.onReady();
-                    return null;
+                    return this.initializer.ready();
                 case SocketCode.RESULT:
                     return this.processResultResponse(buffer);
                 default:

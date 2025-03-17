@@ -10,4 +10,9 @@ public final class Helpers
         t.initCause(cause);
         return throwable;
     }
+
+    public static int codePointLength(final CharSequence string)
+    {
+        return (int) string.codePoints().count();
+    }
 }
