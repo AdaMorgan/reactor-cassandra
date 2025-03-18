@@ -1,9 +1,10 @@
-import com.datastax.LibraryBuilder;
+import com.datastax.api.LibraryBuilder;
 import com.datastax.api.Library;
 import com.datastax.api.events.GenericEvent;
 import com.datastax.api.events.StatusChangeEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.test.SocketClient;
 
 import javax.annotation.Nonnull;
 
@@ -11,14 +12,16 @@ public final class SessionLoggerExample extends ListenerAdapter
 {
     public static void main(String[] args)
     {
-        Library api = LibraryBuilder.createLight()
+        LibraryImpl api = LibraryBuilder.createLight()
                 .addEventListeners(new SessionLoggerExample())
                 .build();
+
+        new SocketClient(api).connect();
     }
 
     @Override
-    public void onStatusChangeEvent(@Nonnull StatusChangeEvent event)
+    public void onStatusChange(@Nonnull StatusChangeEvent event)
     {
-        LibraryImpl.LOG.info("{} -> {}", event.getOldValue(), event.getNewValue());
+        LibraryImpl.LOG.info("{} -> {}", event.getOldStatus(), event.getNewStatus());
     }
 }

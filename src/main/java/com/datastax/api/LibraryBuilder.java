@@ -1,6 +1,6 @@
-package com.datastax;
+package com.datastax.api;
 
-import com.datastax.api.hooks.EventListener;
+import com.datastax.api.hooks.IEventManager;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.utils.Checks;
@@ -10,7 +10,9 @@ import io.netty.buffer.Unpooled;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -22,6 +24,8 @@ public class LibraryBuilder
     private final String username;
     private final String password;
     private final int intents;
+
+    protected IEventManager eventManager = null;
 
     private LibraryBuilder(String username, String password, int intents)
     {
@@ -61,6 +65,28 @@ public class LibraryBuilder
         return new LibraryBuilder(username, password, intents);
     }
 
+    /**
+     * Changes the internally used EventManager.
+     * <br>There are 2 provided Implementations:
+     * <ul>
+     *     <li>{@link com.datastax.api.hooks.InterfacedEventManager InterfacedEventManager} which uses the Interface
+     *     {@link com.datastax.api.hooks.EventListener EventListener} (tip: use the {@link ListenerAdapter ListenerAdapter}).
+     *     <br>This is the default EventManager.</li>
+     * </ul>
+     * <br>You can also create your own EventManager (See {@link IEventManager}).
+     *
+     * @param  manager
+     *         The new {@link IEventManager} to use.
+     *
+     * @return The {@link LibraryBuilder} instance. Useful for chaining.
+     */
+    @Nonnull
+    public LibraryBuilder setEventManager(@Nullable IEventManager manager)
+    {
+        this.eventManager = manager;
+        return this;
+    }
+
     @Nonnull
     public LibraryBuilder addEventListeners(@Nonnull ListenerAdapter... listeners)
     {
@@ -89,6 +115,11 @@ public class LibraryBuilder
         byte[] token = initialResponse();
         ThreadingConfig config = new ThreadingConfig();
 
-        return new LibraryImpl(token, config);
+        LibraryImpl library = new LibraryImpl(token, config, eventManager);
+
+        listeners.forEach(library::addEventListener);
+        library.setStatus(Library.Status.INITIALIZED);
+
+        return library;
     }
 }

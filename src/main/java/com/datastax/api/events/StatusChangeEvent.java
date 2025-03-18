@@ -26,6 +26,28 @@ public class StatusChangeEvent extends Event implements UpdateEvent<Library, Lib
         this.oldStatus = oldStatus;
     }
 
+    /**
+     * The status that we changed to
+     *
+     * @return The new status
+     */
+    @Nonnull
+    public Library.Status getNewStatus()
+    {
+        return newStatus;
+    }
+
+    /**
+     * The previous status
+     *
+     * @return The previous status
+     */
+    @Nonnull
+    public Library.Status getOldStatus()
+    {
+        return oldStatus;
+    }
+
     @Nonnull
     @Override
     public String getPropertyIdentifier()

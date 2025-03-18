@@ -21,7 +21,7 @@ public class ListenerAdapter implements EventListener
     public void onGenericEvent(@Nonnull GenericEvent event) {}
     public void onGenericUpdate(@Nonnull UpdateEvent<?, ?> event) {}
 
-    public void onStatusChangeEvent(@Nonnull StatusChangeEvent event) {}
+    public void onStatusChange(@Nonnull StatusChangeEvent event) {}
 
     private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
     private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();
@@ -78,6 +78,7 @@ public class ListenerAdapter implements EventListener
         try
         {
             name = "on" + name.substring(0, name.length() - "Event".length());
+
             return lookup.findVirtual(ListenerAdapter.class, name, type);
         }
         catch (NoSuchMethodException | IllegalAccessException ignored) // this means this is probably a custom event!

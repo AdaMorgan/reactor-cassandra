@@ -1,6 +1,8 @@
 package com.datastax.test;
 
+import com.datastax.api.Library;
 import com.datastax.api.exceptions.ErrorResponse;
+import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
@@ -16,7 +18,6 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 
-import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -30,22 +31,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final int PORT = 9042;
     private final Initializer initializer;
     private final Bootstrap handler;
+    private final LibraryImpl library;
 
-    public SocketClient()
+    public SocketClient(LibraryImpl library)
     {
         NioEventLoopGroup group = new NioEventLoopGroup();
 
+        this.library = library;
         this.initializer = new Initializer(this, "cassandra", "cassandra");
-
         this.handler = new Bootstrap().group(group)
                 .channel(NioSocketChannel.class)
                 .handler(this.initializer)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
-    }
-
-    public static void main(String[] args)
-    {
-        new SocketClient().connect();
     }
 
     public synchronized void connect()
@@ -54,23 +51,17 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     }
 
     @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception
+    {
+        this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
+    }
+
+    @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception
     {
         ByteBuf startup = this.initializer.createStartupMessage();
-
+        this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
         ctx.writeAndFlush(startup.retain());
-    }
-
-    @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception
-    {
-
-    }
-
-    @Override
-    public void channelInactive(@Nonnull ChannelHandlerContext ctx) throws Exception
-    {
-
     }
 
     @Override
@@ -81,13 +72,13 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
     static final class Initializer extends ChannelInitializer<SocketChannel>
     {
-        private final ChannelHandler handler;
+        private final SocketClient client;
         private final byte[] username;
         private final byte[] password;
 
-        public Initializer(ChannelHandler handler, String username, String password)
+        public Initializer(SocketClient client, String username, String password)
         {
-            this.handler = handler;
+            this.client = client;
             this.username = username.getBytes(StandardCharsets.UTF_8);
             this.password = password.getBytes(StandardCharsets.UTF_8);
         }
@@ -100,7 +91,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             channel.pipeline().addLast(new MessageDecoder(this));
             channel.pipeline().addLast(new MessageEncoder(this));
 
-            channel.pipeline().addLast(this.handler);
+            channel.pipeline().addLast(this.client);
         }
 
         private static final String CQL_VERSION_OPTION = "CQL_VERSION";
@@ -128,6 +119,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
             buffer.writeInt(initialToken.length);
             buffer.writeBytes(initialToken);
+
+            this.client.library.setStatus(Library.Status.LOGGING_IN);
 
             return buffer;
         }
@@ -180,6 +173,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             buffer.writeInt(body.readableBytes());
             buffer.writeBytes(body);
 
+            this.client.library.setStatus(Library.Status.AWAITING_LOGIN_CONFIRMATION);
             return buffer;
         }
 
@@ -214,7 +208,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             //return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
 
             //return this.createQuery(0, "SELECT * FROM system.clients");
-
+            this.client.library.setStatus(Library.Status.CONNECTED);
             LOG.info("Finished Loading!");
             return null;
         }
@@ -239,11 +233,13 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
     {
         private final Initializer initializer;
+        private final LibraryImpl api;
         private final LinkedList<ByteBuf> queue = new LinkedList<>();
 
         public MessageDecoder(Initializer initializer)
         {
             this.initializer = initializer;
+            this.api = initializer.client.library;
         }
 
         @Override
