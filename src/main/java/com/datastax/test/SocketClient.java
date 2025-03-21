@@ -3,6 +3,7 @@ package com.datastax.test;
 import com.datastax.api.Library;
 import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.internal.entities.EntityBuilder;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
@@ -25,7 +26,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 {
     public static final Logger LOG = CustomLogger.getLog(SocketClient.class);
 
-    private static final int PROTOCOL_VERSION = 0x04;
+    private static final byte PROTOCOL_VERSION = 0x04;
 
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 9042;
@@ -110,30 +111,20 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         public ByteBuf login()
         {
             byte[] initialToken = initialResponse();
-            ByteBuf buffer = Unpooled.buffer(initialToken.length);
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.AUTH_RESPONSE);
-
-            buffer.writeInt(initialToken.length);
-            buffer.writeBytes(initialToken);
 
             this.client.library.setStatus(Library.Status.LOGGING_IN);
 
-            return buffer;
+            return new EntityBuilder()
+                    .writeByte(PROTOCOL_VERSION)
+                    .writeByte(0x00)
+                    .writeShort(0x00)
+                    .writeByte(SocketCode.AUTH_RESPONSE)
+                    .writeBytes(initialToken)
+                    .asByteBuf();
         }
 
         public ByteBuf createStartupMessage()
         {
-            ByteBuf buffer = Unpooled.buffer();
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.STARTUP);
-
             Map<String, String> options = new HashMap<>();
             options.put(CQL_VERSION_OPTION, CQL_VERSION);
 
@@ -143,52 +134,38 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             options.put(DRIVER_VERSION_OPTION, DRIVER_VERSION);
             options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
 
-            ByteBuf body = Unpooled.buffer();
-            Writer.writeStringMap(options, body);
-
-            buffer.writeInt(body.readableBytes());
-            buffer.writeBytes(body);
-
-            return buffer;
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
+                    .writeByte(0x00)
+                    .writeShort(0x00)
+                    .writeByte(SocketCode.STARTUP)
+                    .writeStringMap(options)
+                    //.writeStringEntry(CQL_VERSION_OPTION, CQL_VERSION)
+                    //.writeStringEntry(DRIVER_VERSION_OPTION, DRIVER_VERSION)
+                    //.writeStringEntry(DRIVER_NAME_OPTION, DRIVER_NAME)
+                    .asByteBuf();
         }
 
         public ByteBuf registerMessage()
         {
-            ByteBuf buffer = Unpooled.buffer();
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.REGISTER);
-
-            ArrayList<String> list = new ArrayList<>();
-
-            list.add("SCHEMA_CHANGE");
-            list.add("TOPOLOGY_CHANGE");
-            list.add("STATUS_CHANGE");
-
-            ByteBuf body = Unpooled.buffer();
-            Writer.writeStringList(list, body);
-
-            buffer.writeInt(body.readableBytes());
-            buffer.writeBytes(body);
-
             this.client.library.setStatus(Library.Status.AWAITING_LOGIN_CONFIRMATION);
-            return buffer;
+
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
+                    .writeByte(0x00)
+                    .writeShort(0x00)
+                    .writeByte(SocketCode.REGISTER)
+                    .writeString("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
+                    .asByteBuf();
         }
 
         public ByteBuf createMessageOptions()
         {
-            ByteBuf buffer = Unpooled.buffer();
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.OPTIONS);
-
-            buffer.writeInt(0);
-
-            return buffer;
+            return new EntityBuilder()
+                    .writeByte(PROTOCOL_VERSION)
+                    .writeByte(0x00)
+                    .writeShort(0x00)
+                    .writeByte(SocketCode.OPTIONS)
+                    .writeInt(0)
+                    .asByteBuf();
         }
 
         public byte[] initialResponse()
@@ -342,24 +319,10 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             }
         }
 
-        public static void writeStringList(List<String> list, ByteBuf cb)
-        {
-            cb.writeShort(list.size());
-            list.forEach(element -> writeString(element, cb));
-        }
-
         public static void writeString(String str, ByteBuf cb)
         {
             byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
             cb.writeShort(bytes.length);
-            cb.writeBytes(bytes);
-        }
-
-        public static void writeLongString(String str, ByteBuf cb)
-        {
-            byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
-
-            cb.writeInt(bytes.length);
             cb.writeBytes(bytes);
         }
     }
