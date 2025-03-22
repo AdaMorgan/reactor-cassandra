@@ -16,11 +16,16 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
@@ -159,7 +164,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     .asByteBuf();
         }
 
-        public ByteBuf testBuf() {
+        public ByteBuf query() {
             String query = "SELECT * FROM system.clients";
             byte[] queryBytes = query.getBytes(StandardCharsets.UTF_8);
 
@@ -188,7 +193,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.client.library.setStatus(Library.Status.CONNECTED);
             LOG.info("Finished Loading!");
 
-            return null;
+            return query();
         }
     }
 
@@ -221,47 +226,46 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, ByteBuf frame, List<Object> out) throws Exception
+        protected void decode(ChannelHandlerContext context, ByteBuf frame, List<Object> out) throws Exception
         {
             this.queue.addLast(frame);
-            processFullFrame(ctx, frame, out);
+            processFullFrame(context, frame);
         }
 
-        private ByteBuf processResultResponse(ByteBuf buffer)
+        public ByteBuf handle(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
         {
-            int kind = buffer.readInt();
+            Supplier<ByteBuf> result = () -> {
+                int kind = buffer.readInt();
 
-            switch (kind)
-            {
-                case 0x0001:
-                    System.out.println("Void: for results carrying no information.");
-                    break;
-                case 0x0002:
-                    System.out.println("Rows: for results to select queries, returning a set of rows.");
-                    break;
-                case 0x0003:
-                    System.out.println("Set_keyspace: the result to a `use` query.");
-                    break;
-                case 0x0004:
-                    System.out.println("Prepared: result to a PREPARE message.");
-                    break;
-                case 0x0005:
-                    System.out.println("Schema_change: the result to a schema altering query.");
-                    break;
-                default:
-                    System.out.println("Received unknown result type: " + kind);
-                    break;
-            }
+                switch (kind)
+                {
+                    case 0x0001:
+                        System.out.println("Void: for results carrying no information.");
+                        break;
+                    case 0x0002:
+                        System.out.println("Rows: for results to select queries, returning a set of rows.");
+                        break;
+                    case 0x0003:
+                        System.out.println("Set_keyspace: the result to a `use` query.");
+                        break;
+                    case 0x0004:
+                        System.out.println("Prepared: result to a PREPARE message.");
+                        break;
+                    case 0x0005:
+                        System.out.println("Schema_change: the result to a schema altering query.");
+                        break;
+                    default:
+                        System.out.println("Received unknown result type: " + kind);
+                        break;
+                }
 
-            return null;
-        }
+                return null;
+            };
 
-        public ByteBuf handle(int opcode, ByteBuf buffer, int streamId)
-        {
             switch (opcode)
             {
                 case SocketCode.ERROR:
-                    return this.error(buffer, streamId);
+                    return this.error(buffer);
                 case SocketCode.AUTHENTICATE:
                     return this.initializer.login();
                 case SocketCode.AUTH_SUCCESS:
@@ -271,40 +275,37 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                 case SocketCode.READY:
                     return this.initializer.ready();
                 case SocketCode.RESULT:
-                    return this.processResultResponse(buffer);
+                    return result.get();
                 default:
                     return null;
             }
         }
 
-        public void processFullFrame(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out)
+        public void processFullFrame(ChannelHandlerContext context, ByteBuf buffer)
         {
-            byte versionHeaderByte = byteBuf.readByte();
-            int version = (256 + versionHeaderByte) & 0x7F;
-            boolean isResponse = ((256 + versionHeaderByte) & 0x80) != 0;
+            byte versionHeader = buffer.readByte();
 
-            byte flags = byteBuf.readByte();
-            short streamId = byteBuf.readShort();
-            byte opcode = byteBuf.readByte();
-            int length = byteBuf.readInt();
+            int version = (256 + versionHeader) & 0x7F;
+            boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
 
-            ByteBuf message = handle(opcode, byteBuf, streamId);
+            byte flags = buffer.readByte();
+            short streamId = buffer.readShort();
+            byte opcode = buffer.readByte();
+            int length = buffer.readInt();
+
+            ByteBuf message = handle(version, isResponse, flags, streamId, opcode, length, buffer);
 
             if (message != null)
             {
-                ctx.writeAndFlush(message);
+                context.writeAndFlush(message);
             }
 
-            byteBuf.resetReaderIndex();
-            out.add(byteBuf.retain());
+            buffer.resetReaderIndex();
         }
 
-        private ByteBuf error(ByteBuf buffer, int streamId)
+        private ByteBuf error(ByteBuf buffer)
         {
-            int codeError = buffer.readInt();
-            String message = buffer.readCharSequence(buffer.readUnsignedShort(), StandardCharsets.UTF_8).toString();
-
-            throw new RuntimeException(streamId + " || " + ErrorResponse.fromCode(codeError).name() + ": " + message);
+            return null;
         }
     }
 }

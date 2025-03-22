@@ -8,6 +8,8 @@ import io.netty.buffer.ByteBufUtil;
 
 public class SocketClient
 {
+    public static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
+
     protected abstract class ConnectNode implements SessionController.SessionConnectNode
     {
         protected final Library api;
