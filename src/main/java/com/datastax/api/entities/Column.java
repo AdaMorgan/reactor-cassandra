@@ -8,6 +8,8 @@ public interface Column
 {
     String getName();
 
+    Type getType();
+
     enum Type implements Serializable
     {
         UNKNOWN(0x0000),

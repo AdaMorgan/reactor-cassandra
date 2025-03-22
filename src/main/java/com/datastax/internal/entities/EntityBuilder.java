@@ -1,13 +1,14 @@
 package com.datastax.internal.entities;
 
-import com.datastax.test.SocketClient;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 
-import java.util.List;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public final class EntityBuilder
 {
@@ -15,7 +16,12 @@ public final class EntityBuilder
 
     public EntityBuilder()
     {
-        this.buffer = Unpooled.buffer();
+        this(-1);
+    }
+
+    public EntityBuilder(int initialCapacity)
+    {
+        this.buffer = initialCapacity != -1 ? Unpooled.buffer(initialCapacity) : Unpooled.buffer();
     }
 
     public EntityBuilder writeByte(byte value)
@@ -63,41 +69,50 @@ public final class EntityBuilder
         return this;
     }
 
+    public EntityBuilder writeString(boolean filter, String... arr)
+    {
+        return writeString((entityBuilder -> filter), arr);
+    }
+
+    public EntityBuilder writeString(Predicate<EntityBuilder> filter, String... arr)
+    {
+        return filter.test(this) ? writeString(arr) : this;
+    }
+
     public EntityBuilder writeString(String... arr)
     {
-        EntityBuilder entityBuilder = new EntityBuilder().writeInt(arr.length);
+        int size = arr.length;
 
         for (String element : arr)
         {
-            entityBuilder.writeString(element);
+            byte[] bytes = element.getBytes(CharsetUtil.UTF_8);
+            size += bytes.length;
         }
 
-        this.writeByte(entityBuilder.buffer);
-        return this;
+        ByteBuf buffer = Unpooled.buffer(size);
+
+        for (String element : arr)
+        {
+            byte[] bytes = element.getBytes(CharsetUtil.UTF_8);
+            buffer.writeInt(0);
+            buffer.writeBytes(bytes);
+        }
+
+        return this.writeByte(buffer);
     }
 
-    public EntityBuilder writeStringMap(Map<String, String> m)
+    public EntityBuilder writeEntry(String... arr)
     {
-        ByteBuf body = Unpooled.buffer();
-        SocketClient.Writer.writeStringMap(m, body);
-        this.writeByte(body);
-        return this;
-    }
+        EntityBuilder builder = new EntityBuilder();
 
-    public EntityBuilder writeStringEntry(String key, String value)
-    {
-        this.writeInt(2);
-        this.writeString(key);
-        this.writeString(value);
-        return this;
-    }
+        builder.writeShort(3);
 
-    public EntityBuilder writeLongString(String str)
-    {
-        byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
-        this.buffer.writeInt(bytes.length);
-        this.buffer.writeBytes(bytes);
-        return this;
+        for (String element : arr)
+        {
+            builder.writeString(element);
+        }
+
+        return this.writeByte(builder);
     }
 
     public EntityBuilder writeByte(EntityBuilder builder)
@@ -114,7 +129,7 @@ public final class EntityBuilder
 
     public ByteBuf asByteBuf()
     {
-        return buffer;
+        return this.buffer;
     }
 
     @Override

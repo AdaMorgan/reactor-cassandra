@@ -8,7 +8,7 @@ import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -16,11 +16,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
-import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
@@ -33,17 +33,21 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private final Initializer initializer;
     private final Bootstrap handler;
     private final LibraryImpl library;
+    private final EventLoopGroup group;
+    private final Bootstrap bootstrap;
 
     public SocketClient(LibraryImpl library)
     {
-        NioEventLoopGroup group = new NioEventLoopGroup();
-
         this.library = library;
+        this.bootstrap = new Bootstrap();
+        this.group = new NioEventLoopGroup();
         this.initializer = new Initializer(this, "cassandra", "cassandra");
-        this.handler = new Bootstrap().group(group)
+        this.handler = this.bootstrap.group(group)
                 .channel(NioSocketChannel.class)
                 .handler(this.initializer)
-                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                .option(ChannelOption.SO_KEEPALIVE, true)
+                .option(ChannelOption.TCP_NODELAY, true);
     }
 
     public synchronized void connect()
@@ -52,36 +56,35 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     }
 
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception
+    public void channelRegistered(ChannelHandlerContext context) throws Exception
     {
         this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception
+    public void channelActive(ChannelHandlerContext context) throws Exception
     {
         ByteBuf startup = this.initializer.createStartupMessage();
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
-        ctx.writeAndFlush(startup.retain());
+        context.writeAndFlush(startup.retain()).get(5, TimeUnit.SECONDS);
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception
+    public void exceptionCaught(ChannelHandlerContext context, Throwable failure) throws Exception
     {
-        cause.printStackTrace();
+        failure.printStackTrace();
     }
 
-    static final class Initializer extends ChannelInitializer<SocketChannel>
+    public final class Initializer extends ChannelInitializer<SocketChannel>
     {
         private final SocketClient client;
-        private final byte[] username;
-        private final byte[] password;
+        private final String username, password;
 
         public Initializer(SocketClient client, String username, String password)
         {
             this.client = client;
-            this.username = username.getBytes(StandardCharsets.UTF_8);
-            this.password = password.getBytes(StandardCharsets.UTF_8);
+            this.username = username;
+            this.password = password;
         }
 
         @Override
@@ -99,7 +102,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         private static final String CQL_VERSION = "3.0.0";
 
         private static final String DRIVER_VERSION_OPTION = "DRIVER_VERSION";
-        private static final String DRIVER_VERSION = "0.1.0";
+        private static final String DRIVER_VERSION = "0.2.0";
 
         private static final String DRIVER_NAME_OPTION = "DRIVER_NAME";
         private static final String DRIVER_NAME = "mmorrii one love!";
@@ -110,8 +113,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
         public ByteBuf login()
         {
-            byte[] initialToken = initialResponse();
-
             this.client.library.setStatus(Library.Status.LOGGING_IN);
 
             return new EntityBuilder()
@@ -119,29 +120,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.AUTH_RESPONSE)
-                    .writeBytes(initialToken)
+                    .writeString(this.username, this.password)
                     .asByteBuf();
         }
 
         public ByteBuf createStartupMessage()
         {
-            Map<String, String> options = new HashMap<>();
-            options.put(CQL_VERSION_OPTION, CQL_VERSION);
-
-            //options.put(COMPRESSION_OPTION, "");
-            //options.put(NO_COMPACT_OPTION, "true");
-
-            options.put(DRIVER_VERSION_OPTION, DRIVER_VERSION);
-            options.put(DRIVER_NAME_OPTION, DRIVER_NAME);
-
-            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder()
+                    .writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.STARTUP)
-                    .writeStringMap(options)
-                    //.writeStringEntry(CQL_VERSION_OPTION, CQL_VERSION)
-                    //.writeStringEntry(DRIVER_VERSION_OPTION, DRIVER_VERSION)
-                    //.writeStringEntry(DRIVER_NAME_OPTION, DRIVER_NAME)
+                    .writeEntry(CQL_VERSION_OPTION, CQL_VERSION, DRIVER_VERSION_OPTION, DRIVER_VERSION, DRIVER_NAME_OPTION, DRIVER_NAME)
                     .asByteBuf();
         }
 
@@ -149,7 +139,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             this.client.library.setStatus(Library.Status.AWAITING_LOGIN_CONFIRMATION);
 
-            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder()
+                    .writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.REGISTER)
@@ -168,25 +159,35 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     .asByteBuf();
         }
 
-        public byte[] initialResponse()
-        {
-            ByteBuf initialToken = Unpooled.buffer(username.length + password.length + 2);
+        public ByteBuf testBuf() {
+            String query = "SELECT * FROM system.clients";
+            byte[] queryBytes = query.getBytes(StandardCharsets.UTF_8);
 
-            initialToken.writeByte(0);
-            initialToken.writeBytes(username);
-            initialToken.writeByte(0);
-            initialToken.writeBytes(password);
+            int messageLength = 4 + queryBytes.length + 2 + 1;
 
-            return initialToken.array();
+            ByteBuf buffer = Unpooled.buffer(1 + 4 + messageLength);
+
+            buffer.writeByte(PROTOCOL_VERSION);
+            buffer.writeByte(0x00);
+            buffer.writeShort(0x00);
+            buffer.writeByte(SocketCode.QUERY);
+
+            buffer.writeInt(messageLength);
+
+            buffer.writeInt(queryBytes.length);
+            buffer.writeBytes(queryBytes);
+
+            buffer.writeShort(0x0001);
+            buffer.writeByte(0x00);
+
+            return buffer;
         }
 
         public ByteBuf ready()
         {
-            //return this.prepare.prepare("SELECT * FROM system.clients WHERE shard_id = ? ALLOW FILTERING");
-
-            //return this.createQuery(0, "SELECT * FROM system.clients");
             this.client.library.setStatus(Library.Status.CONNECTED);
             LOG.info("Finished Loading!");
+
             return null;
         }
     }
@@ -211,12 +212,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         private final Initializer initializer;
         private final LibraryImpl api;
-        private final LinkedList<ByteBuf> queue = new LinkedList<>();
+        private final Deque<ByteBuf> queue = new LinkedList<>();
 
         public MessageDecoder(Initializer initializer)
         {
-            this.initializer = initializer;
             this.api = initializer.client.library;
+            this.initializer = initializer;
         }
 
         @Override
@@ -226,9 +227,9 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             processFullFrame(ctx, frame, out);
         }
 
-        private ByteBuf processResultResponse(ByteBuf byteBuf)
+        private ByteBuf processResultResponse(ByteBuf buffer)
         {
-            int kind = byteBuf.readInt();
+            int kind = buffer.readInt();
 
             switch (kind)
             {
@@ -272,7 +273,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                 case SocketCode.RESULT:
                     return this.processResultResponse(buffer);
                 default:
-                    throw new UnsupportedOperationException("Unsupported opcode: " + opcode);
+                    return null;
             }
         }
 
@@ -304,26 +305,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             String message = buffer.readCharSequence(buffer.readUnsignedShort(), StandardCharsets.UTF_8).toString();
 
             throw new RuntimeException(streamId + " || " + ErrorResponse.fromCode(codeError).name() + ": " + message);
-        }
-    }
-
-    public static final class Writer
-    {
-        public static void writeStringMap(Map<String, String> m, ByteBuf cb)
-        {
-            cb.writeShort(m.size());
-            for (Map.Entry<String, String> entry : m.entrySet())
-            {
-                writeString(entry.getKey(), cb);
-                writeString(entry.getValue(), cb);
-            }
-        }
-
-        public static void writeString(String str, ByteBuf cb)
-        {
-            byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
-            cb.writeShort(bytes.length);
-            cb.writeBytes(bytes);
         }
     }
 }
