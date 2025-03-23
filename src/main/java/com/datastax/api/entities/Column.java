@@ -28,7 +28,14 @@ public interface Column
         VARCHAR(0x000D),
         VARINT(0x000E),
         TIMEUUID(0x000F),
-        INET(0x0010);
+        INET(0x0010),
+        DATE(0x0011),
+        TIME(0x0012),
+        SLALLINT(0x0013),
+        TANYINT(0x0014),
+        LIST(0x0020),
+        MAP(0x0021),
+        SET(0x0022);
 
         private final int offset;
 

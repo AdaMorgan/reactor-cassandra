@@ -1,14 +1,13 @@
 package com.datastax.test;
 
 import com.datastax.api.Library;
-import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.entities.EntityBuilder;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.utils.CustomLogger;
+import io.micrometer.core.instrument.MultiGauge;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -20,11 +19,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
@@ -40,6 +38,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private final LibraryImpl library;
     private final EventLoopGroup group;
     private final Bootstrap bootstrap;
+    private final boolean isDebug;
 
     public SocketClient(LibraryImpl library)
     {
@@ -47,6 +46,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.bootstrap = new Bootstrap();
         this.group = new NioEventLoopGroup();
         this.initializer = new Initializer(this, "cassandra", "cassandra");
+        this.isDebug = false;
         this.handler = this.bootstrap.group(group)
                 .channel(NioSocketChannel.class)
                 .handler(this.initializer)
@@ -71,7 +71,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         ByteBuf startup = this.initializer.createStartupMessage();
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
-        context.writeAndFlush(startup.retain()).get(5, TimeUnit.SECONDS);
+        context.writeAndFlush(startup.retain());
     }
 
     @Override
@@ -95,7 +95,10 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         @Override
         protected void initChannel(SocketChannel channel) throws Exception
         {
-            //channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            if (isDebug)
+            {
+                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            }
 
             channel.pipeline().addLast(new MessageDecoder(this));
             channel.pipeline().addLast(new MessageEncoder(this));
@@ -120,8 +123,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             this.client.library.setStatus(Library.Status.LOGGING_IN);
 
-            return new EntityBuilder()
-                    .writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.AUTH_RESPONSE)
@@ -131,8 +133,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
         public ByteBuf createStartupMessage()
         {
-            return new EntityBuilder()
-                    .writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.STARTUP)
@@ -144,8 +145,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             this.client.library.setStatus(Library.Status.AWAITING_LOGIN_CONFIRMATION);
 
-            return new EntityBuilder()
-                    .writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.REGISTER)
@@ -155,8 +155,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
         public ByteBuf createMessageOptions()
         {
-            return new EntityBuilder()
-                    .writeByte(PROTOCOL_VERSION)
+            return new EntityBuilder().writeByte(PROTOCOL_VERSION)
                     .writeByte(0x00)
                     .writeShort(0x00)
                     .writeByte(SocketCode.OPTIONS)
@@ -164,8 +163,9 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     .asByteBuf();
         }
 
-        public ByteBuf query() {
-            String query = "SELECT * FROM system.clients";
+        public ByteBuf query()
+        {
+            String query = RowsResults.TEST_QUERY;
             byte[] queryBytes = query.getBytes(StandardCharsets.UTF_8);
 
             int messageLength = 4 + queryBytes.length + 2 + 1;
@@ -234,8 +234,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
         public ByteBuf handle(int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
         {
-            Supplier<ByteBuf> result = () -> {
+
+            Supplier<ByteBuf> result = () ->
+            {
                 int kind = buffer.readInt();
+
+                //boolean isLastFrame = (queryFlags & 0x01) == 0x01;
 
                 switch (kind)
                 {
@@ -244,6 +248,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                         break;
                     case 0x0002:
                         System.out.println("Rows: for results to select queries, returning a set of rows.");
+                        new RowsResults(buffer).run();
                         break;
                     case 0x0003:
                         System.out.println("Set_keyspace: the result to a `use` query.");
