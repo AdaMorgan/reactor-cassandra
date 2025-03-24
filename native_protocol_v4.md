@@ -41,7 +41,7 @@
 * [Error codes](#error-codes)
 * [Changes from v3](#changes-from-v3)
 
-## Overview
+## 📖 Overview
 
 The CQL binary protocol is a frame based protocol. Frames are defined as:
 
@@ -78,7 +78,7 @@ document. It will however always be safe to ignore the remainder of the frame
 body in such cases. The reason is that this may enable extending the protocol
 with optional features without needing to change the protocol version.
 
-## Frame header
+## 📜 Frame header
 
 ### version
 
@@ -157,7 +157,7 @@ This helps to enable the asynchronous nature of the protocol. There can be up to
 A 4 byte integer representing the length of the body of the frame (note:
 currently a frame is limited to 256MB in length).
 
-## Notations
+## 📝 Notations
 
 To describe the layout of the frame body for the messages, we define the following:
 
@@ -187,7 +187,7 @@ To describe the layout of the frame body for the messages, we define the followi
 - String values are UTF-8 encoded
 - Negative lengths indicate special values (null/not set)
 
-## Messages
+## 📤 Messages
 
 Dependant on the flags specified in the header, the layout of the message body must be:
 `[<tracing_id>][<warnings>][<custom_payload>][<message>]`
@@ -315,13 +315,13 @@ A server authentication challenge. The body is a single [bytes] token.
 #### AUTH_SUCCESS
 Indicates the success of the authentication phase. The body is a single [bytes] token.
 
-## Compression
+## 🗜️ Compression
 
 Frame compression is supported by the protocol, but only the frame body is compressed. Compression must be agreed upon in the STARTUP message. Supported compression algorithms:
 - lz4
 - snappy
 
-## Data Type Serialization Formats
+## 🔠 Data Type Serialization Formats
 
 This section describes the serialization formats for all CQL data types supported by Cassandra. Client drivers should use these formats when encoding values for EXECUTE messages, and Cassandra uses them when returning values in RESULT messages.
 
@@ -376,15 +376,15 @@ This section describes the serialization formats for all CQL data types supporte
 - Values with MSB ≥ 0x80 should be padded with leading 0x00
 - Negative values are represented using two's complement
 
-## User Defined Type Serialization
+## 👤 User Defined Type Serialization
 
 A UDT value is composed of successive [bytes] values, one for each field of the UDT value (in the order defined by the type).
 
-## Result paging
+## 📃 Result paging
 
 The protocol allows for paging the result of queries. QUERY and EXECUTE messages can specify a page size. If more results are available, the RESULT message will have the Has_more_pages flag set and contain a paging_state value to retrieve the next page.
 
-## Error codes
+## 🚨 Error codes
 
 ERROR messages contain an error code and message. Some errors include additional information. Error codes include:
 
@@ -432,7 +432,7 @@ ERROR messages contain an error code and message. Some errors include additional
   - Empty table string indicates keyspace creation conflict
   - Non-empty table string indicates table creation conflict
 
-## Changes from v3
+## 🆕 Changes from v3
 
 - Prepared responses now include partition-key bind indexes
 - Modified format of "SCHEMA_CHANGE" events to include changes related to UDFs and UDAs
