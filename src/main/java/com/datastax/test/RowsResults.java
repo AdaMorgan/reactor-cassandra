@@ -5,6 +5,9 @@ import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +15,7 @@ import java.util.*;
 
 public class RowsResults
 {
-    public static final String TEST_QUERY = "SELECT * FROM system.raft_state";
+    public static final String TEST_QUERY = "SELECT * FROM system.clients";
 
     private final ByteBuf buffer;
     private final LinkedList<ColumnImpl> columns = new LinkedList<>();
@@ -80,6 +83,18 @@ public class RowsResults
         return Column.Type.fromId(type);
     }
 
+    public static InetAddress readAddress(byte[] address)
+    {
+        try
+        {
+            return Inet6Address.getByAddress(address);
+        }
+        catch (UnknownHostException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Nullable
     private static Object readValue(@Nonnull ByteBuf buffer, String type)
     {
@@ -102,6 +117,8 @@ public class RowsResults
                 return ByteBuffer.wrap(bytes)
                         .order(ByteOrder.BIG_ENDIAN)
                         .getInt();
+            case "INET":
+                return readAddress(bytes);
             case "BIGINT":
                 return ByteBuffer.wrap(bytes)
                         .order(ByteOrder.BIG_ENDIAN)
