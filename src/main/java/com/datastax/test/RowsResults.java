@@ -27,14 +27,14 @@ public class RowsResults
 
     public void run()
     {
-        // Читаем флаги
-        int metadataFlags = buffer.readInt();
+        int flags = buffer.readInt();
 
-        boolean hasGlobalTableSpec = (metadataFlags & 0x0001) != 0;
-        boolean hasMorePages = (metadataFlags & 0x0002) != 0;
-        boolean noMetadata = (metadataFlags & 0x0004) != 0;
+        System.out.println("flags: " + flags);
 
-        // Читаем количество столбцов
+        boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
+        boolean hasMorePages = (flags & 0x0002) != 0;
+        boolean noMetadata = (flags & 0x0004) != 0;
+
         int columnsCount = buffer.readInt();
 
         System.out.println("Columns count: " + columnsCount);
@@ -56,10 +56,10 @@ public class RowsResults
             }
         }
 
-        int rowsSize = buffer.readInt();
-        System.out.println("Rows size: " + rowsSize);
+        int rowsCount = buffer.readInt();
+        System.out.println("Rows count: " + rowsCount);
 
-        for (int rowNumber = 0; rowNumber < rowsSize; rowNumber++)
+        for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++)
         {
             for (ColumnImpl column : columns)
             {

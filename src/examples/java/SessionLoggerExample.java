@@ -1,6 +1,4 @@
 import com.datastax.api.LibraryBuilder;
-import com.datastax.api.Library;
-import com.datastax.api.events.GenericEvent;
 import com.datastax.api.events.StatusChangeEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.internal.LibraryImpl;

@@ -1,14 +1,24 @@
 # CQL BINARY PROTOCOL v4
 
-* [Overview](#Overview)
-* [Frame header](#frame-header)
+The native protocol defines the format of the binary messages exchanged between the driver and Cassandra over TCP. 
+As a driver user, you don’t need to know the fine details (although the protocol spec is in [the Cassandra codebase](https://github.com/apache/cassandra/tree/trunk/doc) if you’re curious); 
+the most visible aspect is that some features are only available with specific protocol versions.
+
+## Compatibility matrix
+
+Coming soon...
+
+## Table Contents
+
+* [Overview](#-Overview)
+* [Frame header](#-frame-header)
   * [version](#version)
   * [flags](#flags)
   * [stream](#stream)
   * [opcode](#opcode)
   * [length](#length)
-* [Notations](#notations)
-* [Messages](#messages)
+* [Notations](#-notations)
+* [Messages](#-messages)
   * [Requests](#requests)
     * [STARTUP](#startup)
     * [AUTH_RESPONSE](#auth_response)
@@ -32,16 +42,16 @@
     * [EVENT](#event)
     * [AUTH_CHALLENGE](#auth_challenge)
     * [AUTH_SUCCESS](#auth_success)
-* [Compression](#compression)
-* [Data Type Serialization Formats](#data-type-serialization-formats)
+* [Compression](#-compression)
+* [Data Type Serialization Formats](#-data-type-serialization-formats)
   * [Data Type Serialization](#data-type-specifications)
   * [Varint Encoding Examples](#varint-encoding-examples)
-* [User Defined Type Serialization](#user-defined-type-serialization)
-* [Result paging](#result-paging)
-* [Error codes](#error-codes)
-* [Changes from v3](#changes-from-v3)
+* [User Defined Type Serialization](#-user-defined-type-serialization)
+* [Result paging](#-result-paging)
+* [Error codes](#-error-codes)
+* [Changes from v3](#-changes-from-v3)
 
-## 📖 Overview
+## 🔍 Overview
 
 The CQL binary protocol is a frame based protocol. Frames are defined as:
 
@@ -293,6 +303,35 @@ The rest of the body is empty.
 
 ##### Rows
 Indicates a set of rows. Contains metadata, row count, and row content.
+An `[int]` where bits represent formatting information. Supported flags:
+
+###### flags
+| Mask     | Name               | Description                                                         |
+|----------|--------------------|---------------------------------------------------------------------|
+| `0x0001` | Global_tables_spec | If set, contains single `<global_table_spec>`                       |
+| `0x0002` | Has_more_pages     | If set, contains `<paging_state>` (bytes for pagination)            |
+| `0x0004` | No_metadata        | If set, contains only flags, column count and optional paging state |
+
+###### Components
+
+| Component             | Type/Size                              | Presence Condition                         | Description                  |
+|-----------------------|----------------------------------------|--------------------------------------------|------------------------------|
+| **flags**             | 4 bytes                                | Always present                             | Bitmask flags                |
+| **columns_count**     | 4 bytes                                | Always present                             | Column count                 |
+| **paging_state**      | 4 + N bytes                            | When flags.0x0002 = 1                      | Length (4B) + data (N bytes) |
+| **global_table_spec** | 4 + X + 4 + Y bytes                    | When flags.0x0001 = 1 AND flags.0x0004 = 0 | Keyspace (X) + Table (Y)     |
+| **col_spec**          | [see breakdown](#column-specification) | When flags.0x0004 = 0                      | Column specifications        |
+| **rows_count**        | 4 bytes                                | Always present                             | Row count                    |
+| **rows_content**      | rows * cols                            | rows_count × columns_count                 | Cell values                  |
+
+###### Column Specification
+
+| Part          | Type/Size                              | Presence Condition                   |
+|---------------|----------------------------------------|--------------------------------------|
+| `key_space`   | `string` (4 + L bytes)                 | When flags.0x0001 = 0                |
+| `table_name`  | `string` (4 + M bytes)                 | When flags.0x0001 = 0                |
+| `column_name` | `string` (4 + N bytes)                 | Always present                       |
+| `column_type` | `option` (1-2 + size bytes)            | Always present                       |
 
 ##### Set_keyspace
 The body is a single [string] indicating the name of the keyspace that has been set.
