@@ -245,8 +245,8 @@ Prepare a query for later execution. The body consists of the CQL query to prepa
 #### EXECUTE
 
 Executes a prepared query. The body must be:
-<id><query_parameters>
-where <id> is the prepared query ID and <query_parameters> has the same definition as in QUERY.
+`<id><query_parameters>`
+where `<id>` is the prepared query ID and `<query_parameters>` has the same definition as in QUERY.
 
 #### BATCH
 

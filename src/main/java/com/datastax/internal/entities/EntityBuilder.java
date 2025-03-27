@@ -5,11 +5,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
 public final class EntityBuilder
 {
     private final ByteBuf buffer;
@@ -67,16 +62,6 @@ public final class EntityBuilder
         this.buffer.writeShort(bytes.length);
         this.buffer.writeBytes(bytes);
         return this;
-    }
-
-    public EntityBuilder writeString(boolean filter, String... arr)
-    {
-        return writeString((entityBuilder -> filter), arr);
-    }
-
-    public EntityBuilder writeString(Predicate<EntityBuilder> filter, String... arr)
-    {
-        return filter.test(this) ? writeString(arr) : this;
     }
 
     public EntityBuilder writeString(String... arr)

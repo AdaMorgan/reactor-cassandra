@@ -32,12 +32,6 @@ public enum ErrorResponse
         return code;
     }
 
-
-    public boolean test(Throwable cause)
-    {
-        return false;
-    }
-
     @Nonnull
     public static ErrorResponse fromCode(int code)
     {

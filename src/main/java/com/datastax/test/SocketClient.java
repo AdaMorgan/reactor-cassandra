@@ -1,13 +1,14 @@
 package com.datastax.test;
 
 import com.datastax.api.Library;
+import com.datastax.api.exceptions.ErrorResponse;
+import com.datastax.api.exceptions.ErrorResponseException;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.entities.EntityBuilder;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.utils.CustomLogger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -20,11 +21,10 @@ import io.netty.handler.logging.LoggingHandler;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
@@ -39,7 +39,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private final LibraryImpl library;
     private final EventLoopGroup group;
     private final Bootstrap bootstrap;
-    private boolean isDebug = false;
 
     public SocketClient(LibraryImpl library)
     {
@@ -93,9 +92,9 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
 
         @Override
-        protected void initChannel(SocketChannel channel) throws Exception
+        protected void initChannel(@Nonnull SocketChannel channel) throws Exception
         {
-            if (isDebug)
+            if (RowsConfig.IS_DEBUG)
             {
                 channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             }
@@ -138,7 +137,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     .writeShort(0x00)
                     .writeByte(SocketCode.STARTUP)
                     .writeEntry(CQL_VERSION_OPTION, CQL_VERSION, DRIVER_VERSION_OPTION, DRIVER_VERSION, DRIVER_NAME_OPTION, DRIVER_NAME)
-                    .asByteBuf();
+                    .asByteBuf()
+                    .touch();
         }
 
         public ByteBuf registerMessage()
@@ -170,22 +170,16 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
             int messageLength = 4 + queryBytes.length + 2 + 1;
 
-            ByteBuf buffer = Unpooled.buffer(1 + 4 + messageLength);
-
-            buffer.writeByte(PROTOCOL_VERSION);
-            buffer.writeByte(0x00);
-            buffer.writeShort(0x00);
-            buffer.writeByte(SocketCode.QUERY);
-
-            buffer.writeInt(messageLength);
-
-            buffer.writeInt(queryBytes.length);
-            buffer.writeBytes(queryBytes);
-
-            buffer.writeShort(0x0001);
-            buffer.writeByte(0x00);
-
-            return buffer;
+            return new EntityBuilder(1 + 4 + messageLength)
+                    .writeByte(PROTOCOL_VERSION)
+                    .writeByte(0x00)
+                    .writeShort(0x00)
+                    .writeByte(SocketCode.QUERY)
+                    .writeInt(messageLength)
+                    .writeBytes(queryBytes)
+                    .writeShort(0x0001)
+                    .writeByte(0x00)
+                    .asByteBuf();
         }
 
         public ByteBuf ready()
@@ -193,7 +187,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.client.library.setStatus(Library.Status.CONNECTED);
             LOG.info("Finished Loading!");
 
-            return query();
+            return RowsPreparedResults.prepare();
         }
     }
 
@@ -207,16 +201,15 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
 
         @Override
-        protected void encode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception
+        protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception
         {
-            out.add(byteBuf);
+            out.add(msg.retain());
         }
     }
 
     private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
     {
         private final Initializer initializer;
-        private final LinkedMap<ByteBuf, Boolean> history = new LinkedMap<>();
         private final LibraryImpl api;
 
         public MessageDecoder(Initializer initializer)
@@ -225,20 +218,56 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.initializer = initializer;
         }
 
+        private final LinkedMap<ByteBuf, Boolean> history = new LinkedMap<>();
+
         @Override
         protected void decode(ChannelHandlerContext context, ByteBuf frame, List<Object> out)
         {
             Consumer<ByteBuf> runnable = (byteBuf) -> processFullFrame(context, byteBuf, out);
+;
+            ByteBuf compositeFrame = this.history.isEmpty() || this.history.getValue(history.size() - 1) ? frame : Unpooled.wrappedBuffer(this.history.lastKey(), frame);
 
-            if (this.history.isEmpty() || this.history.getValue(history.size() - 1))
+            runnable.accept(compositeFrame);
+        }
+
+        public void processFullFrame(ChannelHandlerContext context, ByteBuf buffer, List<Object> out)
+        {
+            byte versionHeader = buffer.readByte();
+
+            int version = (256 + versionHeader) & 0x7F;
+            boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
+
+            byte flags = buffer.readByte();
+            short streamId = buffer.readShort();
+            byte opcode = buffer.readByte();
+            int length = buffer.readInt();
+
+            if (buffer.readableBytes() == length)
             {
-                runnable.accept(frame);
+                handle(context, version, isResponse, flags, streamId, opcode, length, buffer);
+                this.history.put(buffer.retain(), true);
+                buffer.release();
             }
             else
             {
-                ByteBuf compositeByteBuf = Unpooled.wrappedBuffer(this.history.lastKey(), frame);
+                buffer.resetReaderIndex();
+                this.history.put(buffer.copy(), false);
+            }
+        }
 
-                runnable.accept(compositeByteBuf);
+        public void handle(ChannelHandlerContext context, int version, boolean isResponse, byte flags, short streamId, byte opcode, int length, ByteBuf buffer)
+        {
+            ByteBuf message = handle(version, isResponse, flags, streamId, opcode, length, buffer);
+
+            if (message != null)
+            {
+                context.writeAndFlush(message.retain()).addListener(future ->
+                {
+                    if (!future.isSuccess())
+                    {
+                        context.fireExceptionCaught(future.cause());
+                    }
+                });
             }
         }
 
@@ -247,7 +276,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             switch (opcode)
             {
                 case SocketCode.ERROR:
-                    return this.error(buffer);
+                    this.error(buffer);
+                    return null;
                 case SocketCode.AUTHENTICATE:
                     return this.initializer.login();
                 case SocketCode.AUTH_SUCCESS:
@@ -263,42 +293,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             }
         }
 
-        public void processFullFrame(ChannelHandlerContext context, ByteBuf buffer, List<Object> out)
-        {
-            byte versionHeader = buffer.readByte();
-
-            int version = (256 + versionHeader) & 0x7F;
-            boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
-
-            byte flags = buffer.readByte();
-            short streamId = buffer.readShort();
-            byte opcode = buffer.readByte();
-            int length = buffer.readInt();
-
-            System.out.println(buffer.readableBytes() + "==" + length);
-
-            if (buffer.readableBytes() == length)
-            {
-                ByteBuf message = handle(version, isResponse, flags, streamId, opcode, length, buffer);
-
-                if (message != null)
-                {
-                    context.writeAndFlush(message);
-                }
-
-                buffer.resetReaderIndex();
-                this.history.put(buffer.retain(), true);
-            }
-            else
-            {
-                buffer.resetReaderIndex();
-                this.history.put(buffer.retain(), false);
-            }
-        }
-
         private ByteBuf rowsResult(ByteBuf buffer)
         {
             int kind = buffer.readInt();
+
+            System.out.println("kind: " + kind);
 
             switch (kind)
             {
@@ -314,7 +313,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     break;
                 case 0x0004:
                     System.out.println("Prepared: result to a PREPARE message.");
-                    break;
+                    return RowsPreparedResults.executeParameters(buffer);
                 case 0x0005:
                     System.out.println("Schema_change: the result to a schema altering query.");
                     break;
@@ -326,9 +325,19 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             return null;
         }
 
-        private ByteBuf error(ByteBuf buffer)
-        {
-            return null;
+        private void error(ByteBuf buffer) {
+            int errorCode = buffer.readInt();
+            String message = readString(buffer);
+
+            ErrorResponse errorResponse = ErrorResponse.fromCode(errorCode);
+            throw new ErrorResponseException(errorResponse, buffer, errorCode, message);
+        }
+
+        private String readString(ByteBuf buffer) {
+            int length = buffer.readUnsignedShort();
+            byte[] bytes = new byte[length];
+            buffer.readBytes(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 }

@@ -11,7 +11,10 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class RowsResults
 {
@@ -19,6 +22,7 @@ public class RowsResults
 
     private final ByteBuf buffer;
     private final LinkedList<ColumnImpl> columns = new LinkedList<>();
+    private final LinkedList<RowImpl> rows = new LinkedList<>();
 
     public RowsResults(@Nonnull final ByteBuf buffer)
     {
@@ -29,24 +33,11 @@ public class RowsResults
     {
         int flags = buffer.readInt();
 
-        System.out.println("flags: " + flags);
-
         boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
         boolean hasMorePages = (flags & 0x0002) != 0;
         boolean noMetadata = (flags & 0x0004) != 0;
 
         int columnsCount = buffer.readInt();
-
-        System.out.println("Columns count: " + columnsCount);
-
-        byte[] pagingState;
-        if (hasMorePages)
-        {
-            int pagingStateLength = buffer.readInt();
-            pagingState = new byte[pagingStateLength];
-            buffer.readBytes(pagingState);
-            System.out.println("Has more pages. Paging state: " + Arrays.toString(pagingState));
-        }
 
         if (!noMetadata)
         {
@@ -64,9 +55,15 @@ public class RowsResults
             for (ColumnImpl column : columns)
             {
                 RowImpl row = new RowImpl(column, buffer);
-                System.out.println(row);
+                this.rows.addLast(row);
             }
         }
+
+        LinkedList<String> columns = this.columns.stream().map(ColumnImpl::toString).collect(Collectors.toCollection(LinkedList::new));
+        LinkedList<String> rows = this.rows.stream().map(RowImpl::toString).collect(Collectors.toCollection(LinkedList::new));
+
+        StringUtils.Table table = new StringUtils.Table(columnsCount, columns, rows);
+        System.out.println(table);
     }
 
     private static String readString(@Nonnull ByteBuf buffer)
@@ -186,7 +183,7 @@ public class RowsResults
         @Override
         public String toString()
         {
-            return column.toString() + " - " + value;
+            return value != null ? value.toString() : "null";
         }
     }
 }
