@@ -60,13 +60,13 @@ public class RowsPreparedResults
 
         body.writeByte(flags);
 
-        body.writeShort(2); // count parameters
+        body.writeShort(2);
 
-        writeLong(body, 123456);
+        writeLongValue(body, 123456);
         writeString(body, "user");
 
-        body.writeInt(5000); // page_size
-        body.writeLong(1743025467097000L); //default timestamp
+        body.writeInt(5000);
+        body.writeLong(1743025467097000L);
 
         buf.writeInt(body.readableBytes());
         buf.writeBytes(body);
@@ -83,7 +83,7 @@ public class RowsPreparedResults
         ByteBuf buf = Unpooled.buffer()
                 .writeByte(PROTOCOL_VERSION)
                 .writeByte(0x00)
-                .writeShort(0x00)  // stream ID
+                .writeShort(0x00)
                 .writeByte(SocketCode.EXECUTE);
 
         ByteBuf body = Unpooled.buffer();
@@ -102,18 +102,13 @@ public class RowsPreparedResults
 
         body.writeByte(flags);
 
-        // 5. Именованные параметры
-        // Сначала записываем количество параметров
-        body.writeShort(2); // 2 параметра
+        body.writeShort(2);
 
-        // Затем пары [имя, значение] для каждого параметра
-        // Параметр 1: user_id (long)
         writeString(body, "user_id");
-        writeLong(body, 123456L);
+        writeLongValue(body, 123456L);
 
-        // Параметр 2: user_name (string)
         writeString(body, "user_name");
-        writeString(body, "user");
+        writeStringValue(body, "user");
 
         body.writeInt(5000); // page_size
         body.writeLong(1743025467097000L); //default timestamp
@@ -121,23 +116,26 @@ public class RowsPreparedResults
         buf.writeInt(body.readableBytes());
         buf.writeBytes(body);
 
+        System.out.println("Final Frame length: " + buf.writableBytes() + " bytes");
+
         return buf;
     }
 
-    public static void writeLong(ByteBuf cb, long value)
-    {
-        ByteBuf buf = Unpooled.buffer(8).writeLong(value);
-
-        cb.writeInt(buf.readableBytes());
-        cb.writeBytes(buf);
+    private static void writeString(ByteBuf buf, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        buf.writeShort(bytes.length); // Длина имени параметра (short)
+        buf.writeBytes(bytes);
     }
 
-    public static void writeString(ByteBuf cb, String value)
-    {
-        ByteBuf buf = Unpooled.wrappedBuffer(value.getBytes(StandardCharsets.UTF_8));
+    private static void writeStringValue(ByteBuf buf, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        buf.writeInt(bytes.length); // Длина значения (int)
+        buf.writeBytes(bytes);
+    }
 
-        cb.writeInt(buf.readableBytes());
-        cb.writeBytes(buf);
+    private static void writeLongValue(ByteBuf buf, long value) {
+        buf.writeInt(8); // Всегда 8 для long
+        buf.writeLong(value);
     }
 
     public enum QueryFlag
