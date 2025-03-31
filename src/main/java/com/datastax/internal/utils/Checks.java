@@ -28,6 +28,12 @@ public class Checks
             throw new IllegalArgumentException(String.format(message, args));
     }
 
+    public static void notNegative(final int n, final String name)
+    {
+        if (n < 0)
+            throw new IllegalArgumentException(name + " may not be negative");
+    }
+
     public static void inRange(final int number, final String name)
     {
         inRange(number, Short.MIN_VALUE, Short.MAX_VALUE, name);

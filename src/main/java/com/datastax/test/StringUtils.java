@@ -10,11 +10,11 @@ public class StringUtils
         private final LinkedList<String> headers;
         private final LinkedList<String> rows;
 
-        public Table(int columnCount, LinkedList<String> headers, LinkedList<String> rows)
+        public Table(LinkedList<String> headers, LinkedList<String> rows)
         {
-            this.columnCount = columnCount;
             this.headers = headers;
             this.rows = rows;
+            this.columnCount = headers.size();
         }
 
         @Override

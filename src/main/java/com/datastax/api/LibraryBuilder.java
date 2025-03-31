@@ -22,9 +22,10 @@ public class LibraryBuilder
 
     private final String username;
     private final String password;
-    private final int intents;
+    protected final int intents;
 
     protected IEventManager eventManager = null;
+    protected int maxBufferSize = 2048;
 
     private LibraryBuilder(String username, String password, int intents)
     {
@@ -107,6 +108,30 @@ public class LibraryBuilder
         initialToken.writeBytes(passwordBytes);
 
         return initialToken.array();
+    }
+
+    /**
+     * The maximum size, in bytes, of the buffer used for decompressing discord payloads.
+     * <br>If the maximum buffer size is exceeded a new buffer will be allocated instead.
+     * <br>Setting this to {@link Integer#MAX_VALUE} would imply the buffer will never be resized unless memory starvation is imminent.
+     * <br>Setting this to {@code 0} would imply the buffer would need to be allocated again for every payload (not recommended).
+     *
+     * <p>Default: {@code 2048}
+     *
+     * @param  bufferSize
+     *         The maximum size the buffer should allow to retain
+     *
+     * @throws IllegalArgumentException
+     *         If the provided buffer size is negative
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public LibraryBuilder setMaxBufferSize(int bufferSize)
+    {
+        Checks.notNegative(bufferSize, "The buffer size");
+        this.maxBufferSize = bufferSize;
+        return this;
     }
 
     public LibraryImpl build()

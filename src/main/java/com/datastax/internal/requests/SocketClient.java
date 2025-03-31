@@ -2,7 +2,7 @@ package com.datastax.internal.requests;
 
 import com.datastax.api.Library;
 import com.datastax.api.utils.SessionController;
-import com.datastax.internal.entities.EntityBuilder;
+import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
@@ -10,10 +10,9 @@ public class SocketClient
 {
     public static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
 
-    protected abstract class ConnectNode implements SessionController.SessionConnectNode
+    public abstract static class ConnectNode implements SessionController.SessionConnectNode
     {
         protected final Library api;
-        protected final EntityBuilder entityBuilder;
 
         protected final byte version;
         protected final byte flags;
@@ -27,7 +26,6 @@ public class SocketClient
             this.flags = flags;
             this.stream = stream;
             this.opcode = opcode;
-            this.entityBuilder = new EntityBuilder();
         }
 
         @Override

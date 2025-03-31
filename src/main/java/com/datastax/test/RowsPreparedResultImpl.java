@@ -1,37 +1,15 @@
 package com.datastax.test;
 
+import com.datastax.api.requests.ObjectAction;
 import com.datastax.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 
-public class RowsPreparedResults
+public class RowsPreparedResultImpl implements ObjectAction
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM demo.test WHERE user_id = :user_id AND user_name = :user_name";
-
     private final static byte PROTOCOL_VERSION = 0x04;
-
-    public static ByteBuf prepare()
-    {
-        byte[] queryBytes = TEST_QUERY_PREPARED.getBytes(StandardCharsets.UTF_8);
-
-        int messageLength = 4 + queryBytes.length + 2 + 1;
-
-        ByteBuf byteBuf = Unpooled.buffer(1 + 4 + messageLength);
-
-        byteBuf.writeByte(PROTOCOL_VERSION);
-        byteBuf.writeByte(0x00);
-        byteBuf.writeShort(0x00);
-        byteBuf.writeByte(SocketCode.PREPARE);
-        byteBuf.writeInt(messageLength);
-        byteBuf.writeInt(queryBytes.length);
-        byteBuf.writeBytes(queryBytes);
-        byteBuf.writeShort(0x0001);
-        byteBuf.writeByte(0x00);
-
-        return byteBuf;
-    }
 
     public static ByteBuf execute(ByteBuf buffer)
     {
@@ -42,7 +20,7 @@ public class RowsPreparedResults
         ByteBuf buf = Unpooled.buffer()
                 .writeByte(PROTOCOL_VERSION)
                 .writeByte(0x00)
-                .writeShort(0x00)  // stream ID
+                .writeShort(0x00)
                 .writeByte(SocketCode.EXECUTE);
 
         ByteBuf body = Unpooled.buffer();
@@ -50,15 +28,9 @@ public class RowsPreparedResults
         body.writeShort(preparedId.length);
         body.writeBytes(preparedId);
 
-        body.writeShort(1);
+        body.writeShort(Level.ONE.getCode());
 
-        int flags = 0;
-
-        flags |= 0x01;
-        flags |= 0x04;
-        flags |= 0x20;
-
-        body.writeByte(flags);
+        writeFlags(body, Flag.VALUES, Flag.PAGE_SIZE, Flag.DEFAULT_TIMESTAMP);
 
         body.writeShort(2);
 
@@ -82,7 +54,7 @@ public class RowsPreparedResults
 
         ByteBuf buf = Unpooled.buffer()
                 .writeByte(PROTOCOL_VERSION)
-                .writeByte(0x00)
+                .writeByte(0x0)
                 .writeShort(0x00)
                 .writeByte(SocketCode.EXECUTE);
 
@@ -91,16 +63,9 @@ public class RowsPreparedResults
         body.writeShort(preparedId.length);
         body.writeBytes(preparedId);
 
-        body.writeShort(1);
+        body.writeShort(Level.ONE.getCode());
 
-        int flags = 0;
-
-        flags |= 0x01;
-        flags |= 0x04;
-        flags |= 0x20;
-        flags |= 0x40;
-
-        body.writeByte(flags);
+        writeFlags(body, Flag.VALUES, Flag.PAGE_SIZE, Flag.DEFAULT_TIMESTAMP, Flag.VALUE_NAMES);
 
         body.writeShort(2);
 
@@ -116,48 +81,38 @@ public class RowsPreparedResults
         buf.writeInt(body.readableBytes());
         buf.writeBytes(body);
 
-        System.out.println("Final Frame length: " + buf.writableBytes() + " bytes");
-
         return buf;
     }
 
-    private static void writeString(ByteBuf buf, String value) {
+    private static void writeString(ByteBuf buf, String value)
+    {
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(bytes.length); // Длина имени параметра (short)
+        buf.writeShort(bytes.length);
         buf.writeBytes(bytes);
     }
 
-    private static void writeStringValue(ByteBuf buf, String value) {
+    private static void writeStringValue(ByteBuf buf, String value)
+    {
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        buf.writeInt(bytes.length); // Длина значения (int)
+        buf.writeInt(bytes.length);
         buf.writeBytes(bytes);
     }
 
-    private static void writeLongValue(ByteBuf buf, long value) {
-        buf.writeInt(8); // Всегда 8 для long
+    private static void writeLongValue(ByteBuf buf, long value)
+    {
+        buf.writeInt(8);
         buf.writeLong(value);
     }
 
-    public enum QueryFlag
+    private static void writeFlags(ByteBuf body, Flag... flags)
     {
-        VALUES(            0x01),
-        SKIP_METADATA(     0x02),
-        PAGE_SIZE(         0x04),
-        PAGING_STATE(      0x08),
-        SERIAL_CONSISTENCY(0x10),
-        DEFAULT_TIMESTAMP( 0x20),
-        VALUE_NAMES(       0x40);
+        int bitfield = 0;
 
-        private final int mask;
-
-        QueryFlag(int mask)
+        for (Flag flag : flags)
         {
-            this.mask = mask;
+            bitfield |= flag.getValue();
         }
 
-        public int getMask()
-        {
-            return mask;
-        }
+        body.writeByte(bitfield);
     }
 }
