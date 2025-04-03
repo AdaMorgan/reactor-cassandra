@@ -9,19 +9,19 @@ import io.netty.buffer.ByteBuf;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class PrepareActionImpl extends ObjectActionImpl implements ObjectAction
+public class PrepareCreateActionImpl extends ObjectActionImpl implements ObjectAction
 {
     protected final int level;
     protected final int bitfield;
 
-    public PrepareActionImpl(Library api, int version, int flags, int stream, Level level, Flag... queryFlags)
+    public PrepareCreateActionImpl(Library api, int version, int flags, int stream, Level level, Flag... queryFlags)
     {
         super(api, version, flags, stream, SocketCode.PREPARE);
         this.level = level.getCode();
         this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
 
-    public ByteBuf execute(String request)
+    public ByteBuf setContent(String request)
     {
         byte[] queryBytes = request.getBytes(StandardCharsets.UTF_8);
 
@@ -31,7 +31,7 @@ public class PrepareActionImpl extends ObjectActionImpl implements ObjectAction
                 .writeByte(this.version)
                 .writeByte(this.flags)
                 .writeShort(this.stream)
-                .writeByte(SocketCode.PREPARE)
+                .writeByte(this.opcode)
                 .writeInt(messageLength)
                 .writeString(request)
                 .writeShort(this.level)

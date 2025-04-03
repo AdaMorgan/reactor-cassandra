@@ -1,20 +1,27 @@
 package com.datastax.test;
 
-import com.datastax.api.entities.Column;
 import com.datastax.api.requests.ObjectAction;
+import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
+import org.example.data.DataObject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.LinkedList;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class RowsResultImpl implements ObjectAction
 {
-    public static final String TEST_QUERY = "SELECT * FROM system.clients";
-
     private final ByteBuf buffer;
     private final LinkedList<ColumnImpl> columns = new LinkedList<>();
     private final LinkedList<RowImpl> rows = new LinkedList<>();
@@ -38,7 +45,12 @@ public class RowsResultImpl implements ObjectAction
         {
             for (int i = 0; i < columnsCount; i++)
             {
-                columns.add(new ColumnImpl(buffer));
+                String keyspace = readString(buffer);
+                String tableName = readString(buffer);
+                String name = readString(buffer);
+                DataType type = readType(buffer);
+
+                columns.add(new ColumnImpl(keyspace, tableName, name, type));
             }
         }
 
@@ -49,7 +61,8 @@ public class RowsResultImpl implements ObjectAction
         {
             for (ColumnImpl column : columns)
             {
-                RowImpl row = new RowImpl(column, buffer);
+                Object value = readValue(buffer, column.getType());
+                RowImpl row = new RowImpl(column, value);
                 this.rows.addLast(row);
             }
         }
@@ -59,5 +72,93 @@ public class RowsResultImpl implements ObjectAction
 
         StringUtils.Table table = new StringUtils.Table(columns, rows);
         System.out.println(table);
+    }
+
+    public String asDataObject(String name, int flags)
+    {
+        DataObject json = DataObject.empty();
+
+        return json.toPrettyString();
+    }
+
+
+    private static String readString(@Nonnull ByteBuf buffer)
+    {
+        short length = buffer.readShort();
+        byte[] bytes = new byte[length];
+        buffer.readBytes(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    public static DataType readType(@Nonnull ByteBuf buffer)
+    {
+        int type = buffer.readShort();
+        return DataType.fromId(type);
+    }
+
+    @Nullable
+    private static Object readValue(@Nonnull ByteBuf buffer, DataType type)
+    {
+        int length = buffer.readInt();
+        if (length < 0)
+        {
+            return null;
+        }
+
+        byte[] bytes = new byte[length];
+        buffer.readBytes(bytes);
+
+        switch (type)
+        {
+            case ASCII:
+            case VARCHAR:
+                return new String(bytes, StandardCharsets.UTF_8);
+            case INT:
+                return ByteBuffer.wrap(bytes)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .getInt();
+            case INET:
+                return readAddress(bytes);
+            case BIGINT:
+                return ByteBuffer.wrap(bytes)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .getLong();
+            case BOOLEAN:
+                return bytes[0] != 0;
+            case FLOAT:
+                return ByteBuffer.wrap(bytes)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .getFloat();
+            case DOUBLE:
+                return ByteBuffer.wrap(bytes)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .getDouble();
+            case UUID:
+            case TIMEUUID:
+                ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN);
+                long mostSignificantBits = byteBuffer.getLong();
+                long leastSignificantBits = byteBuffer.getLong();
+                return new UUID(mostSignificantBits, leastSignificantBits);
+            case TIMESTAMP:
+                return new Date(ByteBuffer.wrap(bytes)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .getLong());
+            case BLOB:
+                return ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN).array();
+            default:
+                throw new UnsupportedOperationException("Unsupported type: " + type);
+        }
+    }
+
+    public static InetAddress readAddress(byte[] address)
+    {
+        try
+        {
+            return Inet6Address.getByAddress(address);
+        }
+        catch (UnknownHostException e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 }
