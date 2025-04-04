@@ -1,6 +1,6 @@
 package com.datastax.api.requests;
 
-public interface ObjectAction
+public interface ObjectAction<T>
 {
     enum Level
     {

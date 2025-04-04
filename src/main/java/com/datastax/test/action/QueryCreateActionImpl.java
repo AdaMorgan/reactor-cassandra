@@ -1,29 +1,32 @@
-package com.datastax.test;
+package com.datastax.test.action;
 
-import com.datastax.api.Library;
-import com.datastax.api.requests.ObjectAction;
+import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
+import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class PrepareCreateActionImpl extends ObjectActionImpl implements ObjectAction
+public class QueryCreateActionImpl extends ObjectActionImpl<ByteBuf>
 {
+    protected final String content;
     protected final int level;
     protected final int bitfield;
 
-    public PrepareCreateActionImpl(Library api, int version, int flags, int stream, Level level, Flag... queryFlags)
+    public QueryCreateActionImpl(LibraryImpl api, int version, int flags, short stream, String content, Level level, Flag... queryFlags)
     {
-        super(api, version, flags, stream, SocketCode.PREPARE);
+        super(api, version, flags, stream, SocketCode.QUERY, null);
+        this.content = content;
         this.level = level.getCode();
         this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
 
-    public ByteBuf setContent(String request)
+    @Override
+    public ByteBuf applyData()
     {
-        byte[] queryBytes = request.getBytes(StandardCharsets.UTF_8);
+        byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
 
         int messageLength = 4 + queryBytes.length + 2 + 1;
 
@@ -33,7 +36,7 @@ public class PrepareCreateActionImpl extends ObjectActionImpl implements ObjectA
                 .writeShort(this.stream)
                 .writeByte(this.opcode)
                 .writeInt(messageLength)
-                .writeString(request)
+                .writeString(content)
                 .writeShort(this.level)
                 .writeByte(this.bitfield)
                 .asByteBuf();

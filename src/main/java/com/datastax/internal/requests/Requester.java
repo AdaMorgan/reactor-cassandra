@@ -1,12 +1,19 @@
 package com.datastax.internal.requests;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import com.datastax.api.requests.Request;
+import com.datastax.internal.LibraryImpl;
 
 public class Requester
 {
-    public ByteBuf execute()
+    private final LibraryImpl library;
+
+    public Requester(LibraryImpl library)
     {
-        return Unpooled.buffer();
+        this.library = library;
+    }
+
+    public <R> void execute(Request<R> request)
+    {
+        this.library.getClient().execute(request);
     }
 }

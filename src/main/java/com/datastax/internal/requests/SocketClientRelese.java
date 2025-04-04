@@ -6,7 +6,7 @@ import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
-public class SocketClient
+public class SocketClientRelese
 {
     public static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
 
@@ -54,7 +54,6 @@ public class SocketClient
 
     public class StartingNode extends ConnectNode
     {
-
         public StartingNode(Library api, byte version, byte flags, short stream)
         {
             super(api, version, flags, stream, SocketCode.STARTUP);

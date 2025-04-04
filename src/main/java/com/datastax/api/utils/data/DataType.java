@@ -2,8 +2,6 @@ package com.datastax.api.utils.data;
 
 import com.datastax.api.CustomInfo;
 
-import java.io.Serializable;
-
 public enum DataType
 {
     UNKNOWN(0x0000),

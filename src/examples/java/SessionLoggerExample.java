@@ -14,7 +14,7 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .addEventListeners(new SessionLoggerExample())
                 .build();
 
-        new SocketClient(api).connect();
+        api.getClient().connect();
     }
 
     @Override

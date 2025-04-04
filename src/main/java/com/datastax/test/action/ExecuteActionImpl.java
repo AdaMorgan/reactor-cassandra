@@ -1,22 +1,23 @@
-package com.datastax.test;
+package com.datastax.test.action;
 
-import com.datastax.api.Library;
+import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
+import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class ExecuteActionImpl extends ObjectActionImpl
+public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 {
     private final int level;
     private final int executeFlags;
 
-    public ExecuteActionImpl(Library api, int version, int flags, int stream, Level level, Flag... executeFlags)
+    public ExecuteActionImpl(LibraryImpl api, int version, int flags, short stream, Level level, Flag... executeFlags)
     {
-        super(api, version, flags, stream, SocketCode.EXECUTE);
+        super(api, version, flags, stream, SocketCode.EXECUTE, null);
         this.level = level.getCode();
         this.executeFlags = Arrays.stream(executeFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }

@@ -1,21 +1,22 @@
-package com.datastax.test;
+package com.datastax.test.action;
 
-import com.datastax.api.Library;
+import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
+import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class QueryCreateActionImpl extends ObjectActionImpl
+public class PrepareCreateActionImpl extends ObjectActionImpl<ByteBuf>
 {
     protected final int level;
     protected final int bitfield;
 
-    public QueryCreateActionImpl(Library api, int version, int flags, int stream, Level level, Flag... queryFlags)
+    public PrepareCreateActionImpl(LibraryImpl api, int version, int flags, short stream, Level level, Flag... queryFlags)
     {
-        super(api, version, flags, stream, SocketCode.QUERY);
+        super(api, version, flags, stream, SocketCode.PREPARE, null);
         this.level = level.getCode();
         this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }

@@ -7,9 +7,11 @@ import com.datastax.api.hooks.IEventManager;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.api.utils.MiscUtil;
 import com.datastax.internal.hooks.EventManagerProxy;
+import com.datastax.internal.requests.Requester;
 import com.datastax.internal.utils.Checks;
 import com.datastax.internal.utils.CustomLogger;
 import com.datastax.internal.utils.config.ThreadingConfig;
+import com.datastax.test.SocketClient;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -32,14 +34,23 @@ public class LibraryImpl implements Library
 
     protected final byte[] token;
 
+    protected final Requester requester;
     protected final ThreadingConfig threadingConfig;
-    private final EventManagerProxy eventManager;
+    protected final EventManagerProxy eventManager;
+    protected final SocketClient client;
 
     public LibraryImpl(byte[] token, ThreadingConfig threadingConfig, IEventManager eventManager)
     {
         this.token = token;
+        this.client = new SocketClient(this);
+        this.requester = new Requester(this);
         this.threadingConfig = threadingConfig;
         this.eventManager = new EventManagerProxy(eventManager, threadingConfig.getEventPool());
+    }
+
+    public SocketClient getClient()
+    {
+        return client;
     }
 
     @Nonnull
@@ -101,6 +112,11 @@ public class LibraryImpl implements Library
     public void handleEvent(@Nonnull GenericEvent event)
     {
         eventManager.handle(event);
+    }
+
+    public Requester getRequester()
+    {
+        return this.requester;
     }
 
     public void setStatus(Status status)
