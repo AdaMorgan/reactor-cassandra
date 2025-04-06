@@ -16,15 +16,13 @@ public class SocketClientRelese
 
         protected final byte version;
         protected final byte flags;
-        protected final short stream;
         protected final byte opcode;
 
-        public ConnectNode(Library api, byte version, byte flags, short stream, byte opcode)
+        public ConnectNode(Library api, byte version, byte flags, byte opcode)
         {
             this.api = api;
             this.version = version;
             this.flags = flags;
-            this.stream = stream;
             this.opcode = opcode;
         }
 
@@ -40,7 +38,7 @@ public class SocketClientRelese
             return new EntityBuilder()
                     .writeByte(this.version)
                     .writeByte(this.flags)
-                    .writeShort(this.stream)
+                    .writeShort(0x00)
                     .writeByte(this.opcode)
                     .asByteBuf();
         }
@@ -52,11 +50,11 @@ public class SocketClientRelese
         }
     }
 
-    public class StartingNode extends ConnectNode
+    public static class StartingNode extends ConnectNode
     {
-        public StartingNode(Library api, byte version, byte flags, short stream)
+        public StartingNode(Library api, byte version, byte flags)
         {
-            super(api, version, flags, stream, SocketCode.STARTUP);
+            super(api, version, flags, SocketCode.STARTUP);
         }
 
         @Override

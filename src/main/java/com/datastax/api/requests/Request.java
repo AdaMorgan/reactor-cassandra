@@ -3,6 +3,7 @@ package com.datastax.api.requests;
 import com.datastax.internal.requests.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -22,27 +23,7 @@ public class Request<T>
         this.onFailure = onFailure;
     }
 
-    public final int getFlags()
-    {
-        return this.objAction.getFlags();
-    }
-
-    public final short getStreamId()
-    {
-        return this.objAction.getStreamId();
-    }
-
-    public final int getCode()
-    {
-        return this.objAction.getCode();
-    }
-
-    public final ByteBuf applyData()
-    {
-        return this.objAction.applyData();
-    }
-
-    @Nullable
+    @Nonnull
     public ByteBuf getBody()
     {
         return body;
@@ -68,8 +49,8 @@ public class Request<T>
         this.objAction.handleResponse(this, response);
     }
 
-    public void handleResponse(BiConsumer<? super Short, Consumer<? super Response>> handler)
+    public void handleResponse(short stream, BiConsumer<? super Short, Consumer<? super Response>> handler)
     {
-        handler.accept(this.getStreamId(), this::handleResponse);
+        handler.accept(stream, this::handleResponse);
     }
 }

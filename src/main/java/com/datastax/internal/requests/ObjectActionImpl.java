@@ -1,32 +1,42 @@
 package com.datastax.internal.requests;
 
+import com.datastax.api.audit.ThreadLocalReason;
 import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 {
+    public static final Logger LOG = LoggerFactory.getLogger(ObjectActionImpl.class);
+
+    private final String localReason;
+
     protected final LibraryImpl api;
-    protected final int version, flags, opcode;
+    protected final byte version, flags, opcode;
 
-    protected final short stream;
+    protected final BiFunction<Request<T>, Response, T> handler;
 
-    private final BiFunction<Request<T>, Response, T> handler;
-
-    public ObjectActionImpl(LibraryImpl api, int version, int flags, short stream, int opcode, BiFunction<Request<T>, Response, T> handler)
+    public ObjectActionImpl(LibraryImpl api, byte version, byte flags, byte opcode, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
         this.version = version;
         this.flags = flags;
-        this.stream = stream;
         this.opcode = opcode;
         this.handler = handler;
+
+        this.localReason = ThreadLocalReason.getCurrent();
+    }
+
+    public ObjectActionImpl(LibraryImpl api, byte version, byte flags, byte opcode)
+    {
+        this(api, version, flags, opcode, null);
     }
 
     public void queue(Consumer<? super T> success)
@@ -36,18 +46,8 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     public void queue(Consumer<? super T> success, Consumer<? super Throwable> failure)
     {
-        ByteBuf body = finalizeBuffer();
+        ByteBuf body = applyData();
         api.getRequester().execute(new Request<>(this, body, success, failure));
-    }
-
-    public ByteBuf finalizeBuffer()
-    {
-        return Unpooled.directBuffer();
-    }
-
-    public ByteBuf applyData()
-    {
-        return null;
     }
 
     protected void handleSuccess(Request<T> request, Response response)
@@ -58,21 +58,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     public void handleResponse(Request<T> request, Response response)
     {
-        handleSuccess(request, response);
-    }
-
-    public int getFlags()
-    {
-        return this.flags;
-    }
-
-    public short getStreamId()
-    {
-        return this.stream;
-    }
-
-    public final int getCode()
-    {
-        return this.opcode;
+        try (ThreadLocalReason.Closable __ = ThreadLocalReason.closable(localReason))
+        {
+            handleSuccess(request, response);
+        }
     }
 }

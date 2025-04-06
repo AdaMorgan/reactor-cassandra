@@ -6,13 +6,14 @@ import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketClientRelese;
 import com.datastax.internal.requests.SocketCode;
+import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 
+import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.StartingNode>
 {
@@ -31,13 +32,20 @@ public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.Star
     static final String COMPRESSION_OPTION = "COMPRESSION";
     static final String NO_COMPACT_OPTION = "NO_COMPACT";
 
-    public StartingActionImpl(LibraryImpl api, int version, int flags, short stream, BiFunction<Request<SocketClientRelese.StartingNode>, Response, SocketClientRelese.StartingNode> handler)
+    public StartingActionImpl(LibraryImpl api, byte version, byte flags)
     {
-        super(api, version, flags, stream, SocketCode.STARTUP, handler);
+        super(api, version, flags, SocketCode.STARTUP);
     }
 
     @Override
-    public ByteBuf finalizeBuffer()
+    protected void handleSuccess(@Nonnull Request<SocketClientRelese.StartingNode> request, Response response)
+    {
+        request.onSuccess(new SocketClientRelese.StartingNode(this.api, this.version, this.flags));
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf applyData()
     {
         Map<String, String> map = new HashMap<>();
         map.put(CQL_VERSION_OPTION, CQL_VERSION);
@@ -55,7 +63,13 @@ public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.Star
             writeString(body, entry.getValue());
         }
 
-        return body;
+        return new EntityBuilder()
+                .writeByte(this.version)
+                .writeByte(this.flags)
+                .writeShort(0x00)
+                .writeByte(this.opcode)
+                .writeBytes(body)
+                .asByteBuf();
     }
 
     public void writeString(ByteBuf body, String value)

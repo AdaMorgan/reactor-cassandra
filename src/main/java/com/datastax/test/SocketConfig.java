@@ -1,6 +1,6 @@
 package com.datastax.test;
 
-public class RowsConfig
+public class SocketConfig
 {
     public static final Boolean IS_DEBUG = false;
 }

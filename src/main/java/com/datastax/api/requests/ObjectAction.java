@@ -1,7 +1,14 @@
 package com.datastax.api.requests;
 
+import io.netty.buffer.ByteBuf;
+
+import javax.annotation.Nonnull;
+
 public interface ObjectAction<T>
 {
+    @Nonnull
+    ByteBuf applyData();
+
     enum Level
     {
         ANY(0),

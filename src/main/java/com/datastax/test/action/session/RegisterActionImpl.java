@@ -1,25 +1,30 @@
 package com.datastax.test.action.session;
 
-import com.datastax.api.requests.Request;
-import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 
-import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class RegisterActionImpl extends ObjectActionImpl<ByteBuf>
 {
-    public RegisterActionImpl(LibraryImpl api, int version, int flags, short stream, BiFunction<Request<ByteBuf>, Response, ByteBuf> handler)
+    public RegisterActionImpl(LibraryImpl api, byte version, byte flags)
     {
-        super(api, version, flags, stream, SocketCode.REGISTER, handler);
+        super(api, version, flags, SocketCode.REGISTER);
     }
 
+    @Nonnull
     @Override
-    public ByteBuf finalizeBuffer()
+    public ByteBuf applyData()
     {
-        return new EntityBuilder().writeString("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").asByteBuf();
+        return new EntityBuilder()
+                .writeByte(this.version)
+                .writeByte(this.flags)
+                .writeShort(0x00)
+                .writeByte(this.opcode)
+                .writeString("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
+                .asByteBuf();
     }
 }

@@ -1,6 +1,5 @@
 package com.datastax.test;
 
-import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
@@ -20,7 +19,7 @@ import java.util.LinkedList;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class RowsResultImpl implements ObjectAction
+public class RowsResultImpl
 {
     private final ByteBuf buffer;
     private final LinkedList<ColumnImpl> columns = new LinkedList<>();
@@ -33,6 +32,7 @@ public class RowsResultImpl implements ObjectAction
 
     public void run()
     {
+        int kind = buffer.readInt();
         int flags = buffer.readInt();
 
         boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
@@ -55,7 +55,6 @@ public class RowsResultImpl implements ObjectAction
         }
 
         int rowsCount = buffer.readInt();
-        System.out.println("Rows count: " + rowsCount);
 
         for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++)
         {
@@ -71,7 +70,6 @@ public class RowsResultImpl implements ObjectAction
         LinkedList<String> rows = this.rows.stream().map(RowImpl::toString).collect(Collectors.toCollection(LinkedList::new));
 
         StringUtils.Table table = new StringUtils.Table(columns, rows);
-        System.out.println(table);
     }
 
     public String asDataObject(String name, int flags)

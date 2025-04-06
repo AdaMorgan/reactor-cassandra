@@ -1,5 +1,7 @@
 package com.datastax.test.action;
 
+import com.datastax.api.requests.Request;
+import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
@@ -7,23 +9,39 @@ import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 {
+    private final ByteBuf body;
     private final int level;
     private final int executeFlags;
 
-    public ExecuteActionImpl(LibraryImpl api, int version, int flags, short stream, Level level, Flag... executeFlags)
+    public ExecuteActionImpl(LibraryImpl api, byte version, byte flags, ByteBuf parameters, Level level, Flag... executeFlags)
     {
-        super(api, version, flags, stream, SocketCode.EXECUTE, null);
+        super(api, version, flags, SocketCode.EXECUTE);
+        this.body = parameters;
         this.level = level.getCode();
         this.executeFlags = Arrays.stream(executeFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
 
+    @Override
+    protected void handleSuccess(Request<ByteBuf> request, Response response)
+    {
+        request.onSuccess(response.getBody());
+    }
+
     public ByteBuf execute(ByteBuf buffer)
     {
+        int kind = buffer.readInt();
+
+        if (buffer.readerIndex() != 13)
+        {
+            throw new IllegalArgumentException("Buffer index does not match expected value: " + buffer.readerIndex());
+        }
+
         int idLength = buffer.readUnsignedShort();
         byte[] preparedId = new byte[idLength];
         buffer.readBytes(preparedId);
@@ -31,7 +49,7 @@ public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
         ByteBuf buf = Unpooled.directBuffer()
                 .writeByte(this.version)
                 .writeByte(this.flags)
-                .writeShort(this.stream)
+                .writeShort(0x00)
                 .writeByte(this.opcode);
 
         ByteBuf body = Unpooled.directBuffer();
@@ -43,18 +61,27 @@ public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 
         body.writeByte(this.executeFlags);
 
+        //----
         body.writeShort(2);
-
+        //----
         writeLongValue(body, 123456);
         writeString(body, "user", EntityBuilder.TypeTag.INT);
-
+        //----
         body.writeInt(5000);
         body.writeLong(1743025467097000L);
+        //----
 
         buf.writeInt(body.readableBytes());
         buf.writeBytes(body);
 
         return buf;
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf applyData()
+    {
+        return execute(body);
     }
 
     public ByteBuf executeParameters(ByteBuf buffer)
@@ -66,7 +93,7 @@ public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
         ByteBuf buf = Unpooled.directBuffer()
                 .writeByte(this.version)
                 .writeByte(this.flags)
-                .writeShort(this.stream)
+                .writeShort(0x00)
                 .writeByte(this.opcode);
 
         ByteBuf body = Unpooled.directBuffer();
