@@ -1,10 +1,11 @@
 package com.datastax.api.requests;
 
+import com.datastax.api.exceptions.ErrorResponse;
+import com.datastax.api.exceptions.ErrorResponseException;
 import com.datastax.internal.requests.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -34,11 +35,6 @@ public class Request<T>
         this.onSuccess.accept(successObj);
     }
 
-    public void onFailure(Response response)
-    {
-
-    }
-
     public void onFailure(Throwable failException)
     {
         this.onFailure.accept(failException);
@@ -46,11 +42,24 @@ public class Request<T>
 
     private void handleResponse(Response response)
     {
-        this.objAction.handleResponse(this, response);
+        if (response.isError())
+        {
+            this.onFailure(createErrorResponseException(response));
+        }
+        else
+        {
+            this.objAction.handleResponse(this, response);
+        }
     }
 
     public void handleResponse(short stream, BiConsumer<? super Short, Consumer<? super Response>> handler)
     {
         handler.accept(stream, this::handleResponse);
+    }
+
+    @Nonnull
+    public ErrorResponseException createErrorResponseException(@Nonnull Response response)
+    {
+        return ErrorResponseException.create(ErrorResponse.fromBuffer(response.getBody()), response);
     }
 }

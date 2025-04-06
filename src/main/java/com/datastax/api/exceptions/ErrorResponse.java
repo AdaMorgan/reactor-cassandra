@@ -1,5 +1,7 @@
 package com.datastax.api.exceptions;
 
+import io.netty.buffer.ByteBuf;
+
 import javax.annotation.Nonnull;
 
 public enum ErrorResponse
@@ -41,5 +43,11 @@ public enum ErrorResponse
                 return error;
         }
         return SERVER_ERROR;
+    }
+
+    @Nonnull
+    public static ErrorResponse fromBuffer(final ByteBuf buffer)
+    {
+        return ErrorResponse.fromCode(buffer.readInt());
     }
 }

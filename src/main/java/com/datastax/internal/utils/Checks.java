@@ -3,6 +3,8 @@ package com.datastax.internal.utils;
 import org.intellij.lang.annotations.PrintFormat;
 import org.jetbrains.annotations.Contract;
 
+import java.util.Collection;
+
 public class Checks
 {
     @Contract("null, _ -> fail")
@@ -10,6 +12,13 @@ public class Checks
     {
         if (argument == null)
             throw new IllegalArgumentException(name + " may not be null");
+    }
+
+    @Contract("null, _ -> fail")
+    public static void noneNull(final Collection<?> argument, final String name)
+    {
+        notNull(argument, name);
+        argument.forEach(it -> notNull(it, name));
     }
 
     @Contract("null, _ -> fail")

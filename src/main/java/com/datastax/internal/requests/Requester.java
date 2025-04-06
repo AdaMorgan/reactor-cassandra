@@ -12,11 +12,13 @@ public class Requester
     public Requester(LibraryImpl library)
     {
         this.library = library;
-        this.streamManager = new StreamManager((short) 10);
+        this.streamManager = new StreamManager((short) 50);
     }
 
     public <R> void execute(Request<R> request)
     {
-        this.library.getClient().execute(request, (short) 0x00);
+        this.streamManager.execute(this.library, (api, stream) -> {
+            this.library.getClient().execute(request, stream);
+        });
     }
 }

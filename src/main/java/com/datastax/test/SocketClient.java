@@ -15,13 +15,11 @@ import com.datastax.test.action.session.RegisterActionImpl;
 import com.datastax.test.action.session.StartingActionImpl;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -30,7 +28,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -74,14 +71,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
     }
 
-
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM demo.test WHERE user_id = :user_id AND user_name = :user_name";
-    public static final String TEST_QUERY = "SELECT * FROM system.clients";
-
-    int count = 0;
+    public static final String TEST_QUERY = "SELECT * FROM system.size_estimate";
 
     @Override
-    public void channelActive(@Nonnull ChannelHandlerContext context)
+    public final void channelActive(@Nonnull ChannelHandlerContext context)
     {
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
         this.context.set(context);
@@ -98,22 +92,15 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     new RegisterActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(ready ->
                     {
                         System.out.println("ready!");
-
-                        for (int i = 0; i < 10; i++)
+                        new QueryCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY, ObjectAction.Level.ONE).queue(result ->
                         {
-                            new QueryCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY, ObjectAction.Level.ONE).queue(result ->
-                            {
-                                count++;
+                            new RowsResultImpl(result).run();
+                        }, Throwable::printStackTrace);
 
-                                ObjectActionImpl.LOG.info("count: {}", count);
-                                new RowsResultImpl(result).run();
-                            });
-
-                            new PrepareCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectAction.Level.ONE).queue(prepare ->
-                            {
-                                new RowsResultImpl(prepare).run();
-                            });
-                        }
+//                        new PrepareCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectAction.Level.ONE).queue(prepare ->
+//                        {
+//                            new RowsResultImpl(prepare).run();
+//                        });
                     });
                 });
             });
@@ -128,7 +115,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
     private final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
     private final Queue<Request<?>> cacheRequest = new ConcurrentLinkedQueue<>();
-    private final Queue<ByteBuf> cacheResponse = new ConcurrentLinkedQueue<>();
 
     public <R> void execute(Request<R> request, short stream)
     {
@@ -138,7 +124,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             ByteBuf body = request.getBody();
 
-            request.getBody().setShort(2, stream);
+            body.setShort(2, stream);
 
             request.handleResponse(stream, this.queue::put);
 
@@ -183,7 +169,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
     }
 
-    private static final class MessageDecoder extends MessageToMessageDecoder<ByteBuf>
+    private static final class MessageDecoder extends ByteToMessageDecoder
     {
         private final Initializer initializer;
         private final LibraryImpl api;
@@ -200,70 +186,50 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             enqueue(context, frame, out);
         }
 
-        public void setFlagPage(ByteBuf buffer)
+        public void enqueue(ChannelHandlerContext context, ByteBuf in, List<Object> out)
         {
-            byte currentByte = buffer.getByte(1);
-            int newByte = currentByte | 0x16;
-            buffer.setByte(1, newByte);
-        }
+            in.markReaderIndex();
 
-        public ByteBuf getCompositeBuffer(ByteBuf buffer)
-        {
-            for (ByteBuf frame : this.initializer.client.cacheResponse)
-            {
-                if ((frame.getByte(1) & 0x16) == 0x016)
-                {
-                    return Unpooled.wrappedBuffer(frame, buffer);
-                }
+            if (in.readableBytes() < 9) {
+                in.resetReaderIndex();
+                return;
             }
 
-            return buffer;
-        }
-
-        public void enqueue(ChannelHandlerContext context, ByteBuf frame, List<Object> out)
-        {
-            ByteBuf compositeFrame = getCompositeBuffer(frame);
-
-            byte versionHeader = compositeFrame.readByte();
+            byte versionHeader = in.readByte();
 
             byte version = (byte) ((256 + versionHeader) & 0x7F);
             boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
 
-            byte flags = compositeFrame.readByte();
-            short stream = compositeFrame.readShort();
-            byte opcode = compositeFrame.readByte();
+            byte flags = in.readByte();
+            short stream = in.readShort();
+            byte opcode = in.readByte();
+            int length = in.readInt();
 
-            int length = compositeFrame.readInt();
+            if (in.readableBytes() < length) {
+                in.resetReaderIndex();
+                return;
+            }
 
-            directBuffer(context, version, isResponse, flags, stream, opcode, length, compositeFrame);
+            ByteBuf frame = in.readRetainedSlice(length);
+
+            directBuffer(context, version, isResponse, flags, stream, opcode, length, frame);
         }
 
         private void directBuffer(ChannelHandlerContext context, byte version, boolean isResponse, byte flags, short stream, byte opcode, int length, ByteBuf frame)
         {
             Queue<Request<?>> cacheRequest = this.initializer.client.cacheRequest;
 
-            if (frame.readableBytes() == length)
+            Consumer<? super Response> consumer = this.initializer.client.queue.remove(stream);
+
+            consumer.accept(new Response(version, flags, stream, opcode, length, frame));
+
+            frame.release();
+
+            if (!cacheRequest.isEmpty())
             {
-                flags = (byte) (flags & ~0x16);
-
-                frame.setByte(1, flags);
-
-                Consumer<? super Response> consumer = this.initializer.client.queue.remove(stream);
-                consumer.accept(new Response(version, flags, stream, opcode, length, frame));
-
-                if (!cacheRequest.isEmpty())
-                {
-                    Request<?> peek = cacheRequest.peek();
-                    this.api.getRequester().execute(peek);
-                    cacheRequest.remove(peek);
-                }
-            }
-            else
-            {
-                setFlagPage(frame);
-                frame.resetReaderIndex();
-
-                this.initializer.client.cacheResponse.offer(frame.copy());
+                Request<?> peek = cacheRequest.peek();
+                this.api.getRequester().execute(peek);
+                cacheRequest.remove(peek);
             }
         }
     }

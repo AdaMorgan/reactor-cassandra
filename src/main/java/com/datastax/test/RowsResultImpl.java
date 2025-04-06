@@ -4,6 +4,7 @@ import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.example.data.DataObject;
 
 import javax.annotation.Nonnull;
@@ -70,6 +71,7 @@ public class RowsResultImpl
         LinkedList<String> rows = this.rows.stream().map(RowImpl::toString).collect(Collectors.toCollection(LinkedList::new));
 
         StringUtils.Table table = new StringUtils.Table(columns, rows);
+        System.out.println(table);
     }
 
     public String asDataObject(String name, int flags)
@@ -82,10 +84,18 @@ public class RowsResultImpl
 
     private static String readString(@Nonnull ByteBuf buffer)
     {
-        short length = buffer.readShort();
-        byte[] bytes = new byte[length];
-        buffer.readBytes(bytes);
-        return new String(bytes, StandardCharsets.UTF_8);
+        try
+        {
+            short length = buffer.readShort();
+            byte[] bytes = new byte[length];
+            buffer.readBytes(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        catch (Exception e)
+        {
+            //System.out.println(ByteBufUtil.prettyHexDump(buffer));
+            throw new RuntimeException(e);
+        }
     }
 
     public static DataType readType(@Nonnull ByteBuf buffer)

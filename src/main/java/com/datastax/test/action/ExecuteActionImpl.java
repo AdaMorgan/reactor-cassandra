@@ -7,6 +7,7 @@ import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
@@ -19,10 +20,10 @@ public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
     private final int level;
     private final int executeFlags;
 
-    public ExecuteActionImpl(LibraryImpl api, byte version, byte flags, ByteBuf parameters, Level level, Flag... executeFlags)
+    public ExecuteActionImpl(LibraryImpl api, byte version, byte flags, ByteBuf body, Level level, Flag... executeFlags)
     {
         super(api, version, flags, SocketCode.EXECUTE);
-        this.body = parameters;
+        this.body = body;
         this.level = level.getCode();
         this.executeFlags = Arrays.stream(executeFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
@@ -36,11 +37,6 @@ public class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
     public ByteBuf execute(ByteBuf buffer)
     {
         int kind = buffer.readInt();
-
-        if (buffer.readerIndex() != 13)
-        {
-            throw new IllegalArgumentException("Buffer index does not match expected value: " + buffer.readerIndex());
-        }
 
         int idLength = buffer.readUnsignedShort();
         byte[] preparedId = new byte[idLength];
