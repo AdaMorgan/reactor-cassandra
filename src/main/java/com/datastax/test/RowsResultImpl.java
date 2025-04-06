@@ -4,7 +4,6 @@ import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import org.example.data.DataObject;
 
 import javax.annotation.Nonnull;

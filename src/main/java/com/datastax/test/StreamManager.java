@@ -1,12 +1,14 @@
 package com.datastax.test;
 
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.utils.concurrent.CountingThreadFactory;
 
 import javax.annotation.Nonnull;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
 public class StreamManager

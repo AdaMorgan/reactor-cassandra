@@ -7,7 +7,6 @@ import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;

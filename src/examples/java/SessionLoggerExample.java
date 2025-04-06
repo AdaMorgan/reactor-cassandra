@@ -2,7 +2,6 @@ import com.datastax.api.LibraryBuilder;
 import com.datastax.api.events.StatusChangeEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.test.SocketClient;
 
 import javax.annotation.Nonnull;
 
