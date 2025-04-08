@@ -1,39 +1,48 @@
 package com.datastax.api.requests;
 
+import com.datastax.api.Library;
 import io.netty.buffer.ByteBuf;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public interface ObjectAction<T>
 {
     @Nonnull
+    Library getLibrary();
+
+    @Nonnull
     ByteBuf applyData();
 
-    enum Level
+    default void queue()
     {
-        ANY(0),
-        ONE(1),
-        TWO(2),
-        THREE(3),
-        QUORUM(4),
-        ALL(5),
-        LOCAL_QUORUM(6),
-        EACH_QUORUM(7),
-        SERIAL(8),
-        LOCAL_SERIAL(9),
-        LOCAL_ONE(10);
+        this.queue(null);
+    }
 
-        private final int code;
+    default void queue(@Nullable Consumer<? super T> success)
+    {
+        this.queue(success, null);
+    }
 
-        Level(final int code)
-        {
-            this.code = code;
-        }
+    void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
 
-        public int getCode()
-        {
-            return code;
-        }
+    @Nonnull
+    @CheckReturnValue
+    CompletableFuture<T> submit(boolean shouldQueue);
+
+    @Nonnull
+    @CheckReturnValue
+    default CompletableFuture<T> submit()
+    {
+        return submit(false);
+    }
+
+    default void as()
+    {
+        throw new UnsupportedOperationException();
     }
 
     enum Flag

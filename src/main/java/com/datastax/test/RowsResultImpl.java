@@ -4,7 +4,6 @@ import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
-import org.example.data.DataObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -73,28 +72,12 @@ public class RowsResultImpl
         System.out.println(table);
     }
 
-    public String asDataObject(String name, int flags)
-    {
-        DataObject json = DataObject.empty();
-
-        return json.toPrettyString();
-    }
-
-
     private static String readString(@Nonnull ByteBuf buffer)
     {
-        try
-        {
-            short length = buffer.readShort();
-            byte[] bytes = new byte[length];
-            buffer.readBytes(bytes);
-            return new String(bytes, StandardCharsets.UTF_8);
-        }
-        catch (Exception e)
-        {
-            //System.out.println(ByteBufUtil.prettyHexDump(buffer));
-            throw new RuntimeException(e);
-        }
+        short length = buffer.readShort();
+        byte[] bytes = new byte[length];
+        buffer.readBytes(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public static DataType readType(@Nonnull ByteBuf buffer)

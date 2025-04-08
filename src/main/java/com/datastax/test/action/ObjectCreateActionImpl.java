@@ -2,9 +2,13 @@ package com.datastax.test.action;
 
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
+import com.datastax.api.requests.objectaction.ObjectCreateAction;
+import com.datastax.api.utils.request.ObjectCreateRequest;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.ObjectActionImpl;
 import com.datastax.internal.requests.SocketCode;
+import com.datastax.internal.requests.action.ObjectActionImpl;
+import com.datastax.internal.utils.request.ObjectCreateBuilder;
+import com.datastax.internal.utils.request.ObjectCreateBuilderMixin;
 import com.datastax.test.EntityBuilder;
 import com.datastax.test.RowsResultImpl;
 import io.netty.buffer.ByteBuf;
@@ -13,13 +17,14 @@ import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class QueryCreateActionImpl extends ObjectActionImpl<ByteBuf>
+public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>
 {
     protected final String content;
     protected final int level;
     protected final int bitfield;
+    protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    protected QueryCreateActionImpl(LibraryImpl api, byte version, byte flags, byte opcode, String content, Level level, Flag... queryFlags)
+    protected ObjectCreateActionImpl(LibraryImpl api, byte version, byte flags, byte opcode, String content, Level level, Flag... queryFlags)
     {
         super(api, version, flags, opcode);
         this.content = content;
@@ -27,7 +32,7 @@ public class QueryCreateActionImpl extends ObjectActionImpl<ByteBuf>
         this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
 
-    public QueryCreateActionImpl(LibraryImpl api, byte version, byte flags, String content, Level level, Flag... queryFlags)
+    public ObjectCreateActionImpl(LibraryImpl api, byte version, byte flags, String content, Level level, Flag... queryFlags)
     {
         this(api, version, flags, SocketCode.QUERY, content, level, queryFlags);
     }
@@ -84,6 +89,13 @@ public class QueryCreateActionImpl extends ObjectActionImpl<ByteBuf>
                 throw new UnsupportedOperationException();
         }
 
+        return null;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCreateAction addContent(@Nonnull String content)
+    {
         return null;
     }
 }

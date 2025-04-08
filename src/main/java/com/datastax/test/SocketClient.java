@@ -6,7 +6,8 @@ import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.utils.CustomLogger;
-import com.datastax.test.action.QueryCreateActionImpl;
+import com.datastax.test.action.Level;
+import com.datastax.test.action.ObjectCreateActionImpl;
 import com.datastax.test.action.session.LoginCreateActionImpl;
 import com.datastax.test.action.session.OptionActionImpl;
 import com.datastax.test.action.session.RegisterActionImpl;
@@ -72,7 +73,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     }
 
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM demo.test WHERE user_id = :user_id AND user_name = :user_name";
-    public static final String TEST_QUERY = "SELECT * FROM system.size_estimate";
+    public static final String TEST_QUERY = "SELECT * FROM system.clients";
 
     @Override
     public final void channelActive(@Nonnull ChannelHandlerContext context)
@@ -92,7 +93,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                     new RegisterActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(ready ->
                     {
                         System.out.println("ready!");
-                        new QueryCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY, ObjectAction.Level.ONE).queue(result ->
+                        new ObjectCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY, Level.ONE).queue(result ->
                         {
                             new RowsResultImpl(result).run();
                         }, Throwable::printStackTrace);

@@ -2,7 +2,7 @@ package com.datastax.api.requests;
 
 import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.api.exceptions.ErrorResponseException;
-import com.datastax.internal.requests.ObjectActionImpl;
+import com.datastax.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;

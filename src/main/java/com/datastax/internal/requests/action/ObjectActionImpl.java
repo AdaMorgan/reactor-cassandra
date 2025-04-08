@@ -1,7 +1,9 @@
-package com.datastax.internal.requests;
+package com.datastax.internal.requests.action;
 
+import com.datastax.api.Library;
 import com.datastax.api.audit.ThreadLocalReason;
 import com.datastax.api.requests.ObjectAction;
+import com.datastax.api.requests.ObjectFuture;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
@@ -9,6 +11,9 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -39,15 +44,26 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         this(api, version, flags, opcode, null);
     }
 
-    public void queue(Consumer<? super T> success)
+    @Nonnull
+    @Override
+    public Library getLibrary()
     {
-        this.queue(success, null);
+        return this.api;
     }
 
-    public void queue(Consumer<? super T> success, Consumer<? super Throwable> failure)
+    @Override
+    public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ByteBuf body = applyData();
+        ByteBuf body = this.applyData();
         api.getRequester().execute(new Request<>(this, body, success, failure));
+    }
+
+    @Nonnull
+    @Override
+    public CompletableFuture<T> submit(boolean shouldQueue)
+    {
+        ByteBuf body = this.applyData();
+        return new ObjectFuture<>(this, body);
     }
 
     protected void handleSuccess(Request<T> request, Response response)
