@@ -2,7 +2,16 @@ package com.datastax.internal.utils.request;
 
 import com.datastax.api.utils.request.ObjectRequest;
 
-public abstract class AbstractObjectBuilder<T, R extends AbstractObjectBuilder<T, R>> implements ObjectRequest<R>
+import javax.annotation.Nonnull;
+
+public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> implements ObjectRequest<T>
 {
     protected final StringBuilder content = new StringBuilder();
+
+    @Nonnull
+    @Override
+    public String getContent()
+    {
+        return content.toString();
+    }
 }

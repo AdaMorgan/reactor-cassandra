@@ -2,6 +2,10 @@ package com.datastax.internal.utils.request;
 
 import com.datastax.api.utils.request.ObjectCreateRequest;
 
-public interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>> extends ObjectCreateRequest<T>
+import javax.annotation.Nonnull;
+
+public interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>, R extends AbstractObjectBuilder<R>> extends ObjectCreateRequest<T>
 {
+    @Nonnull
+    R getBuilder();
 }
