@@ -8,4 +8,11 @@ public interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>, R 
 {
     @Nonnull
     R getBuilder();
+
+    @Nonnull
+    @Override
+    default String getContent()
+    {
+        return getBuilder().getContent();
+    }
 }

@@ -24,10 +24,10 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
     @Override
     public void handleSuccess(Request<ByteBuf> request, Response response)
     {
-        new ExecuteActionImpl(this.api, this.version, flags, response.getBody(), Level.ONE, ObjectAction.Flag.VALUES, ObjectAction.Flag.PAGE_SIZE, ObjectAction.Flag.DEFAULT_TIMESTAMP).queue(request::onSuccess, request::onFailure);
+        new ExecuteActionImpl(this.api, this.version, flags, response.getBody(), Level.ONE, Flag.VALUES, Flag.PAGE_SIZE, Flag.DEFAULT_TIMESTAMP).queue(request::onSuccess, request::onFailure);
     }
 
-    private final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
+    private static final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
     {
         private final ByteBuf body;
         private final int level;

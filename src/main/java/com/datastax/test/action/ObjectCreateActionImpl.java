@@ -3,7 +3,6 @@ package com.datastax.test.action;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
-import com.datastax.api.utils.request.ObjectCreateRequest;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
@@ -101,15 +100,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public String getContent()
-    {
-        return this.content;
-    }
-
-    @Nonnull
-    @Override
     public ObjectCreateAction addContent(@Nonnull String content)
     {
-        return null;
+        this.getBuilder().addContent(content);
+        return this;
     }
 }

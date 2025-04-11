@@ -97,11 +97,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                         {
                             new RowsResultImpl(result).run();
                         }, Throwable::printStackTrace);
-
-//                        new PrepareCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectAction.Level.ONE).queue(prepare ->
-//                        {
-//                            new RowsResultImpl(prepare).run();
-//                        });
                     });
                 });
             });
@@ -164,7 +159,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final class MessageEncoder extends MessageToMessageEncoder<ByteBuf>
     {
         @Override
-        protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out)
+        protected void encode(ChannelHandlerContext ctx, @Nonnull ByteBuf msg, @Nonnull List<Object> out)
         {
             out.add(msg.retain());
         }

@@ -25,10 +25,10 @@ public class EntityBuilder implements ByteBufConvertible
 
     public enum TypeTag
     {
-        INT(1, ByteBuf::writeInt),
+        BYTE(1, ByteBuf::writeByte),
         SHORT(2, ByteBuf::writeShort),
-        BYTE(3, ByteBuf::writeByte),
-        ;
+        INT(3, ByteBuf::writeInt),
+        LONG(4, ByteBuf::writeLong);
 
         private final int offset;
         private final BiConsumer<ByteBuf, Integer> handler;
@@ -45,27 +45,27 @@ public class EntityBuilder implements ByteBufConvertible
         }
     }
 
-    public EntityBuilder writeLock(int value, TypeTag tag)
-    {
-        tag.writeLock(this.buffer, value);
-        return this;
-    }
-
     public EntityBuilder writeByte(int value)
     {
-        this.writeLock(value, TypeTag.BYTE);
+        this.buffer.writeByte(value);
         return this;
     }
 
     public EntityBuilder writeInt(int value)
     {
-        this.writeLock(value, TypeTag.INT);
+        this.buffer.writeInt(value);
+        return this;
+    }
+
+    public EntityBuilder writeLong(long value)
+    {
+        this.buffer.writeLong(value);
         return this;
     }
 
     public EntityBuilder writeShort(int value)
     {
-        this.writeLock(value, TypeTag.SHORT);
+        this.buffer.writeShort(value);
         return this;
     }
 
