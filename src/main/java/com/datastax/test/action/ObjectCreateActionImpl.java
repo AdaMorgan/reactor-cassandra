@@ -37,7 +37,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     }
 
     @Override
-    protected void handleSuccess(Request<ByteBuf> request, Response response)
+    protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
     {
         request.onSuccess(response.getBody());
     }
