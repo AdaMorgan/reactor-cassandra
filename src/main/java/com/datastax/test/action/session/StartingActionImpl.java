@@ -32,9 +32,9 @@ public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.Star
     static final String COMPRESSION_OPTION = "COMPRESSION";
     static final String NO_COMPACT_OPTION = "NO_COMPACT";
 
-    public StartingActionImpl(LibraryImpl api, byte version, byte flags)
+    public StartingActionImpl(LibraryImpl api, byte flags)
     {
-        super(api, version, flags, SocketCode.STARTUP);
+        super(api, flags, SocketCode.STARTUP);
     }
 
     @Override

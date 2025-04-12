@@ -10,9 +10,9 @@ import javax.annotation.Nonnull;
 
 public class LoginCreateActionImpl extends ObjectActionImpl<ByteBuf>
 {
-    public LoginCreateActionImpl(LibraryImpl api, byte version, byte flags)
+    public LoginCreateActionImpl(LibraryImpl api, byte flags)
     {
-        super(api, version, flags, SocketCode.AUTH_RESPONSE);
+        super(api, flags, SocketCode.AUTH_RESPONSE);
     }
 
     @Nonnull

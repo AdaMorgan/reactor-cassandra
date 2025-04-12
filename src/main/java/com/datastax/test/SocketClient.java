@@ -1,7 +1,6 @@
 package com.datastax.test;
 
 import com.datastax.api.Library;
-import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
@@ -25,6 +24,7 @@ import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -33,11 +33,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static com.datastax.api.LibraryInfo.PROTOCOL_VERSION;
+
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
     public static final Logger LOG = CustomLogger.getLog(SocketClient.class);
 
-    private static final byte PROTOCOL_VERSION = 0x04;
     private static final byte DEFAULT_FLAG = 0x00;
 
     private static final String HOST = "127.0.0.1";
@@ -81,27 +82,32 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
         this.context.set(context);
 
-        new StartingActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(node ->
+        new StartingActionImpl(this.library, DEFAULT_FLAG).queue(node ->
         {
             System.out.println("starting!");
-            new LoginCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(authSuccess ->
+            new LoginCreateActionImpl(this.library, DEFAULT_FLAG).queue(authSuccess ->
             {
                 System.out.println("authSuccess!");
-                new OptionActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(supported ->
+                new OptionActionImpl(this.library, DEFAULT_FLAG).queue(supported ->
                 {
                     System.out.println("supported!");
-                    new RegisterActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG).queue(ready ->
+                    new RegisterActionImpl(this.library, DEFAULT_FLAG).queue(ready ->
                     {
                         System.out.println("ready!");
-                        new ObjectCreateActionImpl(this.library, PROTOCOL_VERSION, DEFAULT_FLAG, TEST_QUERY, Level.ONE).queue(result ->
-                        {
-                            new RowsResultImpl(result).run();
-                        }, Throwable::printStackTrace);
+                        new ObjectCreateActionImpl(this.library, DEFAULT_FLAG, TEST_QUERY, Level.ONE).queue(RowsResultImpl::new, Throwable::printStackTrace);
                     });
                 });
             });
         });
     }
+
+    public void reconnect()
+    {
+        int reconnectTimeoutS = 2;
+
+        //throw new UnknownHostException();
+    }
+
 
     @Override
     public void exceptionCaught(ChannelHandlerContext context, Throwable failure)

@@ -1,6 +1,5 @@
 package com.datastax.internal.utils;
 
-import com.datastax.api.CustomInfo;
 import io.netty.buffer.ByteBuf;
 
 public final class EncodingUtils

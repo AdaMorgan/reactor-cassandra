@@ -1,6 +1,7 @@
 package com.datastax.internal.requests.action;
 
 import com.datastax.api.Library;
+import com.datastax.api.LibraryInfo;
 import com.datastax.api.audit.ThreadLocalReason;
 import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.requests.ObjectFuture;
@@ -21,17 +22,18 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 {
     public static final Logger LOG = LoggerFactory.getLogger(ObjectActionImpl.class);
 
-    private final String localReason;
-
     protected final LibraryImpl api;
-    protected final byte version, flags, opcode;
+
+    protected final byte version = LibraryInfo.PROTOCOL_VERSION;
+    protected final byte flags, opcode;
+
+    private final String localReason;
 
     protected final BiFunction<Request<T>, Response, T> handler;
 
-    public ObjectActionImpl(LibraryImpl api, byte version, byte flags, byte opcode, BiFunction<Request<T>, Response, T> handler)
+    public ObjectActionImpl(LibraryImpl api, byte flags, byte opcode, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
-        this.version = version;
         this.flags = flags;
         this.opcode = opcode;
         this.handler = handler;
@@ -39,9 +41,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         this.localReason = ThreadLocalReason.getCurrent();
     }
 
-    public ObjectActionImpl(LibraryImpl api, byte version, byte flags, byte opcode)
+    public ObjectActionImpl(LibraryImpl api, byte flags, byte opcode)
     {
-        this(api, version, flags, opcode, null);
+        this(api, flags, opcode, null);
     }
 
     @Nonnull

@@ -8,7 +8,7 @@ public class Response
     protected final int version, flags, stream, opcode, length;
     protected final ByteBuf body;
 
-    public Response(int version, int flags, int stream, int opcode, int length, ByteBuf body)
+    public Response(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
     {
         this.version = version;
         this.flags = flags;

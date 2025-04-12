@@ -18,18 +18,18 @@ public interface Library
         INITIALIZING(true),
         /**{@link Library} has finished setting up supporting systems and is ready to log in.*/
         INITIALIZED(true),
-        /**{@link Library} is currently attempting to connect it's socket to Apache Cassandra.*/
+        /**{@link Library} is currently attempting to connect it's socket to CQL Binary Protocol.*/
         CONNECTING_TO_SOCKET(true),
-        /**{@link Library} has successfully connected it's socket to Apache Cassandra and is sending authentication*/
+        /**{@link Library} has successfully connected it's socket to CQL Binary Protocol and is sending authentication*/
         IDENTIFYING_SESSION(true),
         /**{@link Library} is currently attempting to log in.*/
         LOGGING_IN(true),
-        /**{@link Library} has sent authentication to Apache Cassandra and is awaiting confirmation*/
+        /**{@link Library} has sent authentication to CQL Binary Protocol and is awaiting confirmation*/
         AWAITING_LOGIN_CONFIRMATION(true),
         /**{@link Library} is populating internal objects.
          * This process often takes the longest of all Statuses (besides {@link Status#CONNECTED})*/
         LOADING_SUBSYSTEMS(true),
-        /**{@link Library} has finished loading everything, is receiving information from Apache Cassandra and is firing events.*/
+        /**{@link Library} has finished loading everything, is receiving information from CQL Binary Protocol and is firing events.*/
         CONNECTED(true),
         /**{@link Library}'s main socket has been disconnected. This <b>DOES NOT</b> mean {@link Library} has shutdown permanently.
          * This is an in-between status. Most likely {@link Status#ATTEMPTING_TO_RECONNECT}
@@ -38,17 +38,17 @@ public interface Library
         /** {@link Library} session has been added to {@link com.datastax.api.utils.SessionController SessionController}
          * and is awaiting to be dequeued for reconnecting.*/
         RECONNECT_QUEUED,
-        /**When trying to reconnect to Apache Cassandra {@link Library} encountered an issue, most likely related to a lack of internet connection,
+        /**When trying to reconnect to CQL Binary Protocol {@link Library} encountered an issue, most likely related to a lack of internet connection,
          * and is waiting to try reconnecting again.*/
         WAITING_TO_RECONNECT,
-        /**{@link Library} has been disconnected from Apache Cassandra and is currently trying to reestablish the connection.*/
+        /**{@link Library} has been disconnected from CQL Binary Protocol and is currently trying to reestablish the connection.*/
         ATTEMPTING_TO_RECONNECT,
-        /**{@link Library} has received a shutdown request or has been disconnected from Apache Cassandra and reconnect is disabled, thus,
+        /**{@link Library} has received a shutdown request or has been disconnected from CQL Binary Protocol and reconnect is disabled, thus,
          * {@link Library} is in the process of shutting down*/
         SHUTTING_DOWN,
-        /**{@link Library} has finished shutting down and this instance can no longer be used to communicate with the Apache Cassandra servers.*/
+        /**{@link Library} has finished shutting down and this instance can no longer be used to communicate with the CQL Binary Protocol.*/
         SHUTDOWN,
-        /**While attempting to authenticate, Apache Cassandra reported that the provided authentication information was invalid.*/
+        /**While attempting to authenticate, CQL Binary Protocol reported that the provided authentication information was invalid.*/
         FAILED_TO_LOGIN;
 
         private final boolean isInit;
@@ -70,7 +70,7 @@ public interface Library
     }
 
     /**
-     * The login token that is currently being used for Apache Cassandra authentication.
+     * The login token that is currently being used for CQL Binary Protocol authentication.
      *
      * @return Never-null, an auth bytes token.
      */
@@ -120,7 +120,7 @@ public interface Library
     List<? extends ListenerAdapter> getRegisteredListeners();
 
     /**
-     * This value is the total amount of {@link java.nio.ByteBuffer ByteBuffer} responses that Apache Cassandra has sent.
+     * This value is the total amount of {@link java.nio.ByteBuffer ByteBuffer} responses that CQL Binary Protocol has sent.
      * <br>This value resets every time the socket has to perform a full reconnect (not resume).
      *
      * @return Never-negative long containing total response amount.

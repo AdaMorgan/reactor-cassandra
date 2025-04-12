@@ -1,7 +1,5 @@
 package com.datastax.api.utils.data;
 
-import com.datastax.api.CustomInfo;
-
 public enum DataType
 {
     UNKNOWN(0x0000),

@@ -10,9 +10,9 @@ import javax.annotation.Nonnull;
 
 public class OptionActionImpl extends ObjectActionImpl<ByteBuf>
 {
-    public OptionActionImpl(LibraryImpl api, byte version, byte flags)
+    public OptionActionImpl(LibraryImpl api, byte flags)
     {
-        super(api, version, flags, SocketCode.OPTIONS);
+        super(api, flags, SocketCode.OPTIONS);
     }
 
     @Nonnull

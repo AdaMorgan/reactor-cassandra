@@ -17,9 +17,9 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 {
     public ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    public ObjectCreateActionTest(LibraryImpl api, byte version, byte flags)
+    public ObjectCreateActionTest(LibraryImpl api, byte flags)
     {
-        super(api, version, flags, SocketCode.QUERY);
+        super(api, flags, SocketCode.QUERY);
     }
 
     @Nonnull

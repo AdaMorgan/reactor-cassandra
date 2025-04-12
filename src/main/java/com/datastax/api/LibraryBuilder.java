@@ -11,10 +11,13 @@ import io.netty.buffer.Unpooled;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class LibraryBuilder
 {
@@ -108,30 +111,6 @@ public class LibraryBuilder
         initialToken.writeBytes(passwordBytes);
 
         return initialToken.array();
-    }
-
-    /**
-     * The maximum size, in bytes, of the buffer used for decompressing discord payloads.
-     * <br>If the maximum buffer size is exceeded a new buffer will be allocated instead.
-     * <br>Setting this to {@link Integer#MAX_VALUE} would imply the buffer will never be resized unless memory starvation is imminent.
-     * <br>Setting this to {@code 0} would imply the buffer would need to be allocated again for every payload (not recommended).
-     *
-     * <p>Default: {@code 2048}
-     *
-     * @param  bufferSize
-     *         The maximum size the buffer should allow to retain
-     *
-     * @throws IllegalArgumentException
-     *         If the provided buffer size is negative
-     *
-     * @return The JDABuilder instance. Useful for chaining.
-     */
-    @Nonnull
-    public LibraryBuilder setMaxBufferSize(int bufferSize)
-    {
-        Checks.notNegative(bufferSize, "The buffer size");
-        this.maxBufferSize = bufferSize;
-        return this;
     }
 
     public LibraryImpl build()

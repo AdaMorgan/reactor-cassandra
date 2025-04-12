@@ -11,7 +11,7 @@ public class ErrorResponseException extends RuntimeException
     private final ErrorResponse errorResponse;
     private final ByteBuf response;
     private final int code;
-    private final String message;
+    private final String meaning;
 
     public ErrorResponseException(ErrorResponse errorResponse, ByteBuf response, int code, String meaning)
     {
@@ -19,12 +19,12 @@ public class ErrorResponseException extends RuntimeException
         this.errorResponse = errorResponse;
         this.response = response;
         this.code = code;
-        this.message = meaning;
+        this.meaning = meaning;
     }
 
     /**
      * The {@link ErrorResponse ErrorResponse} corresponding
-     * for the received error response from Discord
+     * for the received error response from CQL Binary Protocol
      *
      * @return {@link ErrorResponse ErrorResponse}
      */
@@ -32,6 +32,16 @@ public class ErrorResponseException extends RuntimeException
     public ErrorResponse getErrorResponse()
     {
         return errorResponse;
+    }
+
+    public int getErrorCode()
+    {
+        return code;
+    }
+
+    public String getMeaning()
+    {
+        return meaning;
     }
 
     public static ErrorResponseException create(ErrorResponse errorResponse, Response response)

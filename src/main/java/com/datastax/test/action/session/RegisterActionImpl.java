@@ -10,9 +10,9 @@ import javax.annotation.Nonnull;
 
 public class RegisterActionImpl extends ObjectActionImpl<ByteBuf>
 {
-    public RegisterActionImpl(LibraryImpl api, byte version, byte flags)
+    public RegisterActionImpl(LibraryImpl api, byte flags)
     {
-        super(api, version, flags, SocketCode.REGISTER);
+        super(api, flags, SocketCode.REGISTER);
     }
 
     @Nonnull

@@ -23,17 +23,17 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     protected final int bitfield;
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    protected ObjectCreateActionImpl(LibraryImpl api, byte version, byte flags, byte opcode, String content, Level level, Flag... queryFlags)
+    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, Level level, Flag... queryFlags)
     {
-        super(api, version, flags, opcode);
+        super(api, flags, opcode);
         this.content = content;
         this.level = level.getCode();
         this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
     }
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte version, byte flags, String content, Level level, Flag... queryFlags)
+    public ObjectCreateActionImpl(LibraryImpl api, byte flags, String content, Level level, Flag... queryFlags)
     {
-        this(api, version, flags, SocketCode.QUERY, content, level, queryFlags);
+        this(api, flags, SocketCode.QUERY, content, level, queryFlags);
     }
 
     @Override

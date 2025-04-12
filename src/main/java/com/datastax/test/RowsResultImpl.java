@@ -27,6 +27,8 @@ public class RowsResultImpl
     public RowsResultImpl(@Nonnull final ByteBuf buffer)
     {
         this.buffer = buffer;
+
+        this.run();
     }
 
     public void run()
