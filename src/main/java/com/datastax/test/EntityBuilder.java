@@ -7,7 +7,9 @@ import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 public class EntityBuilder implements ByteBufConvertible
 {
@@ -94,6 +96,18 @@ public class EntityBuilder implements ByteBufConvertible
         this.buffer.writeInt(buffer.readableBytes());
         this.buffer.writeBytes(buffer);
         return this;
+    }
+
+    public EntityBuilder writeBytes(Callable<ByteBuf> body)
+    {
+        try
+        {
+            return this.writeBytes(body.call());
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
     public EntityBuilder writeBytes(byte[] bytes)

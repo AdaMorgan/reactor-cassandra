@@ -3,7 +3,7 @@ package com.datastax.test.action.session;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.SocketClientRelese;
+import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.test.EntityBuilder;
@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Map;
 
-public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.StartingNode>
+public class StartingActionImpl extends ObjectActionImpl<ByteBuf>
 {
     private static final String CQL_VERSION_OPTION = "CQL_VERSION";
     private static final String CQL_VERSION = "3.0.0";
@@ -38,9 +38,9 @@ public class StartingActionImpl extends ObjectActionImpl<SocketClientRelese.Star
     }
 
     @Override
-    protected void handleSuccess(@Nonnull Request<SocketClientRelese.StartingNode> request, Response response)
+    protected void handleSuccess(@Nonnull Request<ByteBuf> request, Response response)
     {
-        request.onSuccess(new SocketClientRelese.StartingNode(this.api, this.version, this.flags));
+        request.onSuccess(response.getBody());
     }
 
     @Nonnull

@@ -23,7 +23,7 @@ import java.util.ServiceLoader;
  *
  * @see #setFallbackLoggerEnabled(boolean)
  */
-public class CustomLogger
+public class LibraryLogger
 {
     /**
      * The name of the system property, which controls whether the fallback logger is disabled.
@@ -80,7 +80,7 @@ public class CustomLogger
 
     private static final Map<String, Logger> LOGS = new HashMap<>();
 
-    private CustomLogger() {}
+    private LibraryLogger() {}
 
     /**
      * Disables the automatic fallback logger, when no SLF4J implementation is found.
@@ -137,7 +137,7 @@ public class CustomLogger
 
     private static void printFallbackWarning()
     {
-        Logger logger = newFallbackLogger(CustomLogger.class.getSimpleName());
+        Logger logger = newFallbackLogger(LibraryLogger.class.getSimpleName());
         logger.warn("Using fallback logger due to missing SLF4J implementation.");
         logger.warn("Please setup a logging framework.");
         logger.warn("You can use logging setup guide https://logback.qos.ch/manual/configuration.html");

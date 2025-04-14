@@ -1,9 +1,6 @@
 package com.datastax.api.hooks;
 
-import com.datastax.api.events.Event;
-import com.datastax.api.events.GenericEvent;
-import com.datastax.api.events.StatusChangeEvent;
-import com.datastax.api.events.UpdateEvent;
+import com.datastax.api.events.*;
 import com.datastax.internal.utils.ClassWalker;
 
 import javax.annotation.Nonnull;
@@ -22,6 +19,10 @@ public class ListenerAdapter implements EventListener
     public void onGenericUpdate(@Nonnull UpdateEvent<?, ?> event) {}
 
     public void onStatusChange(@Nonnull StatusChangeEvent event) {}
+
+    public void onShutdown(@Nonnull ShutdownEvent event) {}
+
+    public void onException(@Nonnull ExceptionEvent event) {}
 
     private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
     private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();

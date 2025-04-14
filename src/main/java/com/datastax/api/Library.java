@@ -26,9 +26,6 @@ public interface Library
         LOGGING_IN(true),
         /**{@link Library} has sent authentication to CQL Binary Protocol and is awaiting confirmation*/
         AWAITING_LOGIN_CONFIRMATION(true),
-        /**{@link Library} is populating internal objects.
-         * This process often takes the longest of all Statuses (besides {@link Status#CONNECTED})*/
-        LOADING_SUBSYSTEMS(true),
         /**{@link Library} has finished loading everything, is receiving information from CQL Binary Protocol and is firing events.*/
         CONNECTED(true),
         /**{@link Library}'s main socket has been disconnected. This <b>DOES NOT</b> mean {@link Library} has shutdown permanently.

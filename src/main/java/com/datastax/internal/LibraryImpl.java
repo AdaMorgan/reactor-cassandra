@@ -9,9 +9,9 @@ import com.datastax.api.utils.MiscUtil;
 import com.datastax.internal.hooks.EventManagerProxy;
 import com.datastax.internal.requests.Requester;
 import com.datastax.internal.utils.Checks;
-import com.datastax.internal.utils.CustomLogger;
+import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.internal.utils.config.ThreadingConfig;
-import com.datastax.test.SocketClient;
+import com.datastax.internal.requests.SocketClient;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class LibraryImpl implements Library
 {
-    public static final Logger LOG = CustomLogger.getLog(Library.class);
+    public static final Logger LOG = LibraryLogger.getLog(Library.class);
 
     protected final AtomicReference<Status> status = new AtomicReference<>(Status.INITIALIZING);
     protected final ReentrantLock statusLock = new ReentrantLock();
