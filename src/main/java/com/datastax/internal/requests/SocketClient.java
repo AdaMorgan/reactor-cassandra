@@ -1,12 +1,16 @@
 package com.datastax.internal.requests;
 
 import com.datastax.api.Library;
+import com.datastax.api.LibraryInfo;
 import com.datastax.api.events.ExceptionEvent;
-import com.datastax.api.events.ShutdownEvent;
+import com.datastax.api.events.session.ReadyEvent;
+import com.datastax.api.events.session.SessionDisconnectEvent;
+import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.api.utils.SessionController;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.test.EntityBuilder;
 import com.datastax.test.RowsResultImpl;
@@ -35,16 +39,25 @@ import java.net.ConnectException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
+    protected final byte version;
+
     private static final byte DEFAULT_FLAG = 0x00;
+    private static final byte DEFAULT_STREAM = 0x00;
 
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 9042;
@@ -53,15 +66,17 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
     private final EventLoopGroup executor;
 
+    private final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
+    private final Queue<Request<?>> cacheRequest = new ConcurrentLinkedQueue<>();
+
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
 
     public SocketClient(LibraryImpl library)
     {
         this.executor = new NioEventLoopGroup();
-
         this.library = library;
-        this.handler = new Bootstrap()
-                .group(executor)
+        this.version = library.getVersion();
+        this.handler = new Bootstrap().group(executor)
                 .channel(NioSocketChannel.class)
                 .handler(new Initializer(this))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
@@ -73,6 +88,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     public void channelInactive(ChannelHandlerContext context) throws Exception
     {
         this.library.setStatus(Library.Status.DISCONNECTED);
+        this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
         reconnect(0);
     }
 
@@ -83,79 +99,115 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.executor.shutdownGracefully();
     }
 
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM demo.test WHERE user_id = :user_id AND user_name = :user_name";
-    public static final String TEST_QUERY = "SELECT * FROM system.clients";
-
     @Override
     public final void channelActive(ChannelHandlerContext context)
     {
         this.context.set(context);
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
 
-        new StartingActionImpl(this.library, DEFAULT_FLAG).queue(node ->
+        new OptionActionImpl(this.library, DEFAULT_FLAG).queue(supported ->
         {
-            System.out.println("starting!");
-            new LoginCreateActionImpl(this.library, DEFAULT_FLAG).queue(authSuccess ->
+            new StartingActionImpl(this.library, DEFAULT_FLAG).queue(node ->
             {
-                System.out.println("authSuccess!");
-                new OptionActionImpl(this.library, DEFAULT_FLAG).queue(supported ->
+                new LoginCreateActionImpl(this.library, DEFAULT_FLAG).queue(authSuccess ->
                 {
-                    System.out.println("supported!");
                     new RegisterActionImpl(this.library, DEFAULT_FLAG, RegisterActionImpl.EventType.SCHEMA_CHANGE, RegisterActionImpl.EventType.SCHEMA_CHANGE, RegisterActionImpl.EventType.TOPOLOGY_CHANGE).queue(ready ->
                     {
-                        System.out.println("ready!");
-                        new ObjectCreateActionImpl(this.library, DEFAULT_FLAG, TEST_QUERY, Level.ONE).queue(RowsResultImpl::new, Throwable::printStackTrace);
+                        LibraryImpl.LOG.info("Finished Loading!");
+                        this.library.handleEvent(new ReadyEvent(this.library));
                     });
                 });
             });
         });
     }
 
-    public synchronized void connect() {
-        if (this.library.getStatus() != Library.Status.ATTEMPTING_TO_RECONNECT) {
+    private BiFunction<Byte, ByteBuf, SessionController.SessionConnectNode> onDispatch()
+    {
+        return (opcode, body) -> {
+            switch (opcode)
+            {
+                case SocketCode.SUPPORTED:
+                {
+                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.STARTUP, () ->
+                    {
+                        return new EntityBuilder().asByteBuf();
+                    });
+                }
+                case SocketCode.AUTHENTICATE:
+                {
+                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.AUTH_RESPONSE, () ->
+                    {
+                        return new EntityBuilder().asByteBuf();
+                    });
+                }
+                case SocketCode.AUTH_SUCCESS:
+                {
+                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.REGISTER, () ->
+                    {
+                        return new EntityBuilder().asByteBuf();
+                    });
+                }
+                case SocketCode.READY:
+                {
+                    LibraryImpl.LOG.info("Finished Loading!");
+                    this.library.handleEvent(new ReadyEvent(this.library));
+                    return null;
+                }
+                default:
+                    return null;
+            }
+        };
+    }
+
+    public synchronized void connect()
+    {
+        if (this.library.getStatus() != Library.Status.ATTEMPTING_TO_RECONNECT)
+        {
             this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
 
         ChannelFuture future = handler.connect(HOST, PORT);
         future.awaitUninterruptibly();
 
-        if (future.isSuccess()) {
+        if (future.isSuccess())
+        {
             return;
         }
 
         Throwable failure = future.cause();
 
-        if (failure instanceof ConnectTimeoutException) {
+        if (failure instanceof ConnectTimeoutException)
+        {
             LOG.debug("Socket timed out");
             return;
         }
 
-        if (failure instanceof ConnectException) {
-            if (this.library.getStatus() == Library.Status.CONNECTING_TO_SOCKET) {
+        if (failure instanceof ConnectException)
+        {
+            if (this.library.getStatus() == Library.Status.CONNECTING_TO_SOCKET)
+            {
                 LOG.error("Cannot create a socket connection");
                 this.shutdown();
                 return;
             }
 
-            throw new RuntimeException("Cannot create socket connection", failure);
+            throw new RuntimeException(failure);
         }
 
         LOG.error("There was an error in the Socket connection", failure);
         this.library.handleEvent(new ExceptionEvent(this.library, failure, true));
     }
 
-
-    public final int delay = 64;
-
     public final void reconnect(int reconnectTimeS)
     {
-        int delay = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.delay);
+        int delay = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, 64);
 
         LOG.debug("Reconnect attempt in {}s", delay);
 
         this.library.setStatus(Library.Status.WAITING_TO_RECONNECT);
 
-        this.executor.schedule(() -> {
+        this.executor.schedule(() ->
+        {
             try
             {
                 this.library.setStatus(Library.Status.ATTEMPTING_TO_RECONNECT);
@@ -169,9 +221,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             }
         }, delay, TimeUnit.SECONDS);
     }
-
-    private final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
-    private final Queue<Request<?>> cacheRequest = new ConcurrentLinkedQueue<>();
 
     public <R> void execute(Request<R> request, short stream)
     {
@@ -204,17 +253,21 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
 
         @Override
-        protected void initChannel(@Nonnull SocketChannel channel) throws Exception
+        protected void initChannel(@Nonnull SocketChannel channel)
         {
             if (SocketConfig.IS_DEBUG)
             {
-                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                channel.pipeline()
+                        .addLast(new LoggingHandler(LogLevel.INFO));
             }
 
-            channel.pipeline().addLast(new MessageDecoder(this));
-            channel.pipeline().addLast(new MessageEncoder());
+            channel.pipeline()
+                    .addLast(new MessageDecoder(this));
+            channel.pipeline()
+                    .addLast(new MessageEncoder());
 
-            channel.pipeline().addLast(new Handler(this.client));
+            channel.pipeline()
+                    .addLast(new Handler(this.client));
         }
     }
 
@@ -270,8 +323,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                 return;
             }
 
-            onDispatch(opcode);
-
             ByteBuf frame = in.readRetainedSlice(length);
 
             directBuffer(context, version, isResponse, flags, stream, opcode, length, frame);
@@ -290,36 +341,14 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             if (!cacheRequest.isEmpty())
             {
                 Request<?> peek = cacheRequest.peek();
-                this.api.getRequester().execute(peek);
+                this.api.getRequester()
+                        .execute(peek);
                 cacheRequest.remove(peek);
-            }
-        }
-
-        private void onDispatch(byte opcode)
-        {
-            switch (opcode)
-            {
-                case SocketCode.AUTHENTICATE:
-                {
-                    break;
-                }
-                case SocketCode.AUTH_SUCCESS:
-                {
-                    break;
-                }
-                case SocketCode.SUPPORTED:
-                {
-                    break;
-                }
-                case SocketCode.READY:
-                {
-                    break;
-                }
             }
         }
     }
 
-    public abstract static class ConnectNode implements SessionController.SessionConnectNode
+    public static class ConnectNode implements SessionController.SessionConnectNode
     {
         protected final Library api;
 
@@ -347,8 +376,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         @Override
         public ByteBuf asByteBuf()
         {
-            return new EntityBuilder()
-                    .writeByte(this.version)
+            return new EntityBuilder().writeByte(this.version)
                     .writeByte(this.flags)
                     .writeShort(this.stream)
                     .writeByte(this.opcode)

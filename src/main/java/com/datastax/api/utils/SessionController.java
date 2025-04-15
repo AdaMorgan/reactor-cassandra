@@ -7,13 +7,6 @@ public interface SessionController
 {
     interface SessionConnectNode
     {
-        /**
-         * Whether this node is reconnecting. Can be used to setup a priority based system.
-         *
-         * @return True, if this session is reconnecting
-         */
-        boolean isReconnect();
-
         Library getLibrary();
 
         ByteBuf asByteBuf();

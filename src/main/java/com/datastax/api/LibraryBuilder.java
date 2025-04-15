@@ -11,13 +11,10 @@ import io.netty.buffer.Unpooled;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class LibraryBuilder
 {
@@ -122,7 +119,6 @@ public class LibraryBuilder
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
-
         return library;
     }
 }

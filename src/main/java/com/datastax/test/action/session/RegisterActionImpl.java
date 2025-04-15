@@ -1,5 +1,7 @@
 package com.datastax.test.action.session;
 
+import com.datastax.api.requests.Request;
+import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
@@ -8,7 +10,6 @@ import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class RegisterActionImpl extends ObjectActionImpl<ByteBuf>
 {
@@ -18,6 +19,12 @@ public class RegisterActionImpl extends ObjectActionImpl<ByteBuf>
     {
         super(api, flags, SocketCode.REGISTER);
         this.types = Arrays.stream(types).map(Enum::toString).toArray(String[]::new);
+    }
+
+    @Override
+    protected void handleSuccess(Request<ByteBuf> request, Response response)
+    {
+        request.onSuccess(response.getBody());
     }
 
     @Nonnull

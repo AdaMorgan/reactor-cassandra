@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 public class EntityBuilder implements ByteBufConvertible
 {

@@ -1,6 +1,7 @@
 package com.datastax.internal;
 
 import com.datastax.api.Library;
+import com.datastax.api.LibraryInfo;
 import com.datastax.api.events.GenericEvent;
 import com.datastax.api.events.StatusChangeEvent;
 import com.datastax.api.hooks.IEventManager;
@@ -8,10 +9,10 @@ import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.api.utils.MiscUtil;
 import com.datastax.internal.hooks.EventManagerProxy;
 import com.datastax.internal.requests.Requester;
+import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.utils.Checks;
 import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.internal.utils.config.ThreadingConfig;
-import com.datastax.internal.requests.SocketClient;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -133,5 +134,10 @@ public class LibraryImpl implements Library
         {
             handleEvent(event);
         }
+    }
+
+    public byte getVersion()
+    {
+        return LibraryInfo.PROTOCOL_VERSION;
     }
 }

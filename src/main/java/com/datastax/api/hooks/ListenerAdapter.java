@@ -1,6 +1,9 @@
 package com.datastax.api.hooks;
 
 import com.datastax.api.events.*;
+import com.datastax.api.events.session.ReadyEvent;
+import com.datastax.api.events.session.SessionDisconnectEvent;
+import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.internal.utils.ClassWalker;
 
 import javax.annotation.Nonnull;
@@ -20,6 +23,8 @@ public class ListenerAdapter implements EventListener
 
     public void onStatusChange(@Nonnull StatusChangeEvent event) {}
 
+    public void onReady(@Nonnull ReadyEvent event) {}
+    public void onSessionDisconnect(@Nonnull SessionDisconnectEvent event) {}
     public void onShutdown(@Nonnull ShutdownEvent event) {}
 
     public void onException(@Nonnull ExceptionEvent event) {}

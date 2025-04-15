@@ -26,6 +26,5 @@ public class OptionActionImpl extends ObjectActionImpl<ByteBuf>
                 .writeByte(this.opcode)
                 .writeInt(0)
                 .asByteBuf();
-
     }
 }

@@ -24,8 +24,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final byte version = LibraryInfo.PROTOCOL_VERSION;
-    protected final byte flags, opcode;
+    protected final byte version, flags, opcode;
 
     private final String localReason;
 
@@ -34,6 +33,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     public ObjectActionImpl(LibraryImpl api, byte flags, byte opcode, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
+        this.version = api.getVersion();
         this.flags = flags;
         this.opcode = opcode;
         this.handler = handler;

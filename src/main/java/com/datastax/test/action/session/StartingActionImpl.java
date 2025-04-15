@@ -3,7 +3,6 @@ package com.datastax.test.action.session;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.test.EntityBuilder;
