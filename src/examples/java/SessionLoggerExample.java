@@ -1,3 +1,4 @@
+import com.datastax.api.Library;
 import com.datastax.api.LibraryBuilder;
 import com.datastax.api.events.ExceptionEvent;
 import com.datastax.api.events.StatusChangeEvent;
@@ -19,7 +20,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 
     private static final byte DEFAULT_FLAG = 0x00;
 
-    public static void main(String[] args) throws ConnectionPoolTimeoutException
+    public static void main(String[] args)
     {
         LibraryImpl api = LibraryBuilder.createLight()
                 .addEventListeners(new SessionLoggerExample())

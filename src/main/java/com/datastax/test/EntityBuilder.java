@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class EntityBuilder implements ByteBufConvertible
 {
@@ -103,15 +104,21 @@ public class EntityBuilder implements ByteBufConvertible
         {
             return this.writeBytes(body.call());
         }
-        catch (Exception e)
+        catch (Exception failure)
         {
-            throw new RuntimeException(e);
+            throw new RuntimeException(failure);
         }
     }
 
     public EntityBuilder writeBytes(byte[] bytes)
     {
         this.buffer.writeBytes(bytes);
+        return this;
+    }
+
+    public EntityBuilder requireHandler(Consumer<? super ByteBuf> callback)
+    {
+        callback.accept(this.buffer);
         return this;
     }
 

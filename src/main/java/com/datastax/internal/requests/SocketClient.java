@@ -1,7 +1,6 @@
 package com.datastax.internal.requests;
 
 import com.datastax.api.Library;
-import com.datastax.api.LibraryInfo;
 import com.datastax.api.events.ExceptionEvent;
 import com.datastax.api.events.session.ReadyEvent;
 import com.datastax.api.events.session.SessionDisconnectEvent;
@@ -10,20 +9,13 @@ import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.api.utils.SessionController;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.test.EntityBuilder;
-import com.datastax.test.RowsResultImpl;
 import com.datastax.test.SocketConfig;
-import com.datastax.test.action.Level;
-import com.datastax.test.action.ObjectCreateActionImpl;
-import com.datastax.test.action.session.LoginCreateActionImpl;
-import com.datastax.test.action.session.OptionActionImpl;
-import com.datastax.test.action.session.RegisterActionImpl;
-import com.datastax.test.action.session.StartingActionImpl;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -36,19 +28,15 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.net.ConnectException;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 public class SocketClient extends ChannelInboundHandlerAdapter
 {
@@ -76,7 +64,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.executor = new NioEventLoopGroup();
         this.library = library;
         this.version = library.getVersion();
-        this.handler = new Bootstrap().group(executor)
+        this.handler = new Bootstrap()
+                .group(executor)
                 .channel(NioSocketChannel.class)
                 .handler(new Initializer(this))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
@@ -85,7 +74,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext context) throws Exception
+    public void channelInactive(ChannelHandlerContext context)
     {
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
@@ -104,59 +93,22 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         this.context.set(context);
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
-
-        new OptionActionImpl(this.library, DEFAULT_FLAG).queue(supported ->
-        {
-            new StartingActionImpl(this.library, DEFAULT_FLAG).queue(node ->
-            {
-                new LoginCreateActionImpl(this.library, DEFAULT_FLAG).queue(authSuccess ->
-                {
-                    new RegisterActionImpl(this.library, DEFAULT_FLAG, RegisterActionImpl.EventType.SCHEMA_CHANGE, RegisterActionImpl.EventType.SCHEMA_CHANGE, RegisterActionImpl.EventType.TOPOLOGY_CHANGE).queue(ready ->
-                    {
-                        LibraryImpl.LOG.info("Finished Loading!");
-                        this.library.handleEvent(new ReadyEvent(this.library));
-                    });
-                });
-            });
-        });
+        sendIdentify(context, context::writeAndFlush);
     }
 
-    private BiFunction<Byte, ByteBuf, SessionController.SessionConnectNode> onDispatch()
+    protected ByteBuf sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
-        return (opcode, body) -> {
-            switch (opcode)
-            {
-                case SocketCode.SUPPORTED:
-                {
-                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.STARTUP, () ->
-                    {
-                        return new EntityBuilder().asByteBuf();
-                    });
-                }
-                case SocketCode.AUTHENTICATE:
-                {
-                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.AUTH_RESPONSE, () ->
-                    {
-                        return new EntityBuilder().asByteBuf();
-                    });
-                }
-                case SocketCode.AUTH_SUCCESS:
-                {
-                    return new ConnectNode(this.library, version, DEFAULT_FLAG, DEFAULT_STREAM, SocketCode.REGISTER, () ->
-                    {
-                        return new EntityBuilder().asByteBuf();
-                    });
-                }
-                case SocketCode.READY:
-                {
-                    LibraryImpl.LOG.info("Finished Loading!");
-                    this.library.handleEvent(new ReadyEvent(this.library));
-                    return null;
-                }
-                default:
-                    return null;
-            }
-        };
+        LOG.debug("Sending Identify node...");
+        return new ConnectNode(this.library, () ->
+        {
+            return new EntityBuilder().writeByte(this.version)
+                    .writeByte(DEFAULT_FLAG)
+                    .writeShort(DEFAULT_STREAM)
+                    .writeByte(SocketCode.OPTIONS)
+                    .writeInt(0)
+                    .requireHandler(callback)
+                    .asByteBuf();
+        }).asByteBuf();
     }
 
     public synchronized void connect()
@@ -257,17 +209,13 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             if (SocketConfig.IS_DEBUG)
             {
-                channel.pipeline()
-                        .addLast(new LoggingHandler(LogLevel.INFO));
+                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             }
 
-            channel.pipeline()
-                    .addLast(new MessageDecoder(this));
-            channel.pipeline()
-                    .addLast(new MessageEncoder());
+            channel.pipeline().addLast(new MessageDecoder(this));
+            channel.pipeline().addLast(new MessageEncoder());
 
-            channel.pipeline()
-                    .addLast(new Handler(this.client));
+            channel.pipeline().addLast(new Handler(this.client));
         }
     }
 
@@ -283,21 +231,16 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final class MessageDecoder extends ByteToMessageDecoder
     {
         private final Initializer initializer;
-        private final LibraryImpl api;
+        private final LibraryImpl library;
 
         public MessageDecoder(Initializer initializer)
         {
-            this.api = initializer.client.library;
+            this.library = initializer.client.library;
             this.initializer = initializer;
         }
 
         @Override
-        protected void decode(ChannelHandlerContext context, ByteBuf frame, List<Object> out)
-        {
-            enqueue(context, frame, out);
-        }
-
-        public void enqueue(ChannelHandlerContext context, ByteBuf in, List<Object> out)
+        protected void decode(ChannelHandlerContext context, ByteBuf in, List<Object> out)
         {
             in.markReaderIndex();
 
@@ -325,10 +268,96 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
             ByteBuf frame = in.readRetainedSlice(length);
 
-            directBuffer(context, version, isResponse, flags, stream, opcode, length, frame);
+            onDispatch(version, flags, stream, opcode, length, frame, context::writeAndFlush);
         }
 
-        private void directBuffer(ChannelHandlerContext context, byte version, boolean isResponse, byte flags, short stream, byte opcode, int length, ByteBuf frame)
+        private void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame, Consumer<? super ByteBuf> callback)
+        {
+            switch (opcode)
+            {
+                case SocketCode.SUPPORTED:
+                {
+                    BiConsumer<ByteBuf, String> writeString = (body, value) -> {
+                        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                        body.writeInt(bytes.length);
+                        body.writeBytes(bytes);
+                    };
+
+                    new ConnectNode(this.library, () ->
+                    {
+                        Map<String, String> map = new HashMap<>();
+                        map.put("CQL_VERSION_OPTION", "4.0.0");
+                        map.put("DRIVER_VERSION_OPTION", "0.2.0");
+                        map.put("DRIVER_NAME_OPTION", "mmorrii");
+                        map.put("THROW_ON_OVERLOAD_OPTION", "true");
+
+                        ByteBuf body = Unpooled.directBuffer();
+
+                        body.writeShort(map.size());
+
+                        for (Map.Entry<String, String> entry : map.entrySet())
+                        {
+                            writeString.accept(body, entry.getKey());
+                            writeString.accept(body, entry.getValue());
+                        }
+
+                        return new EntityBuilder()
+                                .writeByte(version)
+                                .writeByte(DEFAULT_FLAG)
+                                .writeShort(stream)
+                                .writeByte(SocketCode.STARTUP)
+                                .writeBytes(body)
+                                .requireHandler(callback)
+                                .asByteBuf();
+                    }).asByteBuf();
+                    break;
+                }
+                case SocketCode.AUTHENTICATE:
+                {
+                    new ConnectNode(this.library, () ->
+                    {
+                        String username = "cassandra";
+                        String password = "cassandra";
+                        return new EntityBuilder()
+                                .writeByte(version)
+                                .writeByte(DEFAULT_FLAG)
+                                .writeShort(stream)
+                                .writeByte(SocketCode.AUTH_RESPONSE)
+                                .writeString(username, password)
+                                .requireHandler(callback)
+                                .asByteBuf();
+                    }).asByteBuf();
+                    break;
+                }
+                case SocketCode.AUTH_SUCCESS:
+                {
+                    new ConnectNode(this.library, () ->
+                    {
+                        return new EntityBuilder()
+                                .writeByte(version)
+                                .writeByte(DEFAULT_FLAG)
+                                .writeShort(0x00)
+                                .writeByte(SocketCode.REGISTER)
+                                .writeString("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
+                                .requireHandler(callback)
+                                .asByteBuf();
+                    }).asByteBuf();
+                    break;
+                }
+                case SocketCode.READY:
+                {
+                    LibraryImpl.LOG.info("Finished Loading!");
+                    this.library.handleEvent(new ReadyEvent(this.library));
+                    break;
+                }
+                default:
+                {
+                    enqueue(version, flags, stream, opcode, length, frame);
+                }
+            }
+        }
+
+        private void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame)
         {
             Queue<Request<?>> cacheRequest = this.initializer.client.cacheRequest;
 
@@ -341,8 +370,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             if (!cacheRequest.isEmpty())
             {
                 Request<?> peek = cacheRequest.peek();
-                this.api.getRequester()
-                        .execute(peek);
+                this.library.getRequester().execute(peek);
                 cacheRequest.remove(peek);
             }
         }
@@ -352,18 +380,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         protected final Library api;
 
-        protected final byte version, flags, opcode;
-        protected final short stream;
+        protected final Supplier<ByteBuf> body;
 
-        protected final Callable<ByteBuf> body;
-
-        public ConnectNode(Library api, byte version, byte flags, short stream, byte opcode, Callable<ByteBuf> body)
+        public ConnectNode(Library api, Supplier<ByteBuf> body)
         {
             this.api = api;
-            this.version = version;
-            this.flags = flags;
-            this.stream = stream;
-            this.opcode = opcode;
             this.body = body;
         }
 
@@ -376,12 +397,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         @Override
         public ByteBuf asByteBuf()
         {
-            return new EntityBuilder().writeByte(this.version)
-                    .writeByte(this.flags)
-                    .writeShort(this.stream)
-                    .writeByte(this.opcode)
-                    .writeBytes(this.body)
-                    .asByteBuf();
+            return this.body.get();
         }
 
         @Override

@@ -119,6 +119,7 @@ public class LibraryBuilder
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
+
         return library;
     }
 }
