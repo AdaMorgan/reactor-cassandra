@@ -90,7 +90,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         this.context.set(context);
         this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
-        sendIdentify(context, context::writeAndFlush).asByteBuf();
+        sendIdentify(context, context::writeAndFlush);
     }
 
     protected SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)

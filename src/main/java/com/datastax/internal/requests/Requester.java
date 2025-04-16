@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Queue;
@@ -21,7 +22,6 @@ public class Requester
 {
     private final LibraryImpl library;
     private final StreamManager streamManager;
-    private final ChannelHandlerContext context;
 
     public final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
     public final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
@@ -29,7 +29,6 @@ public class Requester
     public Requester(LibraryImpl library)
     {
         this.library = library;
-        this.context = library.getClient().getContext();
         this.streamManager = new StreamManager((short) 50);
     }
 
@@ -40,16 +39,21 @@ public class Requester
         });
     }
 
-    //TODO: NOT WORK!
+    @Nullable
+    public ChannelHandlerContext getContext()
+    {
+        return this.library.getClient().getContext();
+    }
+
     public <T> void execute(Request<T> request, short stream)
     {
-        if (this.context != null && !this.queue.containsKey(stream))
+        if (getContext() != null && !this.queue.containsKey(stream))
         {
             ByteBuf body = request.getBody();
             body.setShort(2, stream);
             request.handleResponse(stream, this.queue::put);
 
-            context.writeAndFlush(body.retain());
+            getContext().writeAndFlush(body.retain());
         }
         else
         {
