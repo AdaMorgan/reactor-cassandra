@@ -7,7 +7,6 @@ import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -71,10 +70,15 @@ public class EntityBuilder implements ByteBufConvertible
         return this;
     }
 
-    public EntityBuilder writeString(String str)
+    public EntityBuilder writeString(String in)
     {
-        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        this.buffer.writeInt(bytes.length);
+        return this.writeString(in, ByteBuf::writeInt);
+    }
+
+    public EntityBuilder writeString(String in, BiConsumer<ByteBuf, Integer> length)
+    {
+        byte[] bytes = in.getBytes(StandardCharsets.UTF_8);
+        length.accept(buffer, bytes.length);
         this.buffer.writeBytes(bytes);
         return this;
     }
@@ -85,38 +89,34 @@ public class EntityBuilder implements ByteBufConvertible
         return this.writeBytes(collect);
     }
 
-    public EntityBuilder writeBytes(EntityBuilder buffer)
+    public EntityBuilder writeString(BiConsumer<ByteBuf, Integer> length, String... arr)
     {
-        this.writeBytes(buffer.buffer);
+        EntityBuilder collect = Arrays.stream(arr).collect(EntityBuilder::new, (builder, in) -> builder.writeString(in, length), EntityBuilder::writeBytes);
+        return this.writeBytes(collect);
+    }
+
+    public EntityBuilder writeBytes(EntityBuilder in)
+    {
+        this.writeBytes(in.buffer);
         return this;
     }
 
-    public EntityBuilder writeBytes(ByteBuf buffer)
+    public EntityBuilder writeBytes(ByteBuf in)
     {
-        this.buffer.writeInt(buffer.readableBytes());
-        this.buffer.writeBytes(buffer);
+        int len = in.readableBytes();
+        this.buffer.writeInt(len);
+        this.buffer.writeBytes(in, in.readerIndex(), len);
         return this;
-    }
-
-    public EntityBuilder writeBytes(Callable<ByteBuf> body)
-    {
-        try
-        {
-            return this.writeBytes(body.call());
-        }
-        catch (Exception failure)
-        {
-            throw new RuntimeException(failure);
-        }
     }
 
     public EntityBuilder writeBytes(byte[] bytes)
     {
+        this.buffer.writeInt(bytes.length);
         this.buffer.writeBytes(bytes);
         return this;
     }
 
-    public EntityBuilder requireHandler(Consumer<? super ByteBuf> callback)
+    public EntityBuilder apply(Consumer<? super ByteBuf> callback)
     {
         callback.accept(this.buffer);
         return this;

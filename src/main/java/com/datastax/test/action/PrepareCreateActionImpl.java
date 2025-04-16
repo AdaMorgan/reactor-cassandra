@@ -135,8 +135,6 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
             tag.writeLock(buf, bytes.length);
             buf.writeBytes(bytes);
-
-            //buf.nioBuffer().position(bytes.length).asCharBuffer().put(value);
         }
 
         private void writeLongValue(ByteBuf buf, long value)

@@ -22,6 +22,12 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
         super(api, flags, SocketCode.QUERY);
     }
 
+    @Override
+    protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
+    {
+        request.onSuccess(response.getBody());
+    }
+
     @Nonnull
     @Override
     public ByteBuf applyData()
@@ -33,7 +39,8 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ObjectCreateAction addContent(@Nonnull String content)
     {
-        return null;
+        getBuilder().addContent(content);
+        return this;
     }
 
     @Nonnull
@@ -41,11 +48,5 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
     public ObjectCreateBuilder getBuilder()
     {
         return this.builder;
-    }
-
-    @Override
-    protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
-    {
-        request.onSuccess(response.getBody());
     }
 }

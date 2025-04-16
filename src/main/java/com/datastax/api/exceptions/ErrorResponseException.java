@@ -46,8 +46,13 @@ public class ErrorResponseException extends RuntimeException
 
     public static ErrorResponseException create(ErrorResponse errorResponse, Response response)
     {
-        int length = response.getBody().readUnsignedShort();
-        String meaning = response.getBody().readCharSequence(length, StandardCharsets.UTF_8).toString();
-        return new ErrorResponseException(errorResponse, response.getBody(), errorResponse.getCode(), meaning);
+        return create(errorResponse, response.getBody());
+    }
+
+    public static ErrorResponseException create(ErrorResponse errorResponse, ByteBuf response)
+    {
+        int length = response.readUnsignedShort();
+        String meaning = response.readCharSequence(length, StandardCharsets.UTF_8).toString();
+        return new ErrorResponseException(errorResponse, response, errorResponse.getCode(), meaning);
     }
 }

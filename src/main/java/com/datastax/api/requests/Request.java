@@ -4,6 +4,7 @@ import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.api.exceptions.ErrorResponseException;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
 import javax.annotation.Nonnull;
 import java.util.function.BiConsumer;
@@ -12,6 +13,7 @@ import java.util.function.Consumer;
 public class Request<T>
 {
     protected final ObjectActionImpl<T> objAction;
+    protected final CaseInsensitiveMap<String, Integer> headers = new CaseInsensitiveMap<>();
     protected final ByteBuf body;
     protected final Consumer<? super T> onSuccess;
     protected final Consumer<? super Throwable> onFailure;
@@ -22,6 +24,12 @@ public class Request<T>
         this.body = body;
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
+    }
+
+    @Nonnull
+    public CaseInsensitiveMap<String, Integer> getHeaders()
+    {
+        return headers;
     }
 
     @Nonnull

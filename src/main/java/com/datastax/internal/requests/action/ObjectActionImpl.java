@@ -1,7 +1,6 @@
 package com.datastax.internal.requests.action;
 
 import com.datastax.api.Library;
-import com.datastax.api.LibraryInfo;
 import com.datastax.api.audit.ThreadLocalReason;
 import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.requests.ObjectFuture;
