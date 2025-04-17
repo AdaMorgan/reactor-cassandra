@@ -27,11 +27,9 @@ public class RowsResultImpl
     public RowsResultImpl(@Nonnull final ByteBuf buffer)
     {
         this.buffer = buffer;
-
-        this.run();
     }
 
-    public void run()
+    public String run()
     {
         int kind = buffer.readInt();
         int flags = buffer.readInt();
@@ -70,8 +68,13 @@ public class RowsResultImpl
         LinkedList<String> columns = this.columns.stream().map(ColumnImpl::toString).collect(Collectors.toCollection(LinkedList::new));
         LinkedList<String> rows = this.rows.stream().map(RowImpl::toString).collect(Collectors.toCollection(LinkedList::new));
 
-        StringUtils.Table table = new StringUtils.Table(columns, rows);
-        System.out.println(table);
+        return new StringUtils.Table(columns, rows).toString();
+    }
+
+    @Override
+    public String toString()
+    {
+        return run();
     }
 
     private static String readString(@Nonnull ByteBuf buffer)

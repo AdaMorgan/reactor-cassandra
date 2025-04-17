@@ -63,32 +63,4 @@ public interface ObjectAction<T>
         Checks.notNull(map, "Function");
         return new MapObjectAction<>(this, map);
     }
-
-    enum Flag
-    {
-        VALUES(0),
-        SKIP_METADATA(1),
-        PAGE_SIZE(2),
-        PAGING_STATE(3),
-        SERIAL_CONSISTENCY(4),
-        DEFAULT_TIMESTAMP(5),
-        VALUE_NAMES(6);
-
-        private final int value;
-
-        Flag(final int offset)
-        {
-            this.value = 1 << offset;
-        }
-
-        /**
-         * Returns the value of the {@link Flag} as represented in the bitfield. It is always a power of 2 (single bit)
-         *
-         * @return Non-Zero bit value of the field
-         */
-        public int getValue()
-        {
-            return value;
-        }
-    }
 }

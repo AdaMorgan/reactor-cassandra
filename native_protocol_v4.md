@@ -186,7 +186,7 @@ To describe the layout of the frame body for the messages, we define the followi
 | `[option]`          | 2 + variable           | Pair of `<id><value>`:<br>- `id`: `[short]`<br>- `value`: type-dependent                                                     |
 | `[option list]`     | 2 + Σ                  | `[short] n` (count), followed by `n` `[option]` elements                                                                     |
 | `[inet]`            | 1 + n + 4 bytes        | `[byte]` (address size), `n` IP bytes (4 or 16), `[int]` port                                                                |
-| `[consistency]`     | 2 bytes                | `[short]` representing consistency level                                                                                     |
+| `[consistency]`     | 2 bytes                | `[short]` representing consistency consistency                                                                                     |
 | `[string map]`      | 2 + Σ                  | `[short] n` (count), followed by `n` key-value pairs (`[string]` keys and values)                                            |
 | `[string multimap]` | 2 + Σ                  | `[short] n` (count), followed by `n` pairs with `[string]` keys and `[string list]` values                                   |
 | `[bytes map]`       | 2 + Σ                  | `[short] n` (count), followed by `n` pairs with `[string]` keys and `[bytes]` values                                         |
@@ -236,7 +236,7 @@ Asks the server to return which STARTUP options are supported. The body should b
 
 Performs a CQL query. The body must be:
 <query><query_parameters>
-where <query> is a [long string] and <query_parameters> contains consistency level, flags, and optional parameters like values, page size, paging state, etc.
+where <query> is a [long string] and <query_parameters> contains consistency consistency, flags, and optional parameters like values, page size, paging state, etc.
 
 #### PREPARE
 

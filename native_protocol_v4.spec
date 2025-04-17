@@ -243,8 +243,8 @@ Table of Contents
                    [byte] representing the IP address (in practice n can only be
                    either 4 (IPv4) or 16 (IPv6)), following by one [int]
                    representing the port.
-    [consistency]  A consistency level specification. This is a [short]
-                   representing a consistency level with the following
+    [consistency]  A consistency consistency specification. This is a [short]
+                   representing a consistency consistency with the following
                    correspondance:
                      0x0000    ANY
                      0x0001    ONE
@@ -342,7 +342,7 @@ Table of Contents
   <query_parameters> must be
     <consistency><flags>[<n>[name_1]<value_1>...[name_n]<value_n>][<result_page_size>][<paging_state>][<serial_consistency>][<timestamp>]
   where:
-    - <consistency> is the [consistency] level for the operation.
+    - <consistency> is the [consistency] consistency for the operation.
     - <flags> is a [byte] whose bits define the options for this query and
       in particular influence what the remainder of the message contains.
       A flag is set if the bit corresponding to its `mask` is set. Supported
@@ -365,7 +365,7 @@ Table of Contents
               continue paging on a different node than the one where it
               started (See Section 8 for more details).
         0x10: With serial consistency. If set, <serial_consistency> should be
-              present. <serial_consistency> is the [consistency] level for the
+              present. <serial_consistency> is the [consistency] consistency for the
               serial phase of conditional updates. That consitency can only be
               either SERIAL or LOCAL_SERIAL and if not present, it defaults to
               SERIAL. This option will be ignored for anything else other than a
@@ -431,7 +431,7 @@ Table of Contents
       Batch. A flag is set if the bit corresponding to its `mask` is set. Supported
       flags are, given their mask:
         0x10: With serial consistency. If set, <serial_consistency> should be
-              present. <serial_consistency> is the [consistency] level for the
+              present. <serial_consistency> is the [consistency] consistency for the
               serial phase of conditional updates. That consistency can only be
               either SERIAL or LOCAL_SERIAL and if not present, it defaults to
               SERIAL. This option will be ignored for anything else other than a
@@ -464,9 +464,9 @@ Table of Contents
          if and only if the 0x40 flag is provided for the batch.
        - <value_i> is the [value] to use for bound variable i (of bound variable <name_i>
          if the 0x40 flag is used).
-    - <consistency> is the [consistency] level for the operation.
+    - <consistency> is the [consistency] consistency for the operation.
     - <serial_consistency> is only present if the 0x10 flag is set. In that case,
-      <serial_consistency> is the [consistency] level for the serial phase of
+      <serial_consistency> is the [consistency] consistency for the serial phase of
       conditional updates. That consitency can only be either SERIAL or
       LOCAL_SERIAL and if not present will defaults to SERIAL. This option will
       be ignored for anything else other than a conditional update/insert.
@@ -1060,7 +1060,7 @@ Table of Contents
     0x1000    Unavailable exception. The rest of the ERROR message body will be
                 <cl><required><alive>
               where:
-                <cl> is the [consistency] level of the query that triggered
+                <cl> is the [consistency] consistency of the query that triggered
                      the exception.
                 <required> is an [int] representing the number of nodes that
                            should be alive to respect <cl>
@@ -1077,7 +1077,7 @@ Table of Contents
               of the ERROR message body will be
                 <cl><received><blockfor><writeType>
               where:
-                <cl> is the [consistency] level of the query having triggered
+                <cl> is the [consistency] consistency of the query having triggered
                      the exception.
                 <received> is an [int] representing the number of nodes having
                            acknowledged the request.
@@ -1109,7 +1109,7 @@ Table of Contents
               of the ERROR message body will be
                 <cl><received><blockfor><data_present>
               where:
-                <cl> is the [consistency] level of the query having triggered
+                <cl> is the [consistency] consistency of the query having triggered
                      the exception.
                 <received> is an [int] representing the number of nodes having
                            answered the request.
@@ -1126,7 +1126,7 @@ Table of Contents
               of the ERROR message body will be
                 <cl><received><blockfor><numfailures><data_present>
               where:
-                <cl> is the [consistency] level of the query having triggered
+                <cl> is the [consistency] consistency of the query having triggered
                      the exception.
                 <received> is an [int] representing the number of nodes having
                            answered the request.
@@ -1148,7 +1148,7 @@ Table of Contents
               of the ERROR message body will be
                 <cl><received><blockfor><numfailures><write_type>
               where:
-                <cl> is the [consistency] level of the query having triggered
+                <cl> is the [consistency] consistency of the query having triggered
                      the exception.
                 <received> is an [int] representing the number of nodes having
                            answered the request.

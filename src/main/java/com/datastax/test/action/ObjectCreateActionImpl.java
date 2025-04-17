@@ -4,12 +4,10 @@ import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.request.ObjectCreateBuilder;
 import com.datastax.internal.utils.request.ObjectCreateBuilderMixin;
 import com.datastax.test.EntityBuilder;
-import com.datastax.test.RowsResultImpl;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
@@ -19,21 +17,21 @@ import java.util.Arrays;
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>
 {
     protected final String content;
-    protected final int level;
+    protected final short level;
     protected final int bitfield;
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, Level level, Flag... queryFlags)
+    public ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, Consistency consistency, ObjectFlags... queryFlags)
+    {
+        this(api, flags, opcode, content, consistency.code, queryFlags);
+    }
+
+    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short level, ObjectFlags... queryFlags)
     {
         super(api, flags, opcode);
         this.content = content;
-        this.level = level.getCode();
-        this.bitfield = Arrays.stream(queryFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
-    }
-
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags, String content, Level level, Flag... queryFlags)
-    {
-        this(api, flags, SocketCode.QUERY, content, level, queryFlags);
+        this.level = level;
+        this.bitfield = Arrays.stream(queryFlags).mapToInt(ObjectFlags::getValue).reduce(0, ((result, original) -> result | original));
     }
 
     @Override
@@ -73,7 +71,6 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
                 break;
             case 0x0002:
                 System.out.println("Rows: for results to select queries, returning a set of rows.");
-                new RowsResultImpl(buffer).run();
                 break;
             case 0x0003:
                 System.out.println("Set_keyspace: the result to a `use` query.");

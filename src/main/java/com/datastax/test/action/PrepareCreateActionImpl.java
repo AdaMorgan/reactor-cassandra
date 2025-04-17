@@ -15,15 +15,15 @@ import java.util.Arrays;
 
 public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 {
-    public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, Level level, Flag... queryFlags)
+    public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
     {
-        super(api, flags, SocketCode.PREPARE, content, level, queryFlags);
+        super(api, flags, SocketCode.PREPARE, content, consistency, queryFlags);
     }
 
     @Override
     public void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
     {
-        new ExecuteActionImpl(this.api, flags, response.getBody(), Level.ONE, Flag.VALUES, Flag.PAGE_SIZE, Flag.DEFAULT_TIMESTAMP).queue(request::onSuccess, request::onFailure);
+        new ExecuteActionImpl(this.api, flags, response.getBody(), Consistency.ONE, ObjectFlags.VALUES, ObjectFlags.PAGE_SIZE, ObjectFlags.DEFAULT_TIMESTAMP).queue(request::onSuccess, request::onFailure);
     }
 
     private static final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
@@ -32,12 +32,12 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
         private final int level;
         private final int executeFlags;
 
-        public ExecuteActionImpl(LibraryImpl api, byte flags, ByteBuf body, Level level, Flag... executeFlags)
+        public ExecuteActionImpl(LibraryImpl api, byte flags, ByteBuf body, Consistency consistency, ObjectFlags... executeFlags)
         {
             super(api, flags, SocketCode.EXECUTE);
             this.body = body;
-            this.level = level.getCode();
-            this.executeFlags = Arrays.stream(executeFlags).mapToInt(Flag::getValue).reduce(0, ((result, original) -> result | original));
+            this.level = consistency.getCode();
+            this.executeFlags = Arrays.stream(executeFlags).mapToInt(ObjectFlags::getValue).reduce(0, ((result, original) -> result | original));
         }
 
         @Override

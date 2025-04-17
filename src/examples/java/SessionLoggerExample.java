@@ -1,15 +1,14 @@
-import com.datastax.api.Library;
 import com.datastax.api.LibraryBuilder;
 import com.datastax.api.events.ExceptionEvent;
 import com.datastax.api.events.StatusChangeEvent;
 import com.datastax.api.events.session.ReadyEvent;
 import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.api.hooks.ListenerAdapter;
+import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.RowsResultImpl;
-import com.datastax.test.action.Level;
 import com.datastax.test.action.ObjectCreateActionImpl;
-import org.apache.http.conn.ConnectionPoolTimeoutException;
 
 import javax.annotation.Nonnull;
 
@@ -48,7 +47,9 @@ public final class SessionLoggerExample extends ListenerAdapter
     public void onReady(@Nonnull ReadyEvent event)
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
-        new ObjectCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY, Level.ONE).queue(RowsResultImpl::new, Throwable::printStackTrace);
+        new ObjectCreateActionImpl(api, DEFAULT_FLAG, SocketCode.QUERY, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
+                .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override
