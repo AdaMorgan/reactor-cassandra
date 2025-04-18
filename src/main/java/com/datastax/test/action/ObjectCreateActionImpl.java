@@ -4,6 +4,7 @@ import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.request.ObjectCreateBuilder;
 import com.datastax.internal.utils.request.ObjectCreateBuilderMixin;
@@ -21,9 +22,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     protected final int bitfield;
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, Consistency consistency, ObjectFlags... queryFlags)
+    public ObjectCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
     {
-        this(api, flags, opcode, content, consistency.code, queryFlags);
+        this(api, flags, SocketCode.QUERY, content, consistency.code, queryFlags);
     }
 
     protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short level, ObjectFlags... queryFlags)

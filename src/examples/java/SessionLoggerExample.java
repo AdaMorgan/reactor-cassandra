@@ -9,6 +9,7 @@ import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.RowsResultImpl;
 import com.datastax.test.action.ObjectCreateActionImpl;
+import com.datastax.test.action.PrepareCreateActionImpl;
 
 import javax.annotation.Nonnull;
 
@@ -47,7 +48,12 @@ public final class SessionLoggerExample extends ListenerAdapter
     public void onReady(@Nonnull ReadyEvent event)
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
-        new ObjectCreateActionImpl(api, DEFAULT_FLAG, SocketCode.QUERY, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
+
+        new ObjectCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
+                .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
+
+        new PrepareCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectCreateAction.Consistency.ONE)
                 .map(RowsResultImpl::new)
                 .queue(System.out::println, Throwable::printStackTrace);
     }

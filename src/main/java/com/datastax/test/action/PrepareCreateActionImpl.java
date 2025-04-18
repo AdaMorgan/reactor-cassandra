@@ -17,7 +17,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 {
     public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
     {
-        super(api, flags, SocketCode.PREPARE, content, consistency, queryFlags);
+        super(api, flags, SocketCode.PREPARE, content, consistency.code, queryFlags);
     }
 
     @Override
