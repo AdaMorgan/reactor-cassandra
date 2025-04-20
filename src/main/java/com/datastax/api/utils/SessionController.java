@@ -1,14 +1,12 @@
 package com.datastax.api.utils;
 
 import com.datastax.api.Library;
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufConvertible;
 
 public interface SessionController
 {
-    interface SessionConnectNode
+    interface SessionConnectNode extends ByteBufConvertible
     {
         Library getLibrary();
-
-        ByteBuf asByteBuf();
     }
 }

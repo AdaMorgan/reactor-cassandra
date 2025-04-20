@@ -1,6 +1,6 @@
 package com.datastax;
 
-public class IntegrationTest
+public abstract class IntegrationTest
 {
 
 }

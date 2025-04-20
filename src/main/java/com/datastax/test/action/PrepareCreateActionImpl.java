@@ -69,15 +69,18 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 
             body.writeByte(this.executeFlags);
 
-            //----
+            //--- size
             body.writeShort(2);
-            //----
+
+            //--- 1
             writeLongValue(body, 123456);
+
+            //--- 2
             writeString(body, "user", EntityBuilder.TypeTag.INT);
-            //----
-            body.writeInt(5000);
-            body.writeLong(1743025467097000L);
-            //----
+
+            //--- flags
+            body.writeInt(5000); // page size
+            body.writeLong(1743025467097000L); // timestamp
 
             buf.writeInt(body.readableBytes());
             buf.writeBytes(body);
@@ -121,8 +124,8 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             writeString(body, "user_name", EntityBuilder.TypeTag.SHORT);
             writeString(body, "user", EntityBuilder.TypeTag.INT);
 
-            body.writeInt(5000); // page_size
-            body.writeLong(1743025467097000L); //default timestamp
+            body.writeInt(5000);
+            body.writeLong(1743025467097000L);
 
             buf.writeInt(body.readableBytes());
             buf.writeBytes(body);

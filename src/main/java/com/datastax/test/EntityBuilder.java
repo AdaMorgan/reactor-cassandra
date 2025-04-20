@@ -4,9 +4,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufConvertible;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import org.example.data.DataObject;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -22,6 +24,22 @@ public class EntityBuilder implements ByteBufConvertible
     public EntityBuilder(int initialCapacity)
     {
         this.buffer = Unpooled.buffer(initialCapacity);
+    }
+
+    public enum EntityType
+    {
+        BYTE(), ;
+
+        EntityType()
+        {
+            DataObject
+        }
+
+        public static void main(String[] args)
+        {
+
+            System.out.println();
+        }
     }
 
     public enum TypeTag

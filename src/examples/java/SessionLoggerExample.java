@@ -6,9 +6,9 @@ import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.RowsResultImpl;
 import com.datastax.test.action.ObjectCreateActionImpl;
+import com.datastax.test.action.ObjectCreateActionTest;
 import com.datastax.test.action.PrepareCreateActionImpl;
 
 import javax.annotation.Nonnull;
@@ -55,6 +55,11 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         new PrepareCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectCreateAction.Consistency.ONE)
                 .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
+
+        new ObjectCreateActionTest(api, DEFAULT_FLAG, ObjectCreateAction.Consistency.ONE)
+                .addContent(TEST_QUERY_PREPARED)
+                .addValues(123456, "user")
                 .queue(System.out::println, Throwable::printStackTrace);
     }
 

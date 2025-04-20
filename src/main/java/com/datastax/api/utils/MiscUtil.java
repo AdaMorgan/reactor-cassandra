@@ -16,25 +16,6 @@ import java.util.function.Supplier;
  */
 public class MiscUtil
 {
-    /**
-     * Generates a new thread-safe {@link gnu.trove.map.TLongObjectMap TLongObjectMap}
-     *
-     * @param  <T>
-     *         The Object type
-     *
-     * @return a new thread-safe {@link gnu.trove.map.TLongObjectMap TLongObjectMap}
-     */
-    @Nonnull
-    public static <T> TLongObjectMap<T> newLongMap()
-    {
-        return new TSynchronizedLongObjectMap<>(new TLongObjectHashMap<T>(), new Object());
-    }
-
-    public static long parseLong(String input)
-    {
-        return input.startsWith("-") ? Long.parseLong(input) : Long.parseUnsignedLong(input);
-    }
-
     @UnknownNullability
     public static <E> E locked(ReentrantLock lock, Supplier<E> task)
     {
@@ -65,18 +46,17 @@ public class MiscUtil
     /**
      * Tries to acquire the provided lock in a 10 second timeframe.
      *
-     * @param  lock
-     *         The lock to acquire
-     *
-     * @throws IllegalStateException
-     *         If the lock could not be acquired
+     * @param lock The lock to acquire
+     * @throws IllegalStateException If the lock could not be acquired
      */
     public static void tryLock(Lock lock)
     {
         try
         {
             if (!lock.tryLock() && !lock.tryLock(10, TimeUnit.SECONDS))
+            {
                 throw new IllegalStateException("Could not acquire lock in a reasonable timeframe! (10 seconds)");
+            }
         }
         catch (InterruptedException e)
         {

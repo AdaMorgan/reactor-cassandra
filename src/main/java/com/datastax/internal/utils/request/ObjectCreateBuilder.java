@@ -4,6 +4,8 @@ import com.datastax.api.utils.request.ObjectCreateRequest;
 import com.datastax.internal.utils.Checks;
 
 import javax.annotation.Nonnull;
+import java.util.Collection;
+import java.util.Map;
 
 public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuilder> implements ObjectCreateRequest<ObjectCreateBuilder>
 {
@@ -13,6 +15,22 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(content, "Content");
         this.content.append(content);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public <R> ObjectCreateBuilder addValues(@Nonnull Collection<? super R> values)
+    {
+        Checks.notNull(values, "Values");
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public <R> ObjectCreateBuilder addValues(@Nonnull Map<String, ? super R> values)
+    {
+        Checks.notNull(values, "Values");
         return this;
     }
 }

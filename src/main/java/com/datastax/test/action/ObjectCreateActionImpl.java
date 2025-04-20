@@ -14,6 +14,8 @@ import io.netty.buffer.ByteBuf;
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>
 {
@@ -102,5 +104,19 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     {
         this.getBuilder().addContent(content);
         return this;
+    }
+
+    @Nonnull
+    @Override
+    public <R> ObjectCreateAction addValues(@Nonnull Map<String, ? super R> values)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Nonnull
+    @Override
+    public <R> ObjectCreateAction addValues(@Nonnull Collection<? super R> values)
+    {
+        throw new UnsupportedOperationException();
     }
 }
