@@ -4,6 +4,7 @@ import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.entities.ColumnImpl;
 import com.datastax.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
+import org.agrona.concurrent.UnsafeBuffer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +48,7 @@ public class RowsResultImpl
                 String keyspace = readString(buffer);
                 String tableName = readString(buffer);
                 String name = readString(buffer);
+
                 DataType type = readType(buffer);
 
                 columns.add(new ColumnImpl(keyspace, tableName, name, type));

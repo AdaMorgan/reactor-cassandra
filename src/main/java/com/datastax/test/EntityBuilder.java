@@ -1,9 +1,6 @@
 package com.datastax.test;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufConvertible;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.*;
 import org.example.data.DataObject;
 
 import java.nio.charset.StandardCharsets;
@@ -18,28 +15,7 @@ public class EntityBuilder implements ByteBufConvertible
 
     public EntityBuilder()
     {
-        this.buffer = Unpooled.buffer();
-    }
-
-    public EntityBuilder(int initialCapacity)
-    {
-        this.buffer = Unpooled.buffer(initialCapacity);
-    }
-
-    public enum EntityType
-    {
-        BYTE(), ;
-
-        EntityType()
-        {
-            DataObject
-        }
-
-        public static void main(String[] args)
-        {
-
-            System.out.println();
-        }
+        this.buffer = Unpooled.directBuffer();
     }
 
     public enum TypeTag
@@ -50,6 +26,7 @@ public class EntityBuilder implements ByteBufConvertible
         LONG(4, ByteBuf::writeLong);
 
         private final int offset;
+
         private final BiConsumer<ByteBuf, Integer> handler;
 
         TypeTag(int offset, BiConsumer<ByteBuf, Integer> handler)

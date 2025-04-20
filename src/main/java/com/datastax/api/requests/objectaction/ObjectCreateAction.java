@@ -52,14 +52,14 @@ public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateR
         LOCAL_SERIAL(0x0009),
         LOCAL_ONE(0x000A);
 
-        public final short code;
+        private final short code;
 
         Consistency(final int code)
         {
             this.code = (short) code;
         }
 
-        public int getCode()
+        public short getCode()
         {
             return this.code;
         }

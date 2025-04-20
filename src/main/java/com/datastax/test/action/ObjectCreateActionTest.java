@@ -13,6 +13,7 @@ import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -36,7 +37,7 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     public ObjectCreateActionTest(LibraryImpl api, byte flags, Consistency consistency, ObjectFlags... objectFlags)
     {
-        this(api, flags, consistency.code, objectFlags);
+        this(api, flags, consistency.getCode(), objectFlags);
     }
 
     @Override
@@ -47,7 +48,7 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ByteBuf applyData()
+    public ByteBuf asByteBuf()
     {
         byte version = this.version;
         byte flags = this.flags;
@@ -58,9 +59,10 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
         byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
 
-        int messageLength = 4 + queryBytes.length + 2 + 1;
+        int messageLength = 4 + 2 + 1 + queryBytes.length;
 
-        return new EntityBuilder(1 + 4 + messageLength).writeByte(this.version)
+        return new EntityBuilder()
+                .writeByte(this.version)
                 .writeByte(this.flags)
                 .writeShort(0x00)
                 .writeByte(opcode)
@@ -73,9 +75,24 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
+    public ObjectCreateBuilder getBuilder()
+    {
+        return this.builder;
+    }
+
+    @Nonnull
+    @Override
     public ObjectCreateAction addContent(@Nonnull String content)
     {
         getBuilder().addContent(content);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCreateAction setContent(@Nullable String content)
+    {
+        getBuilder().setContent(content);
         return this;
     }
 
@@ -99,13 +116,6 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
     public CacheObjectAction<ByteBuf> useCache(boolean useCache)
     {
         return this;
-    }
-
-    @Nonnull
-    @Override
-    public ObjectCreateBuilder getBuilder()
-    {
-        return this.builder;
     }
 
     @Override

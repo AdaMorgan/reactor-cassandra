@@ -19,7 +19,7 @@ public interface ObjectAction<T>
     Library getLibrary();
 
     @Nonnull
-    ByteBuf applyData();
+    ByteBuf asByteBuf();
 
     default void queue()
     {

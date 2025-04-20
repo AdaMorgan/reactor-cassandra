@@ -8,6 +8,8 @@ dependencyResolutionManagement {
             library("trove4j",               "net.sf.trove4j",           "core"                           ).version("3.1.0")
             library("jsr",                   "com.google.code.findbugs", "jsr305"                         ).version("3.0.2")
 
+            library("agrona",                "org.agrona",               "agrona"                         ).version("1.20.0")
+
             library("micrometer-core",       "io.micrometer",            "micrometer-core"                ).version("1.14.4")
             library("micrometer-tracing",    "io.micrometer",            "micrometer-tracing"             ).version("1.4.3")
             library("micrometer-bridge",     "io.micrometer",            "micrometer-tracing-bridge-brave").version("1.4.3")

@@ -43,6 +43,11 @@ public class Checks
             throw new IllegalArgumentException(name + " may not be negative");
     }
 
+    public static void notNegative(final long n, final String name)
+    {
+        notNegative((int) n, name);
+    }
+
     public static void inRange(final int number, final String name)
     {
         inRange(number, Short.MIN_VALUE, Short.MAX_VALUE, name);

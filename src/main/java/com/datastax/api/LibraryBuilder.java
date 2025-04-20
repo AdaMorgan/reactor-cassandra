@@ -48,9 +48,9 @@ public class LibraryBuilder
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createLight()
+    public static LibraryBuilder createLight(String username, String password)
     {
-        return new LibraryBuilder("cassandra", "cassandra", 0).applyLight();
+        return new LibraryBuilder(username, password, 0).applyLight();
     }
 
     protected LibraryBuilder applyLight()
@@ -63,6 +63,14 @@ public class LibraryBuilder
     public static LibraryBuilder create(String username, String password, int intents)
     {
         return new LibraryBuilder(username, password, intents);
+    }
+
+    @Nonnull
+    public LibraryBuilder setMaxBufferSize(int bufferSize)
+    {
+        Checks.notNegative(bufferSize, "The buffer size");
+        this.maxBufferSize = bufferSize;
+        return this;
     }
 
     /**

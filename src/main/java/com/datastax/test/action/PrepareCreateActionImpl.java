@@ -17,7 +17,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 {
     public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
     {
-        super(api, flags, SocketCode.PREPARE, content, consistency.code, queryFlags);
+        super(api, flags, SocketCode.PREPARE, content, consistency.getCode(), queryFlags);
     }
 
     @Override
@@ -73,14 +73,14 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             body.writeShort(2);
 
             //--- 1
-            writeLongValue(body, 123456);
+            writeLongValue(body, 123456L);
 
             //--- 2
             writeString(body, "user", EntityBuilder.TypeTag.INT);
 
             //--- flags
             body.writeInt(5000); // page size
-            body.writeLong(1743025467097000L); // timestamp
+            body.writeLong(System.currentTimeMillis()); // timestamp
 
             buf.writeInt(body.readableBytes());
             buf.writeBytes(body);
@@ -90,7 +90,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 
         @Nonnull
         @Override
-        public ByteBuf applyData()
+        public ByteBuf asByteBuf()
         {
             return execute(body);
         }

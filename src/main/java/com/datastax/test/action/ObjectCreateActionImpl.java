@@ -12,6 +12,7 @@ import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,20 +21,20 @@ import java.util.Map;
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>
 {
     protected final String content;
-    protected final short level;
+    protected final short consistency;
     protected final int bitfield;
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
     public ObjectCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
     {
-        this(api, flags, SocketCode.QUERY, content, consistency.code, queryFlags);
+        this(api, flags, SocketCode.QUERY, content, consistency.getCode(), queryFlags);
     }
 
-    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short level, ObjectFlags... queryFlags)
+    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short consistency, ObjectFlags... queryFlags)
     {
         super(api, flags, opcode);
         this.content = content;
-        this.level = level;
+        this.consistency = consistency;
         this.bitfield = Arrays.stream(queryFlags).mapToInt(ObjectFlags::getValue).reduce(0, ((result, original) -> result | original));
     }
 
@@ -45,21 +46,23 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ByteBuf applyData()
+    public ByteBuf asByteBuf()
     {
         byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
 
         int messageLength = 4 + queryBytes.length + 2 + 1;
 
-        return new EntityBuilder(1 + 4 + messageLength)
-                .writeByte(this.version)
-                .writeByte(this.flags)
+        return new EntityBuilder()
+                .writeByte(version)
+                .writeByte(flags)
                 .writeShort(0x00)
-                .writeByte(this.opcode)
+                .writeByte(opcode)
+
                 .writeInt(messageLength)
                 .writeString(content)
-                .writeShort(this.level)
-                .writeByte(this.bitfield)
+                .writeShort(consistency)
+                .writeByte(bitfield)
+
                 .asByteBuf();
     }
 
@@ -100,9 +103,17 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
+    public ObjectCreateAction setContent(@Nullable String content)
+    {
+        getBuilder().setContent(content);
+        return this;
+    }
+
+    @Nonnull
+    @Override
     public ObjectCreateAction addContent(@Nonnull String content)
     {
-        this.getBuilder().addContent(content);
+        getBuilder().addContent(content);
         return this;
     }
 

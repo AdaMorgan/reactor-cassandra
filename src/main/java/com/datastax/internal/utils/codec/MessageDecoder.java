@@ -13,15 +13,13 @@ import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -119,21 +117,12 @@ public class MessageDecoder extends ByteToMessageDecoder
             {
                 new SocketClient.ConnectNode(this.library, () ->
                 {
-                    byte[] username = "cassandra".getBytes(StandardCharsets.UTF_8);
-                    byte[] password = "cassandra".getBytes(StandardCharsets.UTF_8);
-
-                    byte[] initialToken = new byte[username.length + password.length + 2];
-                    initialToken[0] = 0;
-                    System.arraycopy(username, 0, initialToken, 1, username.length);
-                    initialToken[username.length + 1] = 0;
-                    System.arraycopy(password, 0, initialToken, username.length + 2, password.length);
-
                     return new EntityBuilder()
                             .writeByte(version)
                             .writeByte(DEFAULT_FLAG)
                             .writeShort(stream)
                             .writeByte(SocketCode.AUTH_RESPONSE)
-                            .writeBytes(initialToken)
+                            .writeBytes(this.library.getToken())
                             .apply(callback)
                             .asByteBuf();
                 });

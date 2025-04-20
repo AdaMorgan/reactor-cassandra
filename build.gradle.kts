@@ -29,6 +29,8 @@ dependencies {
 
     //Code safety
     compileOnly(libs.jsr)
+    implementation(libs.trove4j)
+    implementation(libs.agrona)
 
     //Netty
     implementation(libs.netty)
@@ -42,7 +44,6 @@ dependencies {
     api(libs.commons.collections)
 
     //General Utility
-    implementation(libs.trove4j)
     implementation(libs.commons.text)
 
     testImplementation(libs.junit)
