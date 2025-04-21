@@ -6,10 +6,9 @@ import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
+import com.datastax.test.ObjectCreateActionTest;
+import com.datastax.test.PrepareCreateActionImpl;
 import com.datastax.test.RowsResultImpl;
-import com.datastax.test.action.ObjectCreateActionImpl;
-import com.datastax.test.action.ObjectCreateActionTest;
-import com.datastax.test.action.PrepareCreateActionImpl;
 
 import javax.annotation.Nonnull;
 
@@ -50,18 +49,17 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        new ObjectCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
-                .map(RowsResultImpl::new)
-                .queue(System.out::println, Throwable::printStackTrace);
-
-        new PrepareCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY_PREPARED, ObjectCreateAction.Consistency.ONE)
-                .map(RowsResultImpl::new)
-                .queue(System.out::println, Throwable::printStackTrace);
-
-//        new ObjectCreateActionTest(api, DEFAULT_FLAG, ObjectCreateAction.Consistency.ONE)
-//                .setContent(TEST_QUERY_PREPARED)
-//                .addValues(123456, "user")
+//        new ObjectCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
+//                .map(RowsResultImpl::new)
 //                .queue(System.out::println, Throwable::printStackTrace);
+
+        for (int i = 0; i < 10; i++)
+        {
+            new ObjectCreateActionTest(api, DEFAULT_FLAG, ObjectCreateAction.Consistency.ONE)
+                    .setContent(TEST_QUERY)
+                    .map(RowsResultImpl::new)
+                    .queue(System.out::println, Throwable::printStackTrace);
+        }
     }
 
     @Override

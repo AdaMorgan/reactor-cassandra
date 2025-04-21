@@ -1,16 +1,15 @@
 package com.datastax.internal.entities;
 
 import com.datastax.api.entities.Column;
-import com.datastax.api.utils.data.DataType;
 
 public class ColumnImpl implements Column
 {
     private final String keyspace;
     private final String tableName;
     private final String name;
-    private final DataType type;
+    private final int type;
 
-    public ColumnImpl(String keyspace, String tableName, String name, DataType type)
+    public ColumnImpl(String keyspace, String tableName, String name, int type)
     {
         this.keyspace = keyspace;
         this.tableName = tableName;
@@ -25,7 +24,7 @@ public class ColumnImpl implements Column
     }
 
     @Override
-    public DataType getType()
+    public int getType()
     {
         return type;
     }

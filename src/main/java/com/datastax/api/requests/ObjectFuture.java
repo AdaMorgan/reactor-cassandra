@@ -1,7 +1,6 @@
 package com.datastax.api.requests;
 
 import com.datastax.internal.LibraryImpl;
-import com.datastax.internal.requests.Requester;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 

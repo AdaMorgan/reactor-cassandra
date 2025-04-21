@@ -4,22 +4,22 @@ import com.datastax.api.LibraryInfo;
 import com.datastax.api.events.session.ReadyEvent;
 import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.api.exceptions.ErrorResponseException;
-import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
-import com.datastax.api.requests.Work;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.Requester;
 import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -101,13 +101,12 @@ public class MessageDecoder extends ByteToMessageDecoder
                         writeString.accept(body, entry.getValue());
                     }
 
-                    return new EntityBuilder()
-                            .writeByte(version)
-                            .writeByte(flags)
-                            .writeShort(stream)
-                            .writeByte(SocketCode.STARTUP)
-                            .writeBytes(body)
-                            .apply(callback)
+                    return new EntityBuilder(callback)
+                            .put(version)
+                            .put(DEFAULT_FLAG)
+                            .put(stream)
+                            .put(SocketCode.STARTUP)
+                            .put(body)
                             .asByteBuf();
                 });
 
@@ -117,13 +116,12 @@ public class MessageDecoder extends ByteToMessageDecoder
             {
                 new SocketClient.ConnectNode(this.library, () ->
                 {
-                    return new EntityBuilder()
-                            .writeByte(version)
-                            .writeByte(DEFAULT_FLAG)
-                            .writeShort(stream)
-                            .writeByte(SocketCode.AUTH_RESPONSE)
-                            .writeBytes(this.library.getToken())
-                            .apply(callback)
+                    return new EntityBuilder(callback)
+                            .put(version)
+                            .put(DEFAULT_FLAG)
+                            .put(stream)
+                            .put(SocketCode.AUTH_RESPONSE)
+                            .put(this.library.getToken())
                             .asByteBuf();
                 });
                 break;
@@ -132,13 +130,12 @@ public class MessageDecoder extends ByteToMessageDecoder
             {
                 new SocketClient.ConnectNode(this.library, () ->
                 {
-                    return new EntityBuilder()
-                            .writeByte(version)
-                            .writeByte(DEFAULT_FLAG)
-                            .writeShort(0x00)
-                            .writeByte(SocketCode.REGISTER)
-                            .writeString("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
-                            .apply(callback)
+                    return new EntityBuilder(callback)
+                            .put(version)
+                            .put(DEFAULT_FLAG)
+                            .put(stream)
+                            .put(SocketCode.REGISTER)
+                            .put("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
                             .asByteBuf();
                 });
                 break;

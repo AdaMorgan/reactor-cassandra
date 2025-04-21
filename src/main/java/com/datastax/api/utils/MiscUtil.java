@@ -1,11 +1,7 @@
 package com.datastax.api.utils;
 
-import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import org.jetbrains.annotations.UnknownNullability;
 
-import javax.annotation.Nonnull;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;

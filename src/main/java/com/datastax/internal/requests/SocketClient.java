@@ -4,7 +4,6 @@ import com.datastax.api.Library;
 import com.datastax.api.events.ExceptionEvent;
 import com.datastax.api.events.session.SessionDisconnectEvent;
 import com.datastax.api.events.session.ShutdownEvent;
-import com.datastax.api.requests.Request;
 import com.datastax.api.utils.SessionController;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.utils.LibraryLogger;
@@ -26,7 +25,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.ConnectException;
 import java.time.OffsetDateTime;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -39,7 +37,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     protected final byte version;
 
     private static final byte DEFAULT_FLAG = 0x00;
-    private static final byte DEFAULT_STREAM = 0x00;
+    private static final short DEFAULT_STREAM = 0x00;
 
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 9042;
@@ -69,7 +67,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
-        reconnect(0);
+        //reconnect(0);
     }
 
     public synchronized void shutdown()
@@ -98,12 +96,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         LOG.debug("Sending Identify node...");
         return new ConnectNode(this.library, () ->
         {
-            return new EntityBuilder().writeByte(this.version)
-                    .writeByte(DEFAULT_FLAG)
-                    .writeShort(DEFAULT_STREAM)
-                    .writeByte(SocketCode.OPTIONS)
-                    .writeInt(0)
-                    .apply(callback)
+            return new EntityBuilder(callback)
+                    .put(this.version)
+                    .put(DEFAULT_FLAG)
+                    .put(DEFAULT_STREAM)
+                    .put(SocketCode.OPTIONS)
+                    .put(0)
                     .asByteBuf();
         });
     }

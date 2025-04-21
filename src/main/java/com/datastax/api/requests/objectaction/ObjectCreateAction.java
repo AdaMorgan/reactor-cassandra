@@ -4,12 +4,10 @@ import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.utils.request.ObjectCreateRequest;
 import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-
 public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateRequest<ObjectCreateAction>
 {
+    int LENGTH = Integer.BYTES;
+
     enum ObjectFlags
     {
         VALUES(0),

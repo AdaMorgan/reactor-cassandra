@@ -4,7 +4,6 @@ import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.api.utils.request.ObjectCreateRequest;
 import com.datastax.internal.utils.Checks;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,8 +15,28 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
 {
     @Nonnull
     @Override
-    public ObjectCreateBuilder setContent(@Nullable String content)
+    public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Collection<? super R> args)
     {
+        Checks.notNull(values, "Values");
+        if (content != null)
+        {
+            content = content.trim();
+            this.content.setLength(0);
+            this.content.append(content);
+        }
+        else
+        {
+            this.content.setLength(0);
+        }
+        this.objectFlags |= ObjectCreateAction.ObjectFlags.VALUES.getValue();
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
+    {
+        Checks.notNull(values, "Values");
         if (content != null)
         {
             content = content.trim();
@@ -37,22 +56,6 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(content, "Content");
         this.content.append(content);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public <R> ObjectCreateBuilder addValues(@Nonnull Collection<? super R> values)
-    {
-        Checks.notNull(values, "Values");
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public <R> ObjectCreateBuilder addValues(@Nonnull Map<String, ? super R> values)
-    {
-        Checks.notNull(values, "Values");
         return this;
     }
 

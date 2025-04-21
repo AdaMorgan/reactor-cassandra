@@ -1,4 +1,4 @@
-package com.datastax.test.action;
+package com.datastax.test;
 
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
@@ -8,8 +8,8 @@ import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.request.ObjectCreateBuilder;
 import com.datastax.internal.utils.request.ObjectCreateBuilderMixin;
-import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,12 +25,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     protected final int bitfield;
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
-    {
-        this(api, flags, SocketCode.QUERY, content, consistency.getCode(), queryFlags);
-    }
-
-    protected ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short consistency, ObjectFlags... queryFlags)
+    public ObjectCreateActionImpl(LibraryImpl api, byte flags, byte opcode, String content, short consistency, ObjectFlags... queryFlags)
     {
         super(api, flags, opcode);
         this.content = content;
@@ -48,22 +43,20 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ByteBuf asByteBuf()
     {
-        byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
+        byte[] content = this.content.getBytes(StandardCharsets.UTF_8);
+        int length = content.length;
+        int bodyLength = LENGTH + length + Short.BYTES + Byte.BYTES;
 
-        int messageLength = 4 + queryBytes.length + 2 + 1;
-
-        return new EntityBuilder()
+        return Unpooled.directBuffer()
                 .writeByte(version)
                 .writeByte(flags)
                 .writeShort(0x00)
                 .writeByte(opcode)
-
-                .writeInt(messageLength)
-                .writeString(content)
+                .writeInt(bodyLength)
+                .writeInt(length)
+                .writeBytes(content)
                 .writeShort(consistency)
-                .writeByte(bitfield)
-
-                .asByteBuf();
+                .writeByte(bitfield);
     }
 
     protected static ByteBuf rowsResult(LibraryImpl api, ByteBuf buffer)
@@ -103,14 +96,6 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ObjectCreateAction setContent(@Nullable String content)
-    {
-        getBuilder().setContent(content);
-        return this;
-    }
-
-    @Nonnull
-    @Override
     public ObjectCreateAction addContent(@Nonnull String content)
     {
         getBuilder().addContent(content);
@@ -119,15 +104,17 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction addValues(@Nonnull Map<String, ? super R> values)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Collection<? super R> args)
     {
-        throw new UnsupportedOperationException();
+        getBuilder().setContent(content, args);
+        return this;
     }
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction addValues(@Nonnull Collection<? super R> values)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
     {
-        throw new UnsupportedOperationException();
+        getBuilder().setContent(content, args);
+        return this;
     }
 }

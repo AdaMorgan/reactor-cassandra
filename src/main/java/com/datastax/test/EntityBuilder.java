@@ -1,102 +1,86 @@
 package com.datastax.test;
 
-import io.netty.buffer.*;
-import org.example.data.DataObject;
+import com.datastax.api.utils.data.DataType;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufConvertible;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 
-import java.nio.charset.StandardCharsets;
+import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class EntityBuilder implements ByteBufConvertible
 {
     protected final ByteBuf buffer;
+    protected final Consumer<? super ByteBuf> callback;
 
     public EntityBuilder()
     {
-        this.buffer = Unpooled.directBuffer();
+        this(null);
     }
 
-    public enum TypeTag
+    public EntityBuilder(@Nullable Consumer<? super ByteBuf> callback)
     {
-        BYTE(1, ByteBuf::writeByte),
-        SHORT(2, ByteBuf::writeShort),
-        INT(3, ByteBuf::writeInt),
-        LONG(4, ByteBuf::writeLong);
-
-        private final int offset;
-
-        private final BiConsumer<ByteBuf, Integer> handler;
-
-        TypeTag(int offset, BiConsumer<ByteBuf, Integer> handler)
-        {
-            this.offset = offset;
-            this.handler = handler;
-        }
-
-        public void writeLock(ByteBuf buffer, int value)
-        {
-            handler.accept(buffer, value);
-        }
+        this.buffer = Unpooled.directBuffer();
+        this.callback = callback;
     }
 
-    public EntityBuilder writeByte(int value)
+    public EntityBuilder put(byte value)
     {
         this.buffer.writeByte(value);
         return this;
     }
 
-    public EntityBuilder writeInt(int value)
+    public EntityBuilder put(int value)
     {
         this.buffer.writeInt(value);
         return this;
     }
 
-    public EntityBuilder writeLong(long value)
+    public EntityBuilder put(long value)
     {
         this.buffer.writeLong(value);
         return this;
     }
 
-    public EntityBuilder writeShort(int value)
+    public EntityBuilder put(short value)
     {
         this.buffer.writeShort(value);
         return this;
     }
 
-    public EntityBuilder writeString(String in)
+    public EntityBuilder put(String in)
     {
-        return this.writeString(in, ByteBuf::writeInt);
+        return this.put(in, ByteBuf::writeInt);
     }
 
-    public EntityBuilder writeString(String in, BiConsumer<ByteBuf, Integer> length)
+    public EntityBuilder put(String in, BiConsumer<ByteBuf, Integer> length)
     {
-        byte[] bytes = in.getBytes(StandardCharsets.UTF_8);
-        length.accept(buffer, bytes.length);
-        this.buffer.writeBytes(bytes);
+        DataType.LONG_STRING.encode(buffer, in);
         return this;
     }
 
-    public EntityBuilder writeString(String... arr)
+    public EntityBuilder put(String... arr)
     {
-        EntityBuilder collect = Arrays.stream(arr).collect(EntityBuilder::new, EntityBuilder::writeString, EntityBuilder::writeBytes);
-        return this.writeBytes(collect);
+        EntityBuilder collect = Arrays.stream(arr).collect(EntityBuilder::new, EntityBuilder::put, EntityBuilder::put);
+        return this.put(collect);
     }
 
-    public EntityBuilder writeString(BiConsumer<ByteBuf, Integer> length, String... arr)
+    public EntityBuilder put(BiConsumer<ByteBuf, Integer> length, String... arr)
     {
-        EntityBuilder collect = Arrays.stream(arr).collect(EntityBuilder::new, (builder, in) -> builder.writeString(in, length), EntityBuilder::writeBytes);
-        return this.writeBytes(collect);
+        EntityBuilder collect = Arrays.stream(arr).collect(EntityBuilder::new, (builder, in) -> builder.put(in, length), EntityBuilder::put);
+        return this.put(collect);
     }
 
-    public EntityBuilder writeBytes(EntityBuilder in)
+    public EntityBuilder put(EntityBuilder in)
     {
-        this.writeBytes(in.buffer);
+        this.put(in.buffer);
         return this;
     }
 
-    public EntityBuilder writeBytes(ByteBuf in)
+    public EntityBuilder put(ByteBuf in)
     {
         int len = in.readableBytes();
         this.buffer.writeInt(len);
@@ -104,22 +88,20 @@ public class EntityBuilder implements ByteBufConvertible
         return this;
     }
 
-    public EntityBuilder writeBytes(byte[] bytes)
+    public EntityBuilder put(byte[] bytes)
     {
         this.buffer.writeInt(bytes.length);
         this.buffer.writeBytes(bytes);
         return this;
     }
 
-    public EntityBuilder apply(Consumer<? super ByteBuf> callback)
-    {
-        callback.accept(this.buffer);
-        return this;
-    }
-
     @Override
     public ByteBuf asByteBuf()
     {
+        if (callback != null)
+        {
+            this.callback.accept(this.buffer);
+        }
         return this.buffer;
     }
 

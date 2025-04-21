@@ -1,4 +1,4 @@
-package com.datastax.test.action;
+package com.datastax.test;
 
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
@@ -9,8 +9,8 @@ import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.utils.request.ObjectCreateBuilder;
 import com.datastax.internal.utils.request.ObjectCreateBuilderMixin;
-import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,7 +20,6 @@ import java.util.*;
 public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
-    protected final LinkedList<ByteBuf> values = new LinkedList<>();
 
     protected final List<ObjectCreateAction> cache = new ArrayList<>();
 
@@ -30,7 +29,6 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
     public ObjectCreateActionTest(LibraryImpl api, byte flags, short consistency, ObjectFlags... objectFlags)
     {
         super(api, flags, SocketCode.QUERY);
-
         this.consistency = consistency;
         this.bitfield = Arrays.stream(objectFlags).mapToInt(ObjectFlags::getValue).reduce(0, ((result, original) -> result | original));
     }
@@ -50,27 +48,32 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ByteBuf asByteBuf()
     {
-        byte version = this.version;
-        byte flags = this.flags;
-        short stream = 0x00;
-        byte opcode = this.values.isEmpty() ? this.opcode : SocketCode.PREPARE;
+        byte[] content = this.getContent().getBytes(StandardCharsets.UTF_8);
+        int length = content.length;
+        int bodyLength = LENGTH + length + Short.BYTES + Byte.BYTES;
+        short DEFAULT_STREAM = 0x00;
 
-        String content = this.getContent();
+//        return new EntityBuilder()
+//                .put(version)
+//                .put(flags)
+//                .put(DEFAULT_STREAM)
+//                .put(this.opcode)
+//                .put(bodyLength)
+//                .put(this.getContent())
+//                .put(consistency)
+//                .put(bitfield)
+//                .asByteBuf();
 
-        byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
-
-        int messageLength = 4 + 2 + 1 + queryBytes.length;
-
-        return new EntityBuilder()
-                .writeByte(this.version)
-                .writeByte(this.flags)
+        return Unpooled.directBuffer()
+                .writeByte(version)
+                .writeByte(flags)
                 .writeShort(0x00)
                 .writeByte(opcode)
-                .writeInt(messageLength)
-                .writeString(content)
-                .writeShort(this.consistency)
-                .writeByte(this.bitfield)
-                .asByteBuf();
+                .writeInt(bodyLength)
+                .writeInt(length)
+                .writeBytes(content)
+                .writeShort(consistency)
+                .writeByte(bitfield);
     }
 
     @Nonnull
@@ -90,24 +93,17 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ObjectCreateAction setContent(@Nullable String content)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Collection<? super R> args)
     {
-        getBuilder().setContent(content);
+        getBuilder().setContent(content, args);
         return this;
     }
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction addValues(@Nonnull Collection<? super R> values)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
     {
-        getBuilder().addValues(values);
-        return this;
-    }
-
-    @Nonnull
-    public <R> ObjectCreateAction addValues(@Nonnull Map<String, ? super R> values)
-    {
-        getBuilder().addValues(values);
+        getBuilder().setContent(content, args);
         return this;
     }
 

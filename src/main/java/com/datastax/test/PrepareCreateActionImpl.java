@@ -1,21 +1,20 @@
-package com.datastax.test.action;
+package com.datastax.test;
 
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
+import com.datastax.api.utils.data.DataType;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.SocketCode;
 import com.datastax.internal.requests.action.ObjectActionImpl;
-import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 {
-    public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, Consistency consistency, ObjectFlags... queryFlags)
+    public PrepareCreateActionImpl(LibraryImpl api, byte flags, String content, @Nonnull Consistency consistency, ObjectFlags... queryFlags)
     {
         super(api, flags, SocketCode.PREPARE, content, consistency.getCode(), queryFlags);
     }
@@ -57,7 +56,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             ByteBuf buf = Unpooled.directBuffer()
                     .writeByte(this.version)
                     .writeByte(this.flags)
-                    .writeShort(0x00)
+                    .writeShort(0x03)
                     .writeByte(this.opcode);
 
             ByteBuf body = Unpooled.directBuffer();
@@ -76,7 +75,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             writeLongValue(body, 123456L);
 
             //--- 2
-            writeString(body, "user", EntityBuilder.TypeTag.INT);
+            DataType.LONG_STRING.encode(body, "user");
 
             //--- flags
             body.writeInt(5000); // page size
@@ -104,7 +103,7 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             ByteBuf buf = Unpooled.directBuffer()
                     .writeByte(this.version)
                     .writeByte(this.flags)
-                    .writeShort(0x00)
+                    .writeShort(0x03)
                     .writeByte(this.opcode);
 
             ByteBuf body = Unpooled.directBuffer();
@@ -118,11 +117,11 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
 
             body.writeShort(2);
 
-            writeString(body, "user_id", EntityBuilder.TypeTag.SHORT);
+            DataType.STRING.encode(body, "user_id");
             writeLongValue(body, 123456L);
 
-            writeString(body, "user_name", EntityBuilder.TypeTag.SHORT);
-            writeString(body, "user", EntityBuilder.TypeTag.INT);
+            DataType.STRING.encode(body, "user_name");
+            DataType.LONG_STRING.encode(body, "user");
 
             body.writeInt(5000);
             body.writeLong(1743025467097000L);
@@ -131,13 +130,6 @@ public class PrepareCreateActionImpl extends ObjectCreateActionImpl
             buf.writeBytes(body);
 
             return buf;
-        }
-
-        private void writeString(ByteBuf buf, String value, EntityBuilder.TypeTag tag)
-        {
-            byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-            tag.writeLock(buf, bytes.length);
-            buf.writeBytes(bytes);
         }
 
         private void writeLongValue(ByteBuf buf, long value)
