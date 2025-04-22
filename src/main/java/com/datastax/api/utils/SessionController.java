@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBufConvertible;
 
 public interface SessionController
 {
-    interface SessionConnectNode extends ByteBufConvertible
+    interface SessionConnectNode
     {
         Library getLibrary();
     }

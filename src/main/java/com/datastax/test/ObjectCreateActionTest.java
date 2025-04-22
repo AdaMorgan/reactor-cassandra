@@ -51,18 +51,6 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
         byte[] content = this.getContent().getBytes(StandardCharsets.UTF_8);
         int length = content.length;
         int bodyLength = LENGTH + length + Short.BYTES + Byte.BYTES;
-        short DEFAULT_STREAM = 0x00;
-
-//        return new EntityBuilder()
-//                .put(version)
-//                .put(flags)
-//                .put(DEFAULT_STREAM)
-//                .put(this.opcode)
-//                .put(bodyLength)
-//                .put(this.getContent())
-//                .put(consistency)
-//                .put(bitfield)
-//                .asByteBuf();
 
         return Unpooled.directBuffer()
                 .writeByte(version)
@@ -93,7 +81,7 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Collection<? super R> args)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Collection<? super R> args)
     {
         getBuilder().setContent(content, args);
         return this;
@@ -101,7 +89,7 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Map<String, ? super R> args)
     {
         getBuilder().setContent(content, args);
         return this;
@@ -123,6 +111,6 @@ public class ObjectCreateActionTest extends ObjectActionImpl<ByteBuf> implements
             return false;
 
         ObjectCreateAction other = (ObjectCreateAction) obj;
-        return super.equals(obj);
+        return other.asByteBuf().equals(this.asByteBuf());
     }
 }

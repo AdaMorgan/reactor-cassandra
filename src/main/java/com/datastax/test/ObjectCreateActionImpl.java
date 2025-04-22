@@ -104,7 +104,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Collection<? super R> args)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Collection<? super R> args)
     {
         getBuilder().setContent(content, args);
         return this;
@@ -112,7 +112,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
+    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Map<String, ? super R> args)
     {
         getBuilder().setContent(content, args);
         return this;

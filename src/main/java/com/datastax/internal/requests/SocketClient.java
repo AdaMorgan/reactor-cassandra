@@ -8,15 +8,19 @@ import com.datastax.api.utils.SessionController;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.internal.utils.codec.MessageDecoder;
+import com.datastax.internal.utils.codec.MessageEncoder;
 import com.datastax.test.EntityBuilder;
 import com.datastax.test.SocketConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
@@ -25,6 +29,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.ConnectException;
 import java.time.OffsetDateTime;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -67,7 +72,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
-        //reconnect(0);
+        reconnect(0);
     }
 
     public synchronized void shutdown()
@@ -94,16 +99,17 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     protected SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
         LOG.debug("Sending Identify node...");
-        return new ConnectNode(this.library, () ->
-        {
-            return new EntityBuilder(callback)
-                    .put(this.version)
-                    .put(DEFAULT_FLAG)
-                    .put(DEFAULT_STREAM)
-                    .put(SocketCode.OPTIONS)
-                    .put(0)
-                    .asByteBuf();
-        });
+        return new ConnectNode(this.library, CompletableFuture.supplyAsync(() ->
+                {
+                    return new EntityBuilder()
+                            .put(this.version)
+                            .put(DEFAULT_FLAG)
+                            .put(DEFAULT_STREAM)
+                            .put(SocketCode.OPTIONS)
+                            .put(0)
+                            .asByteBuf();
+                })
+                .thenAccept(callback));
     }
 
     public synchronized void connect()
@@ -197,6 +203,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
                 channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             }
 
+            channel.pipeline().addLast(new MessageEncoder(this));
+
             channel.pipeline().addLast(new MessageDecoder(this));
 
             channel.pipeline().addLast(new Handler(this.client));
@@ -206,31 +214,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     public static class ConnectNode implements SessionController.SessionConnectNode
     {
         protected final Library api;
+        protected final CompletableFuture<Void> handle;
 
-        protected final ByteBuf body;
-
-        public ConnectNode(Library api, Supplier<ByteBuf> body)
+        public ConnectNode(Library api, CompletableFuture<Void> handle)
         {
             this.api = api;
-            this.body = body.get();
+            this.handle = handle;
         }
 
         @Override
         public Library getLibrary()
         {
             return api;
-        }
-
-        @Override
-        public ByteBuf asByteBuf()
-        {
-            return this.body;
-        }
-
-        @Override
-        public String toString()
-        {
-            return ByteBufUtil.prettyHexDump(asByteBuf());
         }
     }
 

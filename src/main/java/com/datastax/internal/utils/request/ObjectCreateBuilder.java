@@ -34,7 +34,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
 
     @Nonnull
     @Override
-    public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nullable Map<String, ? super R> args)
+    public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Map<String, ? super R> args)
     {
         Checks.notNull(values, "Values");
         if (content != null)

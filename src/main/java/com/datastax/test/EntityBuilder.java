@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+//TODO: Remove!
 public class EntityBuilder implements ByteBufConvertible
 {
     protected final ByteBuf buffer;

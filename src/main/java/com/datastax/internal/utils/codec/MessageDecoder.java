@@ -20,10 +20,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class MessageDecoder extends ByteToMessageDecoder
+public final class MessageDecoder extends ByteToMessageDecoder
 {
     private final LibraryImpl library;
     private final SocketClient client;
@@ -82,8 +83,7 @@ public class MessageDecoder extends ByteToMessageDecoder
         {
             case SocketCode.SUPPORTED:
             {
-                new SocketClient.ConnectNode(this.library, () ->
-                {
+                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
                     Map<String, String> map = new HashMap<>();
 
                     map.put("CQL_VERSION", LibraryInfo.CQL_VERSION);
@@ -108,14 +108,12 @@ public class MessageDecoder extends ByteToMessageDecoder
                             .put(SocketCode.STARTUP)
                             .put(body)
                             .asByteBuf();
-                });
-
+                }).thenAccept(callback));
                 break;
             }
             case SocketCode.AUTHENTICATE:
             {
-                new SocketClient.ConnectNode(this.library, () ->
-                {
+                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
                     return new EntityBuilder(callback)
                             .put(version)
                             .put(DEFAULT_FLAG)
@@ -123,13 +121,23 @@ public class MessageDecoder extends ByteToMessageDecoder
                             .put(SocketCode.AUTH_RESPONSE)
                             .put(this.library.getToken())
                             .asByteBuf();
-                });
+
+//                    byte[] token = this.library.getToken();
+//
+//                    return Unpooled.directBuffer()
+//                            .writeByte(version)
+//                            .writeByte(DEFAULT_FLAG)
+//                            .writeShort(stream)
+//                            .writeByte(SocketCode.STARTUP)
+//                            .writeInt(token.length)
+//                            .writeBytes(token)
+//                            .asByteBuf();
+                }).thenAccept(callback));
                 break;
             }
             case SocketCode.AUTH_SUCCESS:
             {
-                new SocketClient.ConnectNode(this.library, () ->
-                {
+                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
                     return new EntityBuilder(callback)
                             .put(version)
                             .put(DEFAULT_FLAG)
@@ -137,7 +145,7 @@ public class MessageDecoder extends ByteToMessageDecoder
                             .put(SocketCode.REGISTER)
                             .put("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
                             .asByteBuf();
-                });
+                }).thenAccept(callback));
                 break;
             }
             case SocketCode.READY:

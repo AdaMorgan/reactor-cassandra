@@ -3,6 +3,7 @@ package com.datastax.internal.utils.request;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -37,12 +38,13 @@ public class ObjectCreateData
         byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
         int messageLength = 4 + queryBytes.length + 2 + 1;
 
-        return new EntityBuilder()
-                .put(header)
-                .put(messageLength)
-                .put(content)
-                .put(consistency.getCode())
-                .put(flags)
+        return Unpooled.directBuffer()
+                .writeBytes(header)
+                .writeInt(messageLength)
+                .writeInt(queryBytes.length)
+                .writeBytes(queryBytes)
+                .writeShort(consistency.getCode())
+                .writeByte(flags)
                 .asByteBuf();
     }
 }
