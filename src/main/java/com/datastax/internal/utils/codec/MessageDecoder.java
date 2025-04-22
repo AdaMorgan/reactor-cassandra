@@ -5,24 +5,21 @@ import com.datastax.api.events.session.ReadyEvent;
 import com.datastax.api.exceptions.ErrorResponse;
 import com.datastax.api.exceptions.ErrorResponseException;
 import com.datastax.api.requests.Response;
+import com.datastax.api.utils.SessionController;
 import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.requests.Requester;
 import com.datastax.internal.requests.SocketClient;
 import com.datastax.internal.requests.SocketCode;
-import com.datastax.test.EntityBuilder;
+import com.datastax.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public final class MessageDecoder extends ByteToMessageDecoder
 {
@@ -71,81 +68,23 @@ public final class MessageDecoder extends ByteToMessageDecoder
         onDispatch(version, flags, stream, opcode, length, frame, context::writeAndFlush);
     }
 
-    private void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame, Consumer<? super ByteBuf> callback)
+    private synchronized void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame, Consumer<? super ByteBuf> callback)
     {
-        BiConsumer<ByteBuf, String> writeString = (body, value) -> {
-            byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-            body.writeShort(bytes.length);
-            body.writeBytes(bytes);
-        };
-
         switch (opcode)
         {
             case SocketCode.SUPPORTED:
             {
-                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
-                    Map<String, String> map = new HashMap<>();
-
-                    map.put("CQL_VERSION", LibraryInfo.CQL_VERSION);
-                    map.put("DRIVER_VERSION", LibraryInfo.DRIVER_VERSION);
-                    map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
-                    map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
-
-                    ByteBuf body = Unpooled.buffer();
-
-                    body.writeShort(map.size());
-
-                    for (Map.Entry<String, String> entry : map.entrySet())
-                    {
-                        writeString.accept(body, entry.getKey());
-                        writeString.accept(body, entry.getValue());
-                    }
-
-                    return new EntityBuilder(callback)
-                            .put(version)
-                            .put(DEFAULT_FLAG)
-                            .put(stream)
-                            .put(SocketCode.STARTUP)
-                            .put(body)
-                            .asByteBuf();
-                }).thenAccept(callback));
+                sendStartup(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTHENTICATE:
             {
-                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
-                    return new EntityBuilder(callback)
-                            .put(version)
-                            .put(DEFAULT_FLAG)
-                            .put(stream)
-                            .put(SocketCode.AUTH_RESPONSE)
-                            .put(this.library.getToken())
-                            .asByteBuf();
-
-//                    byte[] token = this.library.getToken();
-//
-//                    return Unpooled.directBuffer()
-//                            .writeByte(version)
-//                            .writeByte(DEFAULT_FLAG)
-//                            .writeShort(stream)
-//                            .writeByte(SocketCode.STARTUP)
-//                            .writeInt(token.length)
-//                            .writeBytes(token)
-//                            .asByteBuf();
-                }).thenAccept(callback));
+                verifyToken(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTH_SUCCESS:
             {
-                new SocketClient.ConnectNode(this.library, CompletableFuture.supplyAsync(() -> {
-                    return new EntityBuilder(callback)
-                            .put(version)
-                            .put(DEFAULT_FLAG)
-                            .put(stream)
-                            .put(SocketCode.REGISTER)
-                            .put("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
-                            .asByteBuf();
-                }).thenAccept(callback));
+                registry(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.READY:
@@ -163,6 +102,73 @@ public final class MessageDecoder extends ByteToMessageDecoder
                 enqueue(version, flags, stream, opcode, length, frame);
             }
         }
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode sendStartup(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.library, () ->
+        {
+            Map<String, String> map = new HashMap<>();
+
+            map.put("CQL_VERSION", LibraryInfo.CQL_VERSION);
+            map.put("DRIVER_VERSION", LibraryInfo.DRIVER_VERSION);
+            map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
+            map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
+
+            ByteBuf body = Unpooled.buffer();
+
+            body.writeShort(map.size());
+
+            for (Map.Entry<String, String> entry : map.entrySet())
+            {
+                EncodingUtils.encodeUTF84(body, entry.getKey());
+                EncodingUtils.encodeUTF84(body, entry.getValue());
+            }
+
+            return Unpooled.directBuffer()
+                    .writeByte(version)
+                    .writeByte(DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.STARTUP)
+                    .writeInt(body.readableBytes())
+                    .writeBytes(body)
+                    .asByteBuf();
+        }, callback);
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode verifyToken(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.library, () -> {
+            byte[] token = this.library.getToken();
+
+            return Unpooled.directBuffer()
+                    .writeByte(version)
+                    .writeByte(DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.AUTH_RESPONSE)
+                    .writeInt(token.length)
+                    .writeBytes(token)
+                    .asByteBuf();
+        }, callback);
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode registry(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.library, () -> {
+            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::directBuffer, EncodingUtils::encodeUTF88, ByteBuf::writeBytes);
+
+            return Unpooled.directBuffer()
+                    .writeByte(version)
+                    .writeByte(DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.REGISTER)
+                    .writeInt(body.readableBytes())
+                    .writeBytes(body)
+                    .asByteBuf();
+        }, callback);
     }
 
     private void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame)

@@ -6,8 +6,7 @@ import com.datastax.api.events.session.ShutdownEvent;
 import com.datastax.api.hooks.ListenerAdapter;
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
-import com.datastax.test.ObjectCreateActionTest;
-import com.datastax.test.PrepareCreateActionImpl;
+import com.datastax.test.ObjectCreateActionImpl;
 import com.datastax.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
@@ -24,8 +23,6 @@ public final class SessionLoggerExample extends ListenerAdapter
         LibraryImpl api = LibraryBuilder.createLight("cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
                 .build();
-
-        api.getClient().connect();
     }
 
     @Override
@@ -46,20 +43,12 @@ public final class SessionLoggerExample extends ListenerAdapter
     @Override
     public void onReady(@Nonnull ReadyEvent event)
     {
-
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-//        new ObjectCreateActionImpl(api, DEFAULT_FLAG, TEST_QUERY, ObjectCreateAction.Consistency.ONE)
-//                .map(RowsResultImpl::new)
-//                .queue(System.out::println, Throwable::printStackTrace);
-
-        for (int i = 0; i < 10; i++)
-        {
-            new ObjectCreateActionTest(api, DEFAULT_FLAG, ObjectCreateAction.Consistency.ONE)
-                    .setContent(TEST_QUERY)
-                    .map(RowsResultImpl::new)
-                    .queue(System.out::println, Throwable::printStackTrace);
-        }
+        new ObjectCreateActionImpl(api, DEFAULT_FLAG)
+                .setContent(TEST_QUERY_PREPARED, 123456L, "user")
+                .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override

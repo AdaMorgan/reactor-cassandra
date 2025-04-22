@@ -1,7 +1,6 @@
 package com.datastax.api.utils.data;
 
 import com.datastax.internal.utils.EncodingUtils;
-import com.datastax.internal.utils.codec.TypeCodec;
 import io.netty.buffer.ByteBuf;
 
 import java.util.function.BiFunction;

@@ -1,8 +1,11 @@
 package com.datastax.internal.utils.request;
 
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
+import com.datastax.api.utils.data.DataValue;
+import com.datastax.api.utils.data.Pair;
 import com.datastax.api.utils.request.ObjectCreateRequest;
 import com.datastax.internal.utils.Checks;
+import com.datastax.internal.utils.Helpers;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
@@ -18,17 +21,9 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Collection<? super R> args)
     {
         Checks.notNull(values, "Values");
-        if (content != null)
-        {
-            content = content.trim();
-            this.content.setLength(0);
-            this.content.append(content);
-        }
-        else
-        {
-            this.content.setLength(0);
-        }
-        this.objectFlags |= ObjectCreateAction.ObjectFlags.VALUES.getValue();
+        Helpers.setContent(this.content, content);
+        this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
+        args.stream().map(DataValue::new).map(DataValue::asByteBuf).forEach(this.values::add);
         return this;
     }
 
@@ -37,16 +32,10 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     public <R> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Map<String, ? super R> args)
     {
         Checks.notNull(values, "Values");
-        if (content != null)
-        {
-            content = content.trim();
-            this.content.setLength(0);
-            this.content.append(content);
-        }
-        else
-        {
-            this.content.setLength(0);
-        }
+        Helpers.setContent(this.content, content);
+        this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
+        this.fields |= ObjectCreateAction.Fields.VALUE_NAMES.getValue();
+        args.entrySet().stream().map(Pair::new).map(Pair::asByteBuf).forEach(this.values::add);
         return this;
     }
 
@@ -64,7 +53,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNegative(bufferSize, "The buffer size");
         this.maxBufferSize = bufferSize;
-        this.objectFlags |= ObjectCreateAction.ObjectFlags.PAGE_SIZE.getValue();
+        this.fields |= ObjectCreateAction.Fields.PAGE_SIZE.getValue();
         return this;
     }
 
@@ -73,7 +62,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNegative(timestamp, "Nonce");
         this.nonce = timestamp;
-        this.objectFlags |= ObjectCreateAction.ObjectFlags.DEFAULT_TIMESTAMP.getValue();
+        this.fields |= ObjectCreateAction.Fields.DEFAULT_TIMESTAMP.getValue();
         return this;
     }
 
@@ -81,7 +70,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     public ObjectCreateData build()
     {
         String content = this.content.toString().trim();
-        int flags = this.objectFlags;
+        int flags = this.fields;
         int bufferSize = this.maxBufferSize;
         List<ByteBuf> values = this.values;
 

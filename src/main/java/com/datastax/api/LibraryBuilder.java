@@ -128,6 +128,7 @@ public class LibraryBuilder
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
 
+        library.getClient().connect();
         return library;
     }
 }

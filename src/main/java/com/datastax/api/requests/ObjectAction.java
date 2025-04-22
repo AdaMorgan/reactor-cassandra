@@ -1,6 +1,7 @@
 package com.datastax.api.requests;
 
 import com.datastax.api.Library;
+import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.requests.action.ObjectActionImpl;
 import com.datastax.internal.requests.action.operator.MapObjectAction;
 import com.datastax.internal.utils.Checks;
@@ -9,9 +10,13 @@ import io.netty.buffer.ByteBuf;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public interface ObjectAction<T>
 {
@@ -20,6 +25,10 @@ public interface ObjectAction<T>
 
     @Nonnull
     ByteBuf asByteBuf();
+
+    byte getFlagsRaw();
+
+    EnumSet<Flags> getFlags();
 
     default void queue()
     {
@@ -62,5 +71,39 @@ public interface ObjectAction<T>
     {
         Checks.notNull(map, "Function");
         return new MapObjectAction<>(this, map);
+    }
+
+    enum Flags
+    {
+        COMPRESSION(1),
+        TRACING(2),
+        CUSTOM_PAYLOAD(3),
+        WARNING(4);
+
+        private final int value;
+
+        Flags(final int offset)
+        {
+            this.value = 1 << offset;
+        }
+
+        /**
+         * Returns the value of the {@link ObjectCreateAction.Fields} as represented in the bitfield. It is always a power of 2 (single bit)
+         *
+         * @return Non-Zero bit value of the field
+         */
+        public int getValue()
+        {
+            return value;
+        }
+
+        @Nonnull
+        public static EnumSet<Flags> fromBitField(byte bitfield)
+        {
+            Set<Flags> set = Arrays.stream(Flags.values())
+                    .filter(e -> (e.value & bitfield) > 0)
+                    .collect(Collectors.toSet());
+            return set.isEmpty() ? EnumSet.noneOf(Flags.class) : EnumSet.copyOf(set);
+        }
     }
 }

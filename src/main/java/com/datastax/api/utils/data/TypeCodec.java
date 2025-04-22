@@ -1,4 +1,4 @@
-package com.datastax.internal.utils.codec;
+package com.datastax.api.utils.data;
 
 import io.netty.buffer.ByteBuf;
 

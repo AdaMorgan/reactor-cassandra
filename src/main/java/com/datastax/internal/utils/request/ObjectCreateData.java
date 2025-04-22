@@ -1,7 +1,6 @@
 package com.datastax.internal.utils.request;
 
 import com.datastax.api.requests.objectaction.ObjectCreateAction;
-import com.datastax.test.EntityBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

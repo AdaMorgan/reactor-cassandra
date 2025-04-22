@@ -9,18 +9,14 @@ import com.datastax.internal.LibraryImpl;
 import com.datastax.internal.utils.LibraryLogger;
 import com.datastax.internal.utils.codec.MessageDecoder;
 import com.datastax.internal.utils.codec.MessageEncoder;
-import com.datastax.test.EntityBuilder;
 import com.datastax.test.SocketConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.MessageToByteEncoder;
-import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
@@ -96,20 +92,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         sendIdentify(context, context::writeAndFlush);
     }
 
-    protected SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
+    protected synchronized SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
         LOG.debug("Sending Identify node...");
-        return new ConnectNode(this.library, CompletableFuture.supplyAsync(() ->
-                {
-                    return new EntityBuilder()
-                            .put(this.version)
-                            .put(DEFAULT_FLAG)
-                            .put(DEFAULT_STREAM)
-                            .put(SocketCode.OPTIONS)
-                            .put(0)
-                            .asByteBuf();
-                })
-                .thenAccept(callback));
+        return new ConnectNode(this.library, () -> {
+            return Unpooled.directBuffer()
+                    .writeByte(this.version)
+                    .writeByte(DEFAULT_FLAG)
+                    .writeShort(DEFAULT_STREAM)
+                    .writeByte(SocketCode.OPTIONS)
+                    .writeInt(0)
+                    .asByteBuf();
+        }, callback);
     }
 
     public synchronized void connect()
@@ -216,10 +210,10 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         protected final Library api;
         protected final CompletableFuture<Void> handle;
 
-        public ConnectNode(Library api, CompletableFuture<Void> handle)
+        public ConnectNode(Library api, Supplier<ByteBuf> handle, Consumer<? super ByteBuf> callback)
         {
             this.api = api;
-            this.handle = handle;
+            this.handle = CompletableFuture.supplyAsync(handle).thenAccept(callback);
         }
 
         @Override

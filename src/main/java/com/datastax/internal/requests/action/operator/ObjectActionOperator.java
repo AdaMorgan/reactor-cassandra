@@ -5,6 +5,8 @@ import com.datastax.api.requests.ObjectAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.util.EnumSet;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
@@ -61,5 +63,17 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
     public ByteBuf asByteBuf()
     {
         return this.action.asByteBuf();
+    }
+
+    @Override
+    public byte getFlagsRaw()
+    {
+        return this.action.getFlagsRaw();
+    }
+
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return this.action.getFlags();
     }
 }

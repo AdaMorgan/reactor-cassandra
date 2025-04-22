@@ -1,5 +1,6 @@
 package com.datastax.api.utils.request;
 
+import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
@@ -10,6 +11,10 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
 {
     @Nonnull
     String getContent();
+
+    byte getFieldsRaw();
+
+    EnumSet<ObjectCreateAction.Fields> getFields();
 
     @Nonnull
     List<ByteBuf> getValues();

@@ -4,11 +4,20 @@ import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.utils.request.ObjectCreateRequest;
 import io.netty.buffer.ByteBuf;
 
+import javax.annotation.Nonnull;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateRequest<ObjectCreateAction>
 {
     int LENGTH = Integer.BYTES;
 
-    enum ObjectFlags
+    @Nonnull
+    Consistency getConsistency();
+
+    enum Fields
     {
         VALUES(0),
         SKIP_METADATA(1),
@@ -20,19 +29,28 @@ public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateR
 
         private final int value;
 
-        ObjectFlags(final int offset)
+        Fields(final int offset)
         {
             this.value = 1 << offset;
         }
 
         /**
-         * Returns the value of the {@link ObjectFlags} as represented in the bitfield. It is always a power of 2 (single bit)
+         * Returns the value of the {@link Fields} as represented in the bitfield. It is always a power of 2 (single bit)
          *
          * @return Non-Zero bit value of the field
          */
         public int getValue()
         {
             return value;
+        }
+
+        @Nonnull
+        public static EnumSet<Fields> fromBitField(byte bitfield)
+        {
+            Set<Fields> set = Arrays.stream(Fields.values())
+                    .filter(e -> (e.value & bitfield) > 0)
+                    .collect(Collectors.toSet());
+            return set.isEmpty() ? EnumSet.noneOf(Fields.class) : EnumSet.copyOf(set);
         }
     }
 

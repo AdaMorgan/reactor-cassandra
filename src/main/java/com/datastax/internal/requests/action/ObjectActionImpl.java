@@ -6,6 +6,7 @@ import com.datastax.api.requests.ObjectAction;
 import com.datastax.api.requests.ObjectFuture;
 import com.datastax.api.requests.Request;
 import com.datastax.api.requests.Response;
+import com.datastax.api.requests.objectaction.ObjectCreateAction;
 import com.datastax.internal.LibraryImpl;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -63,6 +65,18 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     public static Consumer<Object> getDefaultSuccess()
     {
         return DEFAULT_SUCCESS;
+    }
+
+    @Override
+    public byte getFlagsRaw()
+    {
+        return this.flags;
+    }
+
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return ObjectAction.Flags.fromBitField(this.flags);
     }
 
     @Override
