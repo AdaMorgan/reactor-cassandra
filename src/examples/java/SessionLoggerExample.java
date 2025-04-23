@@ -1,13 +1,12 @@
-import com.datastax.api.LibraryBuilder;
-import com.datastax.api.events.ExceptionEvent;
-import com.datastax.api.events.StatusChangeEvent;
-import com.datastax.api.events.session.ReadyEvent;
-import com.datastax.api.events.session.ShutdownEvent;
-import com.datastax.api.hooks.ListenerAdapter;
-import com.datastax.api.requests.objectaction.ObjectCreateAction;
-import com.datastax.internal.LibraryImpl;
-import com.datastax.test.ObjectCreateActionImpl;
-import com.datastax.test.RowsResultImpl;
+import com.github.adamorgan.api.LibraryBuilder;
+import com.github.adamorgan.api.events.ExceptionEvent;
+import com.github.adamorgan.api.events.StatusChangeEvent;
+import com.github.adamorgan.api.events.session.ReadyEvent;
+import com.github.adamorgan.api.events.session.ShutdownEvent;
+import com.github.adamorgan.api.hooks.ListenerAdapter;
+import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.test.ObjectCreateActionImpl;
+import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
 
