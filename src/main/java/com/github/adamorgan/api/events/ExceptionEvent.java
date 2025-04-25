@@ -1,7 +1,7 @@
 package com.github.adamorgan.api.events;
 
-import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.internal.utils.LibraryLogger;
 
 import javax.annotation.Nonnull;
 

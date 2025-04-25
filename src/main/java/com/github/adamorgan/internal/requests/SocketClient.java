@@ -4,6 +4,7 @@ import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.events.ExceptionEvent;
 import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
@@ -24,6 +25,9 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.ConnectException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.OffsetDateTime;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,29 +41,30 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
     public static final byte DEFAULT_FLAG = 0x00;
     public static final short DEFAULT_STREAM = 0x00;
+
+    //TODO: REPLACE
     public static final String HOST = "127.0.0.1";
     public static final int PORT = 9042;
 
-    private final Bootstrap handler;
-    private final LibraryImpl library;
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
+
+    private final StartingNode connectNode;
+    private final LibraryImpl library;
     private final EventLoopGroup executor;
+    private final SessionController controller;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final int networkIntents;
+    private final Compression compression;
 
-    public SocketClient(LibraryImpl library, int networkIntents)
+    public SocketClient(LibraryImpl library, int networkIntents, Compression compression)
     {
         this.networkIntents = networkIntents;
+        this.compression = compression;
         this.executor = new NioEventLoopGroup();
         this.library = library;
-        this.handler = new Bootstrap()
-                .group(executor)
-                .channel(NioSocketChannel.class)
-                .handler(new Initializer(this))
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .option(ChannelOption.SO_KEEPALIVE, true)
-                .option(ChannelOption.TCP_NODELAY, true);
+        this.controller = library.getSessionController();
+        this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
     @Override
@@ -79,7 +84,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
         this.library.setStatus(Library.Status.SHUTDOWN);
         this.library.handleEvent(new ShutdownEvent(this.library, OffsetDateTime.now()));
-        this.executor.shutdownGracefully();
+
+        this.executor.shutdownGracefully().addListener(future -> {
+            if (this.connectNode != null)
+                this.controller.removeSession(this.connectNode);
+        });
     }
 
     @Nullable
@@ -117,11 +126,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
 
-        ChannelFuture future = handler.connect(HOST, PORT);
+        ChannelFuture future = connectNode.connect(HOST, PORT);
         future.awaitUninterruptibly();
 
         if (future.isSuccess())
         {
+            this.library.setStatus(Library.Status.CONNECTED);
             return;
         }
 
@@ -173,12 +183,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }, delay, TimeUnit.SECONDS);
     }
 
-    public static final class Initializer extends ChannelInitializer<SocketChannel>
+    public static final class ReliableFrameHandler extends ChannelInitializer<SocketChannel>
     {
 
         private final SocketClient client;
 
-        public Initializer(SocketClient client)
+        public ReliableFrameHandler(SocketClient client)
         {
             this.client = client;
         }
@@ -225,6 +235,56 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         public Library getLibrary()
         {
             return api;
+        }
+
+        @Nonnull
+        public CompletableFuture<Void> getFuture()
+        {
+            return handle;
+        }
+    }
+
+    public static class StartingNode implements SessionController.SessionConnectNode
+    {
+        private final LibraryImpl api;
+        private final Bootstrap connectNode;
+        private final Consumer<StartingNode> callback;
+
+        public StartingNode(SocketClient client, Consumer<StartingNode> callback)
+        {
+            this.api = client.library;
+            this.callback = callback;
+            this.connectNode = new Bootstrap().group(client.executor)
+                    .channel(NioSocketChannel.class)
+                    .handler(new ReliableFrameHandler(client))
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                    .option(ChannelOption.SO_KEEPALIVE, true)
+                    .option(ChannelOption.TCP_NODELAY, true);
+        }
+
+        @Nonnull
+        @Override
+        public Library getLibrary()
+        {
+            return api;
+        }
+
+        @Nonnull
+        public ChannelFuture connect(String inetHost, int inetPort)
+        {
+            return connect(InetSocketAddress.createUnresolved(inetHost, inetPort));
+        }
+
+        @Nonnull
+        public ChannelFuture connect(InetAddress inetHost, int inetPort)
+        {
+            return connect(new InetSocketAddress(inetHost, inetPort));
+        }
+
+        @Nonnull
+        public ChannelFuture connect(SocketAddress inetSocketAddress)
+        {
+            return this.connectNode.connect(inetSocketAddress).addListener(future -> this.callback.accept(this));
         }
     }
 

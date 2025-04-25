@@ -19,7 +19,8 @@ public final class SessionLoggerExample extends ListenerAdapter
 
     public static void main(String[] args)
     {
-        LibraryImpl api = LibraryBuilder.createLight("cassandra", "cassandra")
+        LibraryImpl api = LibraryBuilder
+                .createLight("cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
                 .build();
     }
@@ -44,10 +45,13 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.getSessionController();
-
         new ObjectCreateActionImpl(api, DEFAULT_FLAG)
                 .setContent(TEST_QUERY_PREPARED, 123456L, "user")
+                .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
+
+        new ObjectCreateActionImpl(api, DEFAULT_FLAG)
+                .setContent(TEST_QUERY)
                 .map(RowsResultImpl::new)
                 .queue(System.out::println, Throwable::printStackTrace);
     }

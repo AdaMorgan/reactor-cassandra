@@ -22,7 +22,8 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(values, "Values");
         Helpers.setContent(this.content, content);
-        this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
+        if (!args.isEmpty())
+            this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
         args.stream().map(DataValue::new).map(DataValue::asByteBuf).forEach(this.values::add);
         return this;
     }

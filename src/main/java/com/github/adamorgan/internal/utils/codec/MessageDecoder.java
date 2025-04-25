@@ -17,7 +17,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
 import javax.annotation.Nonnull;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -29,10 +32,10 @@ public final class MessageDecoder extends ByteToMessageDecoder
     private final byte DEFAULT_FLAG = 0x00;
     private final Requester requester;
 
-    public MessageDecoder(SocketClient.Initializer initializer)
+    public MessageDecoder(SocketClient.ReliableFrameHandler handler)
     {
-        this.library = (LibraryImpl) initializer.getLibrary();
-        this.client = initializer.getClient();
+        this.library = (LibraryImpl) handler.getLibrary();
+        this.client = handler.getClient();
         this.requester = this.library.getRequester();
     }
 

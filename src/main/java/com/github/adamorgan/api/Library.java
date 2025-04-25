@@ -2,10 +2,12 @@ package com.github.adamorgan.api;
 
 import com.github.adamorgan.api.hooks.EventListener;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
-import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.api.requests.NetworkIntent;
+import com.github.adamorgan.api.requests.ObjectAction;
+import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.SessionController;
+import com.github.adamorgan.api.utils.cache.CacheView;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -110,6 +112,9 @@ public interface Library
      *         If either listeners or one of its objects is {@code null}.
      */
     void addEventListener(@Nonnull ListenerAdapter... listeners);
+
+    @Nonnull
+    CacheView<ObjectCreateAction> getObjectCache();
 
     /**
      * Removes all provided listeners from the event-listeners and no longer uses them to handle events.

@@ -6,14 +6,18 @@ import com.github.adamorgan.api.events.GenericEvent;
 import com.github.adamorgan.api.events.StatusChangeEvent;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
+import com.github.adamorgan.api.requests.NetworkIntent;
+import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
-import com.github.adamorgan.api.requests.NetworkIntent;
+import com.github.adamorgan.api.utils.cache.CacheView;
 import com.github.adamorgan.internal.hooks.EventManagerProxy;
 import com.github.adamorgan.internal.requests.Requester;
 import com.github.adamorgan.internal.requests.SocketClient;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.LibraryLogger;
+import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import org.jetbrains.annotations.Unmodifiable;
@@ -32,6 +36,8 @@ public class LibraryImpl implements Library
 {
     public static final Logger LOG = LibraryLogger.getLog(Library.class);
 
+    protected final ObjectCacheViewImpl objCache = new ObjectCacheViewImpl(ObjectCreateAction.class);
+
     protected final AtomicReference<Status> status = new AtomicReference<>(Status.INITIALIZING);
     protected final ReentrantLock statusLock = new ReentrantLock();
     protected final Condition statusCondition = statusLock.newCondition();
@@ -46,13 +52,13 @@ public class LibraryImpl implements Library
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    public LibraryImpl(final byte[] token, int intents, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    public LibraryImpl(final byte[] token, int intents, final Compression compression, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
-        this.client = new SocketClient(this, intents);
         this.requester = new Requester(this);
         this.threadingConfig = threadingConfig;
         this.sessionConfig = sessionConfig;
+        this.client = new SocketClient(this, intents, compression);
         this.eventManager = new EventManagerProxy(eventManager, threadingConfig.getEventPool());
     }
 
@@ -91,6 +97,13 @@ public class LibraryImpl implements Library
         {
             eventManager.register(listener);
         }
+    }
+
+    @Nonnull
+    @Override
+    public CacheView<ObjectCreateAction> getObjectCache()
+    {
+        return this.objCache;
     }
 
     @Override

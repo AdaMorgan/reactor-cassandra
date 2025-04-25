@@ -1,5 +1,6 @@
 package com.github.adamorgan.internal.utils.cache;
 
+import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.cache.CacheView;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.UnlockHook;
@@ -10,17 +11,20 @@ import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 import org.apache.commons.lang3.ArrayUtils;
 
 import javax.annotation.Nonnull;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.function.Consumer;
 
-public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> implements CacheView<T>
+public class AbstractCacheViewImpl<T extends ObjectCreateAction> extends ReadWriteLockCache<T> implements CacheView<T>
 {
     protected final TIntObjectMap<T> elements;
     protected final T[] emptyArray;
 
-    protected AbstractCacheView(Class<T> type, int initialCapacity)
+    public AbstractCacheViewImpl(Class<T> type)
     {
-        this.elements = new TIntObjectHashMap<>(initialCapacity);
+        this.elements = new TIntObjectHashMap<>();
         this.emptyArray = ArrayUtils.newInstance(type, 0);
     }
 

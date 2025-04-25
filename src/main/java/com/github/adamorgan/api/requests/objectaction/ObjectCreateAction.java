@@ -3,7 +3,6 @@ package com.github.adamorgan.api.requests.objectaction;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;

@@ -5,7 +5,7 @@ import com.github.adamorgan.api.events.Event;
 import com.github.adamorgan.api.events.GenericEvent;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
-import org.jetbrains.annotations.*;
+import org.jetbrains.annotations.Unmodifiable;
 
 import javax.annotation.Nonnull;
 import java.util.Collections;

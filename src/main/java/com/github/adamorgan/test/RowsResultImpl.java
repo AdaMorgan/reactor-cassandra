@@ -23,7 +23,7 @@ public class RowsResultImpl
 
     public String run()
     {
-        int kind = buffer.readInt();
+        //int kind = buffer.readInt();
         int flags = buffer.readInt();
 
         boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
@@ -72,7 +72,7 @@ public class RowsResultImpl
 
     private static String readString(@Nonnull ByteBuf buffer)
     {
-        short length = buffer.readShort();
+        int length = buffer.readUnsignedShort();
         byte[] bytes = new byte[length];
         buffer.readBytes(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
@@ -80,7 +80,15 @@ public class RowsResultImpl
 
     public static int readType(@Nonnull ByteBuf buffer)
     {
-        return buffer.readShort();
+        int code = buffer.readShort();
+        if (code == 34)
+        {
+            throw new UnsupportedOperationException();
+        }
+        else
+        {
+            return code;
+        }
     }
 
     @Nullable

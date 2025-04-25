@@ -1,9 +1,9 @@
 package com.github.adamorgan.api.hooks;
 
 import com.github.adamorgan.api.Library;
-import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.api.LibraryBuilder;
 import com.github.adamorgan.api.events.GenericEvent;
+import com.github.adamorgan.internal.LibraryImpl;
 
 import javax.annotation.Nonnull;
 import java.util.List;

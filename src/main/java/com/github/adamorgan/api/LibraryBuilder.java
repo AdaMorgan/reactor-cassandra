@@ -4,8 +4,8 @@ import com.github.adamorgan.api.hooks.EventListener;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.api.requests.NetworkIntent;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
@@ -31,6 +31,7 @@ public class LibraryBuilder
     protected IEventManager eventManager = null;
     protected int maxBufferSize = 2048;
     protected int maxReconnectDelay = 900;
+    protected Compression compression;
 
     private LibraryBuilder(@Nullable String username, @Nullable String password, int intents)
     {
@@ -127,6 +128,14 @@ public class LibraryBuilder
         return this;
     }
 
+    @Nonnull
+    public LibraryBuilder setCompression(@Nonnull Compression compression)
+    {
+        Checks.notNull(compression, "Compression");
+        this.compression = compression;
+        return this;
+    }
+
     /**
      * Changes the internally used EventManager.
      * <br>There are 2 provided Implementations:
@@ -187,15 +196,12 @@ public class LibraryBuilder
         byte[] token = initialResponse();
         ThreadingConfig config = new ThreadingConfig();
 
-        SessionController controller = null;
+        SessionConfig sessionConfig = new SessionConfig(null, maxReconnectDelay);
 
-        SessionConfig sessionConfig = new SessionConfig(controller, maxReconnectDelay);
-
-        LibraryImpl library = new LibraryImpl(token, intents, config, sessionConfig, eventManager);
+        LibraryImpl library = new LibraryImpl(token, intents, compression, config, sessionConfig, eventManager);
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
-
 
         library.getClient().connect();
 

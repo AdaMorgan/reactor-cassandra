@@ -24,7 +24,7 @@ public class ArchUnitComplianceTest
     final JavaClasses apiClasses = new ClassFileImporter().importPackages("com.github.adamorgan.api");
 
     @Test
-    void testMethodsThatReturnRestActionHaveCorrectAnnotations()
+    void testMethodsThatReturnObjectActionHaveCorrectAnnotations()
     {
         methods().that()
                 .haveRawReturnType(assignableTo(ObjectAction.class))
@@ -88,7 +88,7 @@ public class ArchUnitComplianceTest
     }
 
     @Test
-    void testRestActionClassesFollowNamePattern()
+    void testObjectActionClassesFollowNamePattern()
     {
         classes().that()
                 .areAssignableTo(ObjectAction.class)

@@ -4,9 +4,9 @@ import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.internal.utils.UnlockHook;
 
 import java.lang.ref.WeakReference;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public abstract class ReadWriteLockCache<T>

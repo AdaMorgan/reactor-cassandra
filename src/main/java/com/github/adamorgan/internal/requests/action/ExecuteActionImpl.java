@@ -2,7 +2,6 @@ package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.data.DataType;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
@@ -13,12 +12,14 @@ import javax.annotation.Nonnull;
 
 public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 {
+    private final ObjectCreateActionImpl action;
     private final ByteBuf response;
     private final int consistency, fields;
 
-    public ExecuteActionImpl(ObjectCreateAction action, Response response)
+    public ExecuteActionImpl(ObjectCreateActionImpl action, Response response)
     {
         super((LibraryImpl) action.getLibrary(), action.getFlagsRaw(), SocketCode.EXECUTE);
+        this.action = action;
         this.response = response.getBody();
         this.consistency = action.getConsistency().getCode();
         this.fields = action.getFieldsRaw();
@@ -27,7 +28,7 @@ public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
     @Override
     protected void handleSuccess(Request<ByteBuf> request, Response response)
     {
-        request.onSuccess(response.getBody());
+        this.action.handleSuccess(request, response);
     }
 
     public ByteBuf execute()
