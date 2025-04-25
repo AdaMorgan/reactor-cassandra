@@ -35,25 +35,24 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 {
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
-    protected final byte version;
+    public static final byte DEFAULT_FLAG = 0x00;
+    public static final short DEFAULT_STREAM = 0x00;
+    public static final String HOST = "127.0.0.1";
+    public static final int PORT = 9042;
 
-    private static final byte DEFAULT_FLAG = 0x00;
-    private static final short DEFAULT_STREAM = 0x00;
-
-    private static final String HOST = "127.0.0.1";
-    private static final int PORT = 9042;
     private final Bootstrap handler;
     private final LibraryImpl library;
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
     private final EventLoopGroup executor;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
+    private final int networkIntents;
 
-    public SocketClient(LibraryImpl library)
+    public SocketClient(LibraryImpl library, int networkIntents)
     {
+        this.networkIntents = networkIntents;
         this.executor = new NioEventLoopGroup();
         this.library = library;
-        this.version = library.getVersion();
         this.handler = new Bootstrap()
                 .group(executor)
                 .channel(NioSocketChannel.class)
@@ -69,6 +68,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
         reconnect(0);
+    }
+
+    public int getNetworkIntents()
+    {
+        return networkIntents;
     }
 
     public synchronized void shutdown()
@@ -97,7 +101,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         LOG.debug("Sending Identify node...");
         return new ConnectNode(this.library, () -> {
             return Unpooled.directBuffer()
-                    .writeByte(this.version)
+                    .writeByte(this.library.getVersion())
                     .writeByte(DEFAULT_FLAG)
                     .writeShort(DEFAULT_STREAM)
                     .writeByte(SocketCode.OPTIONS)

@@ -3,6 +3,7 @@ package com.github.adamorgan.api.requests.objectaction;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
@@ -45,7 +46,7 @@ public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateR
         }
 
         @Nonnull
-        public static EnumSet<Fields> fromBitField(byte bitfield)
+        public static EnumSet<Fields> fromBitField(int bitfield)
         {
             Set<Fields> set = Arrays.stream(Fields.values())
                     .filter(e -> (e.value & bitfield) > 0)

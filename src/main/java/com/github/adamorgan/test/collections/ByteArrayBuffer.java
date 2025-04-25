@@ -1,4 +1,4 @@
-package com.github.adamorgan.api.utils.collections;
+package com.github.adamorgan.test.collections;
 
 import io.netty.buffer.ByteBuf;
 

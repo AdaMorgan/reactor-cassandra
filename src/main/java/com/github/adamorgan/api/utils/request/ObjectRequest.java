@@ -12,7 +12,7 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
     @Nonnull
     String getContent();
 
-    byte getFieldsRaw();
+    int getFieldsRaw();
 
     @Nonnull
     EnumSet<ObjectCreateAction.Fields> getFields();

@@ -5,20 +5,20 @@ import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.SessionController;
+import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class LibraryBuilder
 {
@@ -32,16 +32,39 @@ public class LibraryBuilder
     protected int maxBufferSize = 2048;
     protected int maxReconnectDelay = 900;
 
-    private LibraryBuilder(String username, String password, int intents)
+    private LibraryBuilder(@Nullable String username, @Nullable String password, int intents)
     {
-        this.username = username;
-        this.password = password;
+        this.username = username == null ? StringUtils.EMPTY : username;
+        this.password = password == null ? StringUtils.EMPTY : password;
         this.intents = 1 | intents;
     }
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createDefault(String username, String password, int intents)
+    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password)
+    {
+        return createDefault(username, password, NetworkIntent.DEFAULT);
+    }
+    
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, @Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
+    {
+        Checks.notNull(intent, "NetworkIntent");
+        Checks.noneNull(intents, "NetworkIntent");
+        return createDefault(username, password, EnumSet.of(intent, intents));
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, @Nonnull Collection<NetworkIntent> intents)
+    {
+        return create(username, password, intents).applyDefault();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, int intents)
     {
         return new LibraryBuilder(username, password, intents).applyDefault();
     }
@@ -53,9 +76,9 @@ public class LibraryBuilder
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createLight(String username, String password)
+    public static LibraryBuilder createLight(@Nullable String username, @Nullable String password)
     {
-        return new LibraryBuilder(username, password, 0).applyLight();
+        return new LibraryBuilder(username, password, NetworkIntent.DEFAULT).applyLight();
     }
 
     protected LibraryBuilder applyLight()
@@ -65,9 +88,35 @@ public class LibraryBuilder
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder create(String username, String password, int intents)
+    public static LibraryBuilder create(@Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
     {
-        return new LibraryBuilder(username, password, intents);
+        return create(null, null, intent, intents);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder create(@Nonnull Collection<NetworkIntent> intents)
+    {
+        return create(null, null, intents);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder create(@Nullable String username, @Nullable String password, @Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
+    {
+        return new LibraryBuilder(username, password, NetworkIntent.getRaw(intent, intents)).applyIntents();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder create(@Nullable String username, @Nullable String password, @Nonnull Collection<NetworkIntent> intents)
+    {
+        return new LibraryBuilder(username, password, NetworkIntent.getRaw(intents)).applyIntents();
+    }
+
+    protected LibraryBuilder applyIntents()
+    {
+        return this;
     }
 
     @Nonnull
@@ -142,7 +191,7 @@ public class LibraryBuilder
 
         SessionConfig sessionConfig = new SessionConfig(controller, maxReconnectDelay);
 
-        LibraryImpl library = new LibraryImpl(token, config, sessionConfig, eventManager);
+        LibraryImpl library = new LibraryImpl(token, intents, config, sessionConfig, eventManager);
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);

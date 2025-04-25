@@ -12,7 +12,7 @@ import java.util.List;
 public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> implements ObjectRequest<T>
 {
     protected final StringBuilder content = new StringBuilder();
-    protected byte fields = 0;
+    protected int fields = 0;
     protected int maxBufferSize = 5000;
     protected long nonce;
     protected final List<ByteBuf> values = new LinkedList<>();
@@ -25,7 +25,7 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     }
 
     @Override
-    public byte getFieldsRaw()
+    public int getFieldsRaw()
     {
         return this.fields;
     }

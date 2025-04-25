@@ -1,12 +1,12 @@
 package com.github.compliance;
 
-import com.github.adamorgan.annotations.UnknownNullability;
 import com.github.adamorgan.api.managers.Manager;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.UnknownNullability;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.CheckReturnValue;
@@ -69,7 +69,7 @@ public class ArchUnitComplianceTest
                 .orShould()
                 .beAnnotatedWith(Contract.class)
                 .orShould()
-                .beAnnotatedWith(UnknownNullability.class)
+                .beMetaAnnotatedWith(UnknownNullability.class)
                 .check(apiClasses);
     }
 

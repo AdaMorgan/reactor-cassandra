@@ -1,4 +1,4 @@
-package com.github.adamorgan.test;
+package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
@@ -6,7 +6,6 @@ import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
-import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
 import io.netty.buffer.ByteBuf;
@@ -25,15 +24,15 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     protected final List<ObjectCreateAction> cache = new ArrayList<>();
     protected final Consistency consistency;
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags, @Nullable Consistency consistency)
+    public ObjectCreateActionImpl(LibraryImpl api, byte flags, final Consistency consistency)
     {
         super(api, flags, SocketCode.QUERY);
-        this.consistency = consistency == null ? Consistency.ONE : consistency;
+        this.consistency = consistency;
     }
 
     public ObjectCreateActionImpl(LibraryImpl api, byte flags)
     {
-        this(api, flags, null);
+        this(api, flags, Consistency.ONE);
     }
 
     @Override
@@ -68,7 +67,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     }
 
     @Override
-    public byte getFieldsRaw()
+    public int getFieldsRaw()
     {
         return this.getBuilder().getFieldsRaw();
     }

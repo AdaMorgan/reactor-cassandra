@@ -1,4 +1,4 @@
-package com.github.adamorgan.test;
+package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
@@ -6,7 +6,6 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.data.DataType;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
-import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

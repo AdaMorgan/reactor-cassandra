@@ -36,6 +36,7 @@ public class ListenerAdapter implements EventListener
     private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
     private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();
     private static final Set<Class<?>> unresolved;
+
     static
     {
         unresolved = ConcurrentHashMap.newKeySet();

@@ -1,6 +1,6 @@
 package com.github.adamorgan.api.utils;
 
-import com.github.adamorgan.annotations.UnknownNullability;
+import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;

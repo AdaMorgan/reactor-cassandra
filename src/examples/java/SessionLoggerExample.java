@@ -5,7 +5,7 @@ import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.test.ObjectCreateActionImpl;
+import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
@@ -43,6 +43,8 @@ public final class SessionLoggerExample extends ListenerAdapter
     public void onReady(@Nonnull ReadyEvent event)
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
+
+        api.getSessionController();
 
         new ObjectCreateActionImpl(api, DEFAULT_FLAG)
                 .setContent(TEST_QUERY_PREPARED, 123456L, "user")

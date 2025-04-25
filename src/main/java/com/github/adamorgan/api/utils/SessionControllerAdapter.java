@@ -5,12 +5,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SessionControllerAdapter implements SessionController
 {
-    private final ConcurrentLinkedQueue<SessionConnectNode> connectQueue;
-
-    public SessionControllerAdapter()
-    {
-        this.connectQueue = new ConcurrentLinkedQueue<>();
-    }
+    private final ConcurrentLinkedQueue<SessionConnectNode> connectQueue = new ConcurrentLinkedQueue<>();
 
     @Override
     public void appendSession(@Nonnull SessionConnectNode node)

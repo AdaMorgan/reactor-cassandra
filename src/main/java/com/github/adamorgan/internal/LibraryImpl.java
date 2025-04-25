@@ -8,6 +8,7 @@ import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
+import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.internal.hooks.EventManagerProxy;
 import com.github.adamorgan.internal.requests.Requester;
 import com.github.adamorgan.internal.requests.SocketClient;
@@ -19,6 +20,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,10 +46,10 @@ public class LibraryImpl implements Library
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    public LibraryImpl(final byte[] token, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    public LibraryImpl(final byte[] token, int intents, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
-        this.client = new SocketClient(this);
+        this.client = new SocketClient(this, intents);
         this.requester = new Requester(this);
         this.threadingConfig = threadingConfig;
         this.sessionConfig = sessionConfig;
@@ -71,6 +73,13 @@ public class LibraryImpl implements Library
     public Status getStatus()
     {
         return status.get();
+    }
+
+    @Nonnull
+    @Override
+    public EnumSet<NetworkIntent> getNetworkIntents()
+    {
+        return NetworkIntent.getIntents(client.getNetworkIntents());
     }
 
     @Override

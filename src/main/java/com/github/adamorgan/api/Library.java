@@ -5,8 +5,10 @@ import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.SessionController;
+import com.github.adamorgan.api.requests.NetworkIntent;
 
 import javax.annotation.Nonnull;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -85,6 +87,14 @@ public interface Library
      */
     @Nonnull
     Status getStatus();
+
+    /**
+     * The {@link NetworkIntent NetworkIntents} for this {@value LibraryInfo#PROJECT_NAME } session.
+     *
+     * @return {@link EnumSet} of active Session intents
+     */
+    @Nonnull
+    EnumSet<NetworkIntent> getNetworkIntents();
 
     /**
      * Adds all provided listeners to the event-listeners that will be used to handle events.
