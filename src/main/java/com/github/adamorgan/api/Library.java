@@ -8,10 +8,13 @@ import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.api.utils.cache.CacheView;
+import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
+import com.github.adamorgan.internal.utils.Checks;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
-import java.util.List;
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
@@ -134,6 +137,54 @@ public interface Library
      */
     @Nonnull
     List<? extends ListenerAdapter> getRegisteredListeners();
+
+    @Nonnull
+    @CheckReturnValue
+    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Object... args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Object... args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Collection<? super R> args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Collection<? super R> args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Map<String, ? super R> args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Map<String, ? super R> args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
+    }
 
     /**
      * This value is the maximum amount of time, in seconds, that {@value LibraryInfo#PROJECT_NAME } will wait between reconnect attempts.

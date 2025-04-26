@@ -14,6 +14,11 @@ group = "reactor-cassandra"
 
 val javaVersion = JavaVersion.VERSION_1_8
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 repositories {
     mavenCentral()
 }
@@ -49,8 +54,6 @@ dependencies {
     //General Utility
     implementation(libs.commons.text)
     implementation(libs.trove4j)
-
-    implementation(files("libs/DataLib.jar"))
 
     //Sets the dependencies for the examples
     configurations["examplesImplementation"].withDependencies {
@@ -101,22 +104,6 @@ tasks.withType<DependencyUpdatesTask> {
 
 val jar by tasks.getting(Jar::class) {
     archiveBaseName.set(project.name)
-}
-
-tasks.withType<JavaCompile> {
-    options.encoding = "UTF-8"
-    options.isIncremental = true
-
-    val args = mutableListOf("-Xlint:deprecation", "-Xlint:unchecked")
-
-    if (javaVersion.isJava11) {
-        args.add("--release")
-        args.add("11")
-    }
-
-    doFirst {
-        options.compilerArgs = args
-    }
 }
 
 tasks.withType<JavaCompile> {

@@ -18,7 +18,7 @@ public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 
     public ExecuteActionImpl(ObjectCreateActionImpl action, Response response)
     {
-        super((LibraryImpl) action.getLibrary(), action.getFlagsRaw(), SocketCode.EXECUTE);
+        super((LibraryImpl) action.getLibrary(), SocketCode.EXECUTE);
         this.action = action;
         this.response = response.getBody();
         this.consistency = action.getConsistency().getCode();

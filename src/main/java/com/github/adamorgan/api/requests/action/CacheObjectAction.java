@@ -12,7 +12,7 @@ public interface CacheObjectAction<T> extends ObjectAction<T>
      *
      * @param  useCache
      *         True if the cache should be used when available, even if the entity might be outdated.
-     *         False, to always request a new instance from the API.
+     *         False, to always request a new instance from the CQL Binary Protocol.
      *
      * @return This ObjectAction instance
      */

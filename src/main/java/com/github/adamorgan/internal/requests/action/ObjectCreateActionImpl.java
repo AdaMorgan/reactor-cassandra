@@ -1,5 +1,6 @@
 package com.github.adamorgan.internal.requests.action;
 
+import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
@@ -20,19 +21,17 @@ import java.util.*;
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
-
-    protected final List<ObjectCreateAction> cache = new ArrayList<>();
     protected final Consistency consistency;
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags, final Consistency consistency)
+    public ObjectCreateActionImpl(Library api, @Nullable Consistency consistency)
     {
-        super(api, flags, SocketCode.QUERY);
-        this.consistency = consistency;
+        super((LibraryImpl) api, SocketCode.QUERY);
+        this.consistency = consistency == null ? Consistency.ONE : consistency;
     }
 
-    public ObjectCreateActionImpl(LibraryImpl api, byte flags)
+    public ObjectCreateActionImpl(Library api)
     {
-        this(api, flags, Consistency.ONE);
+        this(api, null);
     }
 
     @Override

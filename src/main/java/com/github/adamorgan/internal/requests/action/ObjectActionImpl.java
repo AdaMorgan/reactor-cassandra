@@ -27,26 +27,27 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final byte version, flags, opcode;
+    protected byte flags = 0x00;
+
+    protected final byte version, opcode;
 
     private final String localReason;
 
     protected final BiFunction<Request<T>, Response, T> handler;
 
-    public ObjectActionImpl(LibraryImpl api, byte flags, byte opcode, BiFunction<Request<T>, Response, T> handler)
+    public ObjectActionImpl(LibraryImpl api, byte opcode, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
         this.version = api.getVersion();
-        this.flags = flags;
         this.opcode = opcode;
         this.handler = handler;
 
         this.localReason = ThreadLocalReason.getCurrent();
     }
 
-    public ObjectActionImpl(LibraryImpl api, byte flags, byte opcode)
+    public ObjectActionImpl(LibraryImpl api, byte opcode)
     {
-        this(api, flags, opcode, null);
+        this(api, opcode, null);
     }
 
     @Nonnull
