@@ -1,44 +1,61 @@
 package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
+import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
+import com.github.adamorgan.internal.utils.request.ObjectCreateData;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.UUID;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
     protected final Consistency consistency;
+    protected boolean useCache = true;
+    protected long nonce;
 
-    public ObjectCreateActionImpl(Library api, @Nullable Consistency consistency)
+    public ObjectCreateActionImpl(Library api, @Nonnull Consistency consistency)
     {
         super((LibraryImpl) api, SocketCode.QUERY);
-        this.consistency = consistency == null ? Consistency.ONE : consistency;
+        this.consistency = consistency;
     }
 
     public ObjectCreateActionImpl(Library api)
     {
-        this(api, null);
+        this(api, Consistency.ONE);
     }
 
     @Override
     protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
     {
         ByteBuf body = response.getBody();
+
+        if (response.isTrace())
+        {
+            long mostSigBits = body.readLong();
+            long leastSigBits = body.readLong();
+            UUID tracingId = new UUID(mostSigBits, leastSigBits);
+        }
+
         int kind = body.readInt();
+
         switch (kind)
         {
             case 2:
@@ -73,7 +90,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public EnumSet<Fields> getFields()
+    public EnumSet<Field> getFields()
     {
         return this.getBuilder().getFields();
     }
@@ -83,6 +100,21 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     public Consistency getConsistency()
     {
         return consistency;
+    }
+
+    @Override
+    public long getNonce()
+    {
+        return nonce != 0 ? nonce : System.currentTimeMillis();
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCreateAction setNonce(long timestamp)
+    {
+        Checks.notNegative(timestamp, "Nonce");
+        this.nonce = timestamp;
+        return this;
     }
 
     @Nonnull
@@ -113,6 +145,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     public CacheObjectAction<ByteBuf> useCache(boolean useCache)
     {
+        this.useCache = useCache;
         return this;
     }
 
@@ -120,23 +153,13 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ByteBuf asByteBuf()
     {
-        byte[] content = this.getContent().getBytes(StandardCharsets.UTF_8);
+        return new ObjectCreateData(this).applyData();
+    }
 
-        int length = content.length;
-        int bodyLength = LENGTH + length + Short.BYTES + Byte.BYTES;
-
-        byte opcode = this.builder.getValues().isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
-
-        return Unpooled.directBuffer()
-                .writeByte(version)
-                .writeByte(flags)
-                .writeShort(0x00)
-                .writeByte(opcode)
-                .writeInt(bodyLength)
-                .writeInt(length)
-                .writeBytes(content)
-                .writeShort(consistency.getCode())
-                .writeByte(getFieldsRaw());
+    @Override
+    public int getMaxBufferSize()
+    {
+        return this.builder.getMaxBufferSize() != 5000 ? this.builder.getMaxBufferSize() : this.api.getMaxBufferSize();
     }
 
     @Override
@@ -148,5 +171,11 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
             return false;
         ObjectCreateAction other = (ObjectCreateAction) obj;
         return ByteBufUtil.equals(other.asByteBuf(), this.asByteBuf());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return getContent().hashCode();
     }
 }

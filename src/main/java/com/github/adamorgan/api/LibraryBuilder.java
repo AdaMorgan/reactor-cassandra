@@ -6,11 +6,14 @@ import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.ConcurrentSessionController;
+import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
 
@@ -29,7 +32,8 @@ public class LibraryBuilder
     protected final int intents;
 
     protected IEventManager eventManager = null;
-    protected int maxBufferSize = 2048;
+    protected SessionController controller = null;
+    protected int maxBufferSize = 5000;
     protected int maxReconnectDelay = 900;
     protected Compression compression;
 
@@ -136,6 +140,13 @@ public class LibraryBuilder
         return this;
     }
 
+    @Nonnull
+    public LibraryBuilder setSessionController(@Nullable SessionController controller)
+    {
+        this.controller = controller;
+        return this;
+    }
+
     /**
      * Changes the internally used EventManager.
      * <br>There are 2 provided Implementations:
@@ -175,28 +186,27 @@ public class LibraryBuilder
         return this;
     }
 
-    private byte[] initialResponse()
+    private byte[] verifyToken()
     {
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
         byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
 
-        ByteBuf initialToken = Unpooled.buffer(usernameBytes.length + passwordBytes.length + 2);
-
-        initialToken.writeByte(0);
-        initialToken.writeBytes(usernameBytes);
-        initialToken.writeByte(0);
-        initialToken.writeBytes(passwordBytes);
-
-        return initialToken.array();
+        return Unpooled.buffer(usernameBytes.length + passwordBytes.length + 2)
+                .writeByte(0)
+                .writeBytes(usernameBytes)
+                .writeByte(0)
+                .writeBytes(passwordBytes)
+                .array();
     }
 
     @Nonnull
     public LibraryImpl build()
     {
-        byte[] token = initialResponse();
+        byte[] token = verifyToken();
         ThreadingConfig config = new ThreadingConfig();
 
-        SessionConfig sessionConfig = new SessionConfig(null, maxReconnectDelay);
+        SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
+        SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay);
 
         LibraryImpl library = new LibraryImpl(token, intents, compression, config, sessionConfig, eventManager);
 

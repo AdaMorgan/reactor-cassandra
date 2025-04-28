@@ -1,11 +1,11 @@
 package com.github.adamorgan.internal.utils.cache;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.cache.ObjectCacheView;
+import io.netty.buffer.ByteBuf;
 
-public class ObjectCacheViewImpl extends AbstractCacheViewImpl<ObjectCreateAction> implements ObjectCacheView
+public class ObjectCacheViewImpl extends AbstractCacheViewImpl<ByteBuf> implements ObjectCacheView
 {
-    public ObjectCacheViewImpl(Class<ObjectCreateAction> type)
+    public ObjectCacheViewImpl(Class<ByteBuf> type)
     {
         super(type);
     }

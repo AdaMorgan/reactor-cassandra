@@ -32,7 +32,7 @@ public class Requester
         this.streamManager = new StreamManager((short) 50);
     }
 
-    public <T> void execute(Request<T> request)
+    public <R> void execute(Request<R> request)
     {
         this.streamManager.execute(this.library, (api, stream) -> {
             this.execute(request, stream);
@@ -45,7 +45,7 @@ public class Requester
         return this.library.getClient().getContext();
     }
 
-    public <T> void execute(Request<T> request, short stream)
+    public <R> void execute(Request<R> request, short stream)
     {
         if (getContext() != null && !this.queue.containsKey(stream))
         {
@@ -68,7 +68,7 @@ public class Requester
         private final ByteBuf body;
         private final Runnable callback;
 
-        public <T> WorkTask(Requester requester, Request<T> request)
+        public <R> WorkTask(Requester requester, Request<R> request)
         {
             this.requester = requester;
             this.headers = request.getHeaders();
@@ -111,9 +111,9 @@ public class Requester
             }
         }
 
-        public <T> void execute(@Nonnull LibraryImpl api, @Nonnull BiConsumer<LibraryImpl, Short> command)
+        public <R> void execute(@Nonnull LibraryImpl api, @Nonnull BiConsumer<LibraryImpl, Short> command)
         {
-            CompletableFuture<T> future = new CompletableFuture<>();
+            CompletableFuture<R> future = new CompletableFuture<>();
 
             Short streamId = queue.poll();
             if (streamId == null)

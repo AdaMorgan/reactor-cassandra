@@ -94,7 +94,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
             failure = DEFAULT_FAILURE;
         }
 
-        api.getRequester().execute(new Request<>(this, body, success, failure));
+        api.getRequester().execute(new Request<>(this, body, success, failure), (short) 0);
     }
 
     @Nonnull

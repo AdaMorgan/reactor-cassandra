@@ -1,7 +1,7 @@
 package com.github.adamorgan.api.utils.cache;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import io.netty.buffer.ByteBuf;
 
-public interface ObjectCacheView extends CacheView<ObjectCreateAction>
+public interface ObjectCacheView extends CacheView<ByteBuf>
 {
 }

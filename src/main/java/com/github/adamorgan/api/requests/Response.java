@@ -30,6 +30,11 @@ public class Response
         return this.opcode == SocketCode.ERROR;
     }
 
+    public boolean isTrace()
+    {
+        return (flags & 0x02) != 0;
+    }
+
     @Nonnull
     public ByteBuf getBody()
     {

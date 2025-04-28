@@ -5,7 +5,10 @@ import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
 
 public interface ObjectRequest<T extends ObjectRequest<T>>
 {
@@ -15,10 +18,12 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
     int getFieldsRaw();
 
     @Nonnull
-    EnumSet<ObjectCreateAction.Fields> getFields();
+    EnumSet<ObjectCreateAction.Field> getFields();
 
     @Nonnull
     List<ByteBuf> getValues();
+
+    int getMaxBufferSize();
 
     @Nonnull
     <R> T setContent(@Nullable String content, @Nonnull Collection<? super R> args);

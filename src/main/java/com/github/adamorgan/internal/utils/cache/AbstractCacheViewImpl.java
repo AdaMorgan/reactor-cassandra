@@ -1,6 +1,5 @@
 package com.github.adamorgan.internal.utils.cache;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.cache.CacheView;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.UnlockHook;
@@ -17,22 +16,36 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class AbstractCacheViewImpl<T extends ObjectCreateAction> extends ReadWriteLockCache<T> implements CacheView<T>
+public class AbstractCacheViewImpl<T> extends ReadWriteLockCache<T> implements CacheView<T>
 {
-    protected final TIntObjectMap<T> elements;
+    protected final TIntObjectMap<T> elements = new TIntObjectHashMap<>();
     protected final T[] emptyArray;
 
     public AbstractCacheViewImpl(Class<T> type)
     {
-        this.elements = new TIntObjectHashMap<>();
         this.emptyArray = ArrayUtils.newInstance(type, 0);
     }
 
-    public T remove(int index)
+    public TIntObjectMap<T> getMap()
+    {
+        if (!lock.writeLock().isHeldByCurrentThread())
+            throw new IllegalStateException("Cannot access map directly without holding write lock!");
+        return elements;
+    }
+
+    public T get(int hashCode)
+    {
+        try (UnlockHook hook = readLock())
+        {
+            return elements.get(hashCode);
+        }
+    }
+
+    public T remove(int hashCode)
     {
         try (UnlockHook hook = writeLock())
         {
-            return elements.remove(index);
+            return elements.remove(hashCode);
         }
     }
 
@@ -64,6 +77,24 @@ public class AbstractCacheViewImpl<T extends ObjectCreateAction> extends ReadWri
     public boolean isEmpty()
     {
         return elements.isEmpty();
+    }
+
+    @Override
+    public boolean containsKey(int key)
+    {
+        try (UnlockHook hook = readLock())
+        {
+            return this.elements.containsKey(key);
+        }
+    }
+
+    @Override
+    public boolean containsValue(@Nonnull T value)
+    {
+        try (UnlockHook hook = readLock())
+        {
+            return this.elements.containsValue(value);
+        }
     }
 
     @Override

@@ -6,12 +6,10 @@ import com.github.adamorgan.api.utils.data.Pair;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.Helpers;
-import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuilder> implements ObjectCreateRequest<ObjectCreateBuilder>
@@ -22,9 +20,12 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(values, "Values");
         Helpers.setContent(this.content, content);
+        this.values.clear();
         if (!args.isEmpty())
-            this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
-        args.stream().map(DataValue::new).map(DataValue::asByteBuf).forEach(this.values::add);
+        {
+            this.fields |= ObjectCreateAction.Field.VALUES.getRawValue();
+            args.stream().map(DataValue::new).map(DataValue::asByteBuf).forEach(this.values::add);
+        }
         return this;
     }
 
@@ -34,8 +35,9 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(values, "Values");
         Helpers.setContent(this.content, content);
-        this.fields |= ObjectCreateAction.Fields.VALUES.getValue();
-        this.fields |= ObjectCreateAction.Fields.VALUE_NAMES.getValue();
+        this.values.clear();
+        this.fields |= ObjectCreateAction.Field.VALUES.getRawValue();
+        this.fields |= ObjectCreateAction.Field.VALUE_NAMES.getRawValue();
         args.entrySet().stream().map(Pair::new).map(Pair::asByteBuf).forEach(this.values::add);
         return this;
     }
@@ -54,7 +56,6 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNegative(bufferSize, "The buffer size");
         this.maxBufferSize = bufferSize;
-        this.fields |= ObjectCreateAction.Fields.PAGE_SIZE.getValue();
         return this;
     }
 
@@ -63,18 +64,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNegative(timestamp, "Nonce");
         this.nonce = timestamp;
-        this.fields |= ObjectCreateAction.Fields.DEFAULT_TIMESTAMP.getValue();
+        this.fields |= ObjectCreateAction.Field.DEFAULT_TIMESTAMP.getRawValue();
         return this;
-    }
-
-    @Nonnull
-    public ObjectCreateData build()
-    {
-        String content = this.content.toString().trim();
-        int flags = this.fields;
-        int bufferSize = this.maxBufferSize;
-        List<ByteBuf> values = this.values;
-
-        return new ObjectCreateData(null, content, values, ObjectCreateAction.Consistency.ONE, flags, bufferSize);
     }
 }

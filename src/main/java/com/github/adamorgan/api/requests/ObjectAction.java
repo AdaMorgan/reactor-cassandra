@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 
 public interface ObjectAction<T>
 {
+    int HEADER_BYTES = 9;
+
     @Nonnull
     Library getLibrary();
 
@@ -89,7 +91,7 @@ public interface ObjectAction<T>
         }
 
         /**
-         * Returns the value of the {@link ObjectCreateAction.Fields} as represented in the bitfield. It is always a power of 2 (single bit)
+         * Returns the value of the {@link ObjectCreateAction.Field} as represented in the bitfield. It is always a power of 2 (single bit)
          *
          * @return Non-Zero bit value of the field
          */

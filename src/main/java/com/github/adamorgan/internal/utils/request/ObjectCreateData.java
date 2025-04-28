@@ -1,49 +1,59 @@
 package com.github.adamorgan.internal.utils.request;
 
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
 
 public class ObjectCreateData
 {
-    protected final ByteBuf header;
-    protected final String content;
-    protected final int maxBufferSize;
-    protected final int flags;
-    protected final List<ByteBuf> values;
+    public static final int CONTENT_BYTES = Integer.BYTES;
+
+    protected final LibraryImpl library;
+    protected final byte version, flags, opcode;
+    protected final short stream;
+    protected final int length;
+    protected final byte[] content;
     protected final ObjectCreateAction.Consistency consistency;
+    protected final int fields;
+    protected final int maxBufferSize;
+    protected final long nonce;
 
-    public ObjectCreateData(ByteBuf header, String content, List<ByteBuf> values, ObjectCreateAction.Consistency consistency, int flags, int maxBufferSize)
+    public ObjectCreateData(@Nonnull ObjectCreateAction action)
     {
-        this.header = header;
-        this.content = content;
-        this.values = Collections.unmodifiableList(values);
-        this.consistency = consistency;
-        this.flags = flags;
-        this.maxBufferSize = maxBufferSize;
+        this.library = (LibraryImpl) action.getLibrary();
+        this.version = library.getVersion();
+        this.flags = action.getFlagsRaw();
+        this.stream = 0x00;
+        this.opcode = action.getValues().isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
+        this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
+        this.consistency = action.getConsistency();
+        this.fields = action.getFieldsRaw();
+        this.length = CONTENT_BYTES + content.length + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
+        this.maxBufferSize = action.getMaxBufferSize();
+        this.nonce = action.getNonce();
     }
 
-    public int getMaxBufferSize()
+    public ByteBuf applyData()
     {
-        return maxBufferSize;
-    }
-
-    public ByteBuf asByteBuf()
-    {
-        byte[] queryBytes = content.getBytes(StandardCharsets.UTF_8);
-        int messageLength = 4 + queryBytes.length + 2 + 1;
-
-        return Unpooled.directBuffer()
-                .writeBytes(header)
-                .writeInt(messageLength)
-                .writeInt(queryBytes.length)
-                .writeBytes(queryBytes)
-                .writeShort(consistency.getCode())
+        return Unpooled.directBuffer(length + ObjectAction.HEADER_BYTES)
+                .writeByte(version)
                 .writeByte(flags)
+                .writeShort(stream)
+                .writeByte(opcode)
+                .writeInt(length)
+                .writeInt(content.length)
+                .writeBytes(content)
+                .writeShort(consistency.getCode())
+                .writeByte(fields)
+                .writeInt(maxBufferSize)
+                .writeLong(nonce)
                 .asByteBuf();
     }
 }

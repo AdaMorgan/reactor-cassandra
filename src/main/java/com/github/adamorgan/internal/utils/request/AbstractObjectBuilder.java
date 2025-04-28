@@ -12,7 +12,7 @@ import java.util.List;
 public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> implements ObjectRequest<T>
 {
     protected final StringBuilder content = new StringBuilder();
-    protected int fields = 0;
+    protected int fields = ObjectCreateAction.Field.DEFAULT;
     protected int maxBufferSize = 5000;
     protected long nonce;
     protected final List<ByteBuf> values = new LinkedList<>();
@@ -30,11 +30,17 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
         return this.fields;
     }
 
+    @Override
+    public int getMaxBufferSize()
+    {
+        return this.maxBufferSize;
+    }
+
     @Nonnull
     @Override
-    public EnumSet<ObjectCreateAction.Fields> getFields()
+    public EnumSet<ObjectCreateAction.Field> getFields()
     {
-        return ObjectCreateAction.Fields.fromBitField(this.fields);
+        return ObjectCreateAction.Field.fromBitFields(this.fields);
     }
 
     @Nonnull
@@ -43,7 +49,4 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     {
         return this.values;
     }
-
-    @Nonnull
-    public abstract ObjectCreateData build();
 }

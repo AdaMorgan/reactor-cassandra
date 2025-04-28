@@ -8,9 +8,13 @@ public interface CacheView<T> extends Iterable<T>
     @Nonnull
     List<T> asList();
 
+    void clear();
+
     int size();
 
     boolean isEmpty();
 
-    void clear();
+    boolean containsKey(int key);
+
+    boolean containsValue(@Nonnull T value);
 }

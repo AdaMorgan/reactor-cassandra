@@ -5,7 +5,10 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.data.DataType;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
+import com.github.adamorgan.internal.utils.UnlockHook;
+import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
@@ -37,11 +40,6 @@ public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
         byte[] preparedId = new byte[idLength];
         this.response.readBytes(preparedId);
 
-        int flags = this.response.readInt();
-        System.out.println("flags: " + flags);
-        int columnCount = this.response.readInt();
-        System.out.println("columnCount: " + columnCount);
-
         ByteBuf buf = Unpooled.directBuffer()
                 .writeByte(this.version)
                 .writeByte(this.flags)
@@ -72,6 +70,13 @@ public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
 
         buf.writeInt(body.readableBytes());
         buf.writeBytes(body);
+
+        ObjectCacheViewImpl objectCache = this.api.getObjectCache();
+
+        try (UnlockHook hook = objectCache.writeLock())
+        {
+            objectCache.getMap().put(action.hashCode(), buf.copy());
+        }
 
         return buf;
     }

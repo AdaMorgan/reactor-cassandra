@@ -7,9 +7,9 @@ import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.SessionController;
-import com.github.adamorgan.api.utils.cache.CacheView;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.internal.utils.Checks;
+import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -117,7 +117,7 @@ public interface Library
     void addEventListener(@Nonnull ListenerAdapter... listeners);
 
     @Nonnull
-    CacheView<ObjectCreateAction> getObjectCache();
+    ObjectCacheViewImpl getObjectCache();
 
     /**
      * Removes all provided listeners from the event-listeners and no longer uses them to handle events.

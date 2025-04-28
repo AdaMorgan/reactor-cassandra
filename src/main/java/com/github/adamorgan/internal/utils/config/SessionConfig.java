@@ -9,22 +9,29 @@ import javax.annotation.Nullable;
 public class SessionConfig
 {
     protected final SessionController controller;
+    protected final int maxBufferSize;
     protected final int maxReconnectDelay;
 
-    public SessionConfig(@Nullable SessionController controller, int maxReconnectDelay)
+    public SessionConfig(@Nullable SessionController controller, int maxBufferSize, int maxReconnectDelay)
     {
         this.controller = controller == null ? new ConcurrentSessionController() : controller;
+        this.maxBufferSize = maxBufferSize;
         this.maxReconnectDelay = maxReconnectDelay;
-    }
-
-    public int getMaxReconnectDelay()
-    {
-        return maxReconnectDelay;
     }
 
     @Nonnull
     public SessionController getSessionController()
     {
         return controller;
+    }
+
+    public int getMaxBufferSize()
+    {
+        return maxBufferSize;
+    }
+
+    public int getMaxReconnectDelay()
+    {
+        return maxReconnectDelay;
     }
 }
