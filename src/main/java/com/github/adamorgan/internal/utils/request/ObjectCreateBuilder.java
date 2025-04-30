@@ -6,6 +6,7 @@ import com.github.adamorgan.api.utils.data.Pair;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.Helpers;
+import com.github.adamorgan.internal.utils.collections.TTextByteHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

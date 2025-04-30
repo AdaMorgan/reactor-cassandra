@@ -1,17 +1,14 @@
-package com.github.adamorgan.internal.entities;
-
-import com.github.adamorgan.api.entities.Column;
-import com.github.adamorgan.api.entities.Row;
+package com.github.adamorgan.test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class RowImpl implements Row
+public class RowImpl
 {
-    private final Column column;
+    private final ColumnImpl column;
     private final Object value;
 
-    public RowImpl(@Nonnull Column column, @Nullable Object value)
+    public RowImpl(@Nonnull ColumnImpl column, @Nullable Object value)
     {
         this.column = column;
         this.value = value;

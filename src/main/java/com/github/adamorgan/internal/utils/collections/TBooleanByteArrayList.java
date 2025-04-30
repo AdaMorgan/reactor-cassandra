@@ -9,6 +9,6 @@ public class TBooleanByteArrayList extends TByteArrayList<Boolean>
 {
     public TBooleanByteArrayList(int initialCapacity, Collection<ByteBuf> values)
     {
-        super(initialCapacity, values, DataType.BOOLEAN::decode);
+        super(values, DataType.BOOLEAN::decode);
     }
 }

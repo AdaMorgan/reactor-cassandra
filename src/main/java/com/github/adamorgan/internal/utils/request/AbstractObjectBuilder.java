@@ -3,6 +3,7 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -16,6 +17,8 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected int maxBufferSize = 5000;
     protected long nonce;
     protected final List<ByteBuf> values = new LinkedList<>();
+
+    protected final ByteBuf value = Unpooled.directBuffer();
 
     @Nonnull
     @Override

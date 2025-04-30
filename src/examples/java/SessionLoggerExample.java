@@ -1,6 +1,6 @@
 import com.github.adamorgan.api.LibraryBuilder;
 import com.github.adamorgan.api.events.ExceptionEvent;
-import com.github.adamorgan.api.events.StatusChangeEvent;
+import com.github.adamorgan.api.events.scheduled.StatusChangeEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
@@ -8,6 +8,7 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
+import java.net.InetSocketAddress;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -16,8 +17,9 @@ public final class SessionLoggerExample extends ListenerAdapter
 
     public static void main(String[] args)
     {
-        LibraryImpl api = LibraryBuilder
-                .createLight("cassandra", "cassandra")
+        InetSocketAddress address = InetSocketAddress.createUnresolved("127.0.0.1", 9042);
+
+        LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
                 .build();
     }

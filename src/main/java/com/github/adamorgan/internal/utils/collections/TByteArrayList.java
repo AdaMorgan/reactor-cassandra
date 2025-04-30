@@ -19,9 +19,9 @@ public abstract class TByteArrayList<T> implements TByteList<T>
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final Deque<T> array;
 
-    protected TByteArrayList(int initialCapacity, Collection<ByteBuf> values, Function<ByteBuf, ? extends T> decoder)
+    protected TByteArrayList(Collection<ByteBuf> values, Function<ByteBuf, ? extends T> decoder)
     {
-        this.array = values.stream().map(decoder).collect(Collectors.toCollection(() -> new LinkedBlockingDeque<>(initialCapacity)));
+        this.array = values.stream().map(decoder).collect(Collectors.toCollection(LinkedBlockingDeque::new));
     }
 
     protected UnlockHook writeLock()

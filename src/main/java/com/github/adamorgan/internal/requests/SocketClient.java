@@ -11,10 +11,13 @@ import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.codec.MessageDecoder;
 import com.github.adamorgan.internal.utils.codec.MessageEncoder;
 import com.github.adamorgan.test.SocketConfig;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -54,15 +57,15 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private final SessionController controller;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
-    private final int networkIntents;
+    private final SocketAddress address;
     private final Compression compression;
 
-    public SocketClient(LibraryImpl library, int networkIntents, Compression compression)
+    public SocketClient(LibraryImpl library, SocketAddress address, Compression compression)
     {
-        this.networkIntents = networkIntents;
-        this.compression = compression;
-        this.executor = new NioEventLoopGroup();
         this.library = library;
+        this.address = address;
+        this.compression = compression;
+        this.executor = new NioEventLoopGroup(); //TODO:
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
@@ -73,11 +76,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
         reconnect(0);
-    }
-
-    public int getNetworkIntents()
-    {
-        return networkIntents;
     }
 
     public synchronized void shutdown()
@@ -126,7 +124,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
 
-        ChannelFuture future = connectNode.connect(HOST, PORT);
+        ChannelFuture future = connectNode.connect(address);
         future.awaitUninterruptibly();
 
         if (future.isSuccess())
@@ -254,7 +252,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         {
             this.api = client.library;
             this.callback = callback;
-            this.connectNode = new Bootstrap().group(client.executor)
+            this.connectNode = new Bootstrap()
+                    .group(client.executor)
                     .channel(NioSocketChannel.class)
                     .handler(new ReliableFrameHandler(client))
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
@@ -267,18 +266,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         public Library getLibrary()
         {
             return api;
-        }
-
-        @Nonnull
-        public ChannelFuture connect(String inetHost, int inetPort)
-        {
-            return connect(InetSocketAddress.createUnresolved(inetHost, inetPort));
-        }
-
-        @Nonnull
-        public ChannelFuture connect(InetAddress inetHost, int inetPort)
-        {
-            return connect(new InetSocketAddress(inetHost, inetPort));
         }
 
         @Nonnull

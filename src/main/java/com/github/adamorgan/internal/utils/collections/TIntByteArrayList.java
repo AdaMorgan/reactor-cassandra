@@ -9,6 +9,6 @@ public class TIntByteArrayList extends TByteArrayList<Integer>
 {
     public TIntByteArrayList(int initialCapacity, Collection<ByteBuf> values)
     {
-        super(initialCapacity, values, DataType.INT::decode);
+        super(values, DataType.INT::decode);
     }
 }

@@ -3,10 +3,9 @@ package com.github.adamorgan.internal;
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.GenericEvent;
-import com.github.adamorgan.api.events.StatusChangeEvent;
+import com.github.adamorgan.api.events.scheduled.StatusChangeEvent;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
@@ -23,7 +22,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,13 +50,13 @@ public class LibraryImpl implements Library
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    public LibraryImpl(final byte[] token, int intents, final Compression compression, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
         this.requester = new Requester(this);
         this.threadingConfig = threadingConfig;
         this.sessionConfig = sessionConfig;
-        this.client = new SocketClient(this, intents, compression);
+        this.client = new SocketClient(this, address, compression);
         this.eventManager = new EventManagerProxy(eventManager, threadingConfig.getEventPool());
     }
 
@@ -78,13 +77,6 @@ public class LibraryImpl implements Library
     public Status getStatus()
     {
         return status.get();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<NetworkIntent> getNetworkIntents()
-    {
-        return NetworkIntent.getIntents(client.getNetworkIntents());
     }
 
     @Override

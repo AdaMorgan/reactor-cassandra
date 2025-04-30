@@ -1,10 +1,8 @@
-package com.github.adamorgan.internal.entities;
-
-import com.github.adamorgan.api.entities.Column;
+package com.github.adamorgan.test;
 
 import javax.annotation.Nonnull;
 
-public class ColumnImpl implements Column
+public class ColumnImpl
 {
     private final String keyspace;
     private final String tableName;
@@ -20,13 +18,11 @@ public class ColumnImpl implements Column
     }
 
     @Nonnull
-    @Override
     public String getName()
     {
         return name;
     }
 
-    @Override
     public int getType()
     {
         return type;

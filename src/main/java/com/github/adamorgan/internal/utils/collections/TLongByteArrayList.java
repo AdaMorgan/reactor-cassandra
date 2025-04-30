@@ -9,6 +9,6 @@ public class TLongByteArrayList extends TByteArrayList<Long>
 {
     public TLongByteArrayList(int initialCapacity, Collection<ByteBuf> values)
     {
-        super(initialCapacity, values, DataType.BIGINT::decode);
+        super(values, DataType.BIGINT::decode);
     }
 }

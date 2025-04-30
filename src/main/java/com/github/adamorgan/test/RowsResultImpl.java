@@ -1,7 +1,5 @@
 package com.github.adamorgan.test;
 
-import com.github.adamorgan.internal.entities.ColumnImpl;
-import com.github.adamorgan.internal.entities.RowImpl;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;

@@ -1,6 +1,8 @@
 package com.github.adamorgan.api.hooks;
 
 import com.github.adamorgan.api.events.*;
+import com.github.adamorgan.api.events.scheduled.GenericScheduledEvent;
+import com.github.adamorgan.api.events.scheduled.StatusChangeEvent;
 import com.github.adamorgan.api.events.session.GenericSessionEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
@@ -32,6 +34,7 @@ public class ListenerAdapter implements EventListener
 
     //Generic Events
     public void onGenericSession(@Nonnull GenericSessionEvent event) {}
+    public void onGenericChangeEvent(@Nonnull GenericScheduledEvent event) {}
 
     private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
     private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();

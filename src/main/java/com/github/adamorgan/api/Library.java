@@ -3,7 +3,6 @@ package com.github.adamorgan.api;
 import com.github.adamorgan.api.hooks.EventListener;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.SessionController;
@@ -92,14 +91,6 @@ public interface Library
      */
     @Nonnull
     Status getStatus();
-
-    /**
-     * The {@link NetworkIntent NetworkIntents} for this {@value LibraryInfo#PROJECT_NAME } session.
-     *
-     * @return {@link EnumSet} of active Session intents
-     */
-    @Nonnull
-    EnumSet<NetworkIntent> getNetworkIntents();
 
     /**
      * Adds all provided listeners to the event-listeners that will be used to handle events.

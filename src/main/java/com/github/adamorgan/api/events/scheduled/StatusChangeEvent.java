@@ -1,6 +1,8 @@
-package com.github.adamorgan.api.events;
+package com.github.adamorgan.api.events.scheduled;
 
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.api.events.Event;
+import com.github.adamorgan.api.events.UpdateEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,7 +14,7 @@ import javax.annotation.Nullable;
  *
  * <p>Identifier: {@code status}
  */
-public class StatusChangeEvent extends Event implements UpdateEvent<Library, Library.Status>
+public class StatusChangeEvent extends GenericScheduledEvent implements UpdateEvent<Library, Library.Status>
 {
     public static final String IDENTIFIER = "status";
 
@@ -21,7 +23,7 @@ public class StatusChangeEvent extends Event implements UpdateEvent<Library, Lib
 
     public StatusChangeEvent(@Nonnull Library api, @Nonnull Library.Status newStatus, @Nonnull Library.Status oldStatus)
     {
-        super(api);
+        super(api, Type.STATUS_CHANGE);
         this.newStatus = newStatus;
         this.oldStatus = oldStatus;
     }

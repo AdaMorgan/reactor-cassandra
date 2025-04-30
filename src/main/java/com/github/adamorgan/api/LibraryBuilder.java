@@ -4,7 +4,6 @@ import com.github.adamorgan.api.hooks.EventListener;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.requests.NetworkIntent;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.ConcurrentSessionController;
 import com.github.adamorgan.api.utils.SessionController;
@@ -12,14 +11,13 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -27,9 +25,9 @@ public class LibraryBuilder
 {
     protected final List<ListenerAdapter> listeners = new LinkedList<>();
 
-    private final String username;
-    private final String password;
-    protected final int intents;
+    protected final InetSocketAddress address;
+    protected final String username;
+    protected final String password;
 
     protected IEventManager eventManager = null;
     protected SessionController controller = null;
@@ -37,41 +35,41 @@ public class LibraryBuilder
     protected int maxReconnectDelay = 900;
     protected Compression compression;
 
-    private LibraryBuilder(@Nullable String username, @Nullable String password, int intents)
+    private LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
+        this.address = address;
         this.username = username == null ? StringUtils.EMPTY : username;
         this.password = password == null ? StringUtils.EMPTY : password;
-        this.intents = 1 | intents;
     }
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password)
+    public static LibraryBuilder create(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
-        return createDefault(username, password, NetworkIntent.DEFAULT);
-    }
-    
-    @Nonnull
-    @CheckReturnValue
-    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, @Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
-    {
-        Checks.notNull(intent, "NetworkIntent");
-        Checks.noneNull(intents, "NetworkIntent");
-        return createDefault(username, password, EnumSet.of(intent, intents));
+        Checks.notNull(address, "Address");
+        return new LibraryBuilder(address, username, password);
     }
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, @Nonnull Collection<NetworkIntent> intents)
+    public static LibraryBuilder create(@Nonnull InetSocketAddress address)
     {
-        return create(username, password, intents).applyDefault();
+        return create(address, null, null);
     }
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createDefault(@Nullable String username, @Nullable String password, int intents)
+    public static LibraryBuilder createDefault(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
-        return new LibraryBuilder(username, password, intents).applyDefault();
+        Checks.notNull(address, "Address");
+        return new LibraryBuilder(address, username, password).applyDefault();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder createDefault(@Nonnull InetSocketAddress address)
+    {
+        return createDefault(address, null, null);
     }
 
     protected LibraryBuilder applyDefault()
@@ -81,45 +79,20 @@ public class LibraryBuilder
 
     @Nonnull
     @CheckReturnValue
-    public static LibraryBuilder createLight(@Nullable String username, @Nullable String password)
+    public static LibraryBuilder createLight(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
-        return new LibraryBuilder(username, password, NetworkIntent.DEFAULT).applyLight();
+        Checks.notNull(address, "Address");
+        return new LibraryBuilder(address, username, password).applyLight();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    public static LibraryBuilder createLight(@Nonnull InetSocketAddress address)
+    {
+        return createLight(address, null, null);
     }
 
     protected LibraryBuilder applyLight()
-    {
-        return this;
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    public static LibraryBuilder create(@Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
-    {
-        return create(null, null, intent, intents);
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    public static LibraryBuilder create(@Nonnull Collection<NetworkIntent> intents)
-    {
-        return create(null, null, intents);
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    public static LibraryBuilder create(@Nullable String username, @Nullable String password, @Nonnull NetworkIntent intent, @Nonnull NetworkIntent... intents)
-    {
-        return new LibraryBuilder(username, password, NetworkIntent.getRaw(intent, intents)).applyIntents();
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    public static LibraryBuilder create(@Nullable String username, @Nullable String password, @Nonnull Collection<NetworkIntent> intents)
-    {
-        return new LibraryBuilder(username, password, NetworkIntent.getRaw(intents)).applyIntents();
-    }
-
-    protected LibraryBuilder applyIntents()
     {
         return this;
     }
@@ -208,7 +181,7 @@ public class LibraryBuilder
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
         SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay);
 
-        LibraryImpl library = new LibraryImpl(token, intents, compression, config, sessionConfig, eventManager);
+        LibraryImpl library = new LibraryImpl(token, address, compression, config, sessionConfig, eventManager);
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);

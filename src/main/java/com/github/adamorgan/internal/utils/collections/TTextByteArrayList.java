@@ -9,6 +9,6 @@ public class TTextByteArrayList extends TByteArrayList<String>
 {
     public TTextByteArrayList(int initialCapacity, Collection<ByteBuf> values)
     {
-        super(initialCapacity, values, DataType.LONG_STRING::decode);
+        super(values, DataType.LONG_STRING::decode);
     }
 }
