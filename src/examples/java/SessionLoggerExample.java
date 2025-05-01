@@ -1,6 +1,6 @@
 import com.github.adamorgan.api.LibraryBuilder;
 import com.github.adamorgan.api.events.ExceptionEvent;
-import com.github.adamorgan.api.events.scheduled.StatusChangeEvent;
+import com.github.adamorgan.api.events.StatusChangeEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;

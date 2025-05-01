@@ -1,7 +1,5 @@
 package com.github.adamorgan.api.utils;
 
-import javax.annotation.Nonnull;
-
 public enum Compression
 {
     NONE(""),
@@ -15,13 +13,8 @@ public enum Compression
         this.key = key;
     }
 
-    /**
-     * The key used for the gateway query to enable this compression
-     *
-     * @return The query key
-     */
-    @Nonnull
-    public String getKey()
+    @Override
+    public String toString()
     {
         return key;
     }

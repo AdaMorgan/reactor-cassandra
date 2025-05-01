@@ -1,7 +1,6 @@
 package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
-import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
@@ -15,14 +14,11 @@ import com.github.adamorgan.internal.utils.request.ObjectCreateData;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
-import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
-import java.util.UUID;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
@@ -31,10 +27,10 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     protected boolean useCache = true;
     protected long nonce;
 
-    public ObjectCreateActionImpl(Library api, @Nonnull Consistency consistency)
+    public ObjectCreateActionImpl(Library api, @Nullable Consistency consistency)
     {
         super((LibraryImpl) api, SocketCode.QUERY);
-        this.consistency = consistency;
+        this.consistency = consistency == null ? Consistency.ONE : consistency;
     }
 
     public ObjectCreateActionImpl(Library api)
@@ -45,16 +41,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
     {
-        ByteBuf body = response.getBody();
-
-        if (response.isTrace())
-        {
-            long mostSigBits = body.readLong();
-            long leastSigBits = body.readLong();
-            UUID tracingId = new UUID(mostSigBits, leastSigBits);
-        }
-
-        int kind = body.readInt();
+        int kind = response.getBody().readInt();
 
         switch (kind)
         {

@@ -9,10 +9,12 @@ import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
+import io.netty.channel.EventLoopGroup;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -102,7 +104,7 @@ public interface Library
      * @param  listeners
      *         The listener(s) which will react to events.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If either listeners or one of its objects is {@code null}.
      */
     void addEventListener(@Nonnull ListenerAdapter... listeners);
@@ -116,7 +118,7 @@ public interface Library
      * @param  listeners
      *         The listener(s) to be removed.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If either listeners or one of it's objects is {@code null}.
      */
     void removeEventListener(@Nonnull ListenerAdapter... listeners);
@@ -142,6 +144,7 @@ public interface Library
     default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Object... args)
     {
         Checks.notNull(text, "Content");
+        Checks.notNull(consistency, "Consistency");
         return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
     }
 
@@ -155,9 +158,10 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Collection<? super R> args)
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull ObjectCreateAction.Consistency consistency, @Nonnull Collection<? super R> args)
     {
         Checks.notNull(text, "Content");
+        Checks.notNull(consistency, "Consistency");
         return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
     }
 
@@ -171,9 +175,10 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Map<String, ? super R> args)
+    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull ObjectCreateAction.Consistency consistency, @Nonnull Map<String, ? super R> args)
     {
         Checks.notNull(text, "Content");
+        Checks.notNull(consistency, "Consistency");
         return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
     }
 
@@ -186,12 +191,20 @@ public interface Library
     int getMaxReconnectDelay();
 
     /**
-     * This value is the total amount of {@link java.nio.ByteBuffer ByteBuffer} responses that CQL Binary Protocol has sent.
+     * This value is the total amount of {@link ByteBuffer ByteBuffer} responses that CQL Binary Protocol has sent.
      * <br>This value resets every time the socket has to perform a full reconnect (not resume).
      *
      * @return Never-negative long containing total response amount.
      */
     long getResponseTotal();
+
+    /**
+     * {@link EventLoopGroup} used to send Socket messages to CQL Binary Server.
+     *
+     * @return The {@link EventLoopGroup} used for Socket transmissions
+     */
+    @Nonnull
+    EventLoopGroup getEventLoopScheduler();
 
     /**
      * {@link ExecutorService} used to handle {@link ObjectAction ObjectAction} callbacks
@@ -203,4 +216,31 @@ public interface Library
      */
     @Nonnull
     ExecutorService getCallbackPool();
+
+    /**
+     * Shutdown this {@link Library Library} instance, closing all its connections.
+     * After this command is issued the {@link Library Library} Instance can not be used anymore.
+     * Already enqueued {@link ObjectAction ObjectActions} are still going to be executed.
+     *
+     * <p>If you want this instance to shutdown without executing, use {@link #shutdownNow() shutdownNow()}
+     *
+     * <p>This will interrupt the default {@link Library Library} requests thread, due to the Bootstrap Connection being interrupted.
+     *
+     * @see #shutdownNow()
+     */
+    void shutdown();
+
+    /**
+     * Shutdown this {@link Library Library} instance instantly, closing all its connections.
+     * After this command is issued the {@link Library Library} Instance can not be used anymore.
+     * This will also cancel all queued {@link ObjectAction ObjectActions}.
+     *
+     * <p>If you want this instance to shutdown without cancelling enqueued ObjectActions use {@link #shutdown() shutdown()}
+     *
+     * <p>This will interrupt the default {@link Library Library} requests thread, due to the Bootstrap Connection being interrupted.
+     *
+     * @see #shutdown()
+     */
+    void shutdownNow();
+
 }

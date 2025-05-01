@@ -11,14 +11,10 @@ import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.codec.MessageDecoder;
 import com.github.adamorgan.internal.utils.codec.MessageEncoder;
 import com.github.adamorgan.test.SocketConfig;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoop;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -28,8 +24,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.ConnectException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.OffsetDateTime;
 import java.util.concurrent.CompletableFuture;
@@ -45,15 +39,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     public static final byte DEFAULT_FLAG = 0x00;
     public static final short DEFAULT_STREAM = 0x00;
 
-    //TODO: REPLACE
-    public static final String HOST = "127.0.0.1";
-    public static final int PORT = 9042;
-
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
     private final StartingNode connectNode;
     private final LibraryImpl library;
-    private final EventLoopGroup executor;
+    private final EventLoopGroup scheduler;
     private final SessionController controller;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
@@ -65,7 +55,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library = library;
         this.address = address;
         this.compression = compression;
-        this.executor = new NioEventLoopGroup(); //TODO:
+        this.scheduler = library.getEventLoopScheduler();
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
@@ -83,7 +73,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.library.setStatus(Library.Status.SHUTDOWN);
         this.library.handleEvent(new ShutdownEvent(this.library, OffsetDateTime.now()));
 
-        this.executor.shutdownGracefully().addListener(future -> {
+        this.scheduler.shutdownGracefully().addListener(future -> {
             if (this.connectNode != null)
                 this.controller.removeSession(this.connectNode);
         });
@@ -165,7 +155,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
 
         this.library.setStatus(Library.Status.WAITING_TO_RECONNECT);
 
-        this.executor.schedule(() ->
+        this.scheduler.schedule(() ->
         {
             try
             {
@@ -253,7 +243,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.api = client.library;
             this.callback = callback;
             this.connectNode = new Bootstrap()
-                    .group(client.executor)
+                    .group(client.scheduler)
                     .channel(NioSocketChannel.class)
                     .handler(new ReliableFrameHandler(client))
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)

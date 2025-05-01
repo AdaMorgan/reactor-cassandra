@@ -8,7 +8,6 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.UnlockHook;
 import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;

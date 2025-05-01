@@ -12,6 +12,7 @@ import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.CheckReturnValue;
@@ -19,7 +20,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 public class LibraryBuilder
 {
@@ -28,6 +32,13 @@ public class LibraryBuilder
     protected final InetSocketAddress address;
     protected final String username;
     protected final String password;
+
+    protected EventLoopGroup mainSocketPool = null;
+    protected boolean shutdownMainSocketPool = true;
+    protected ExecutorService callbackPool = null;
+    protected boolean shutdownCallbackPool = true;
+    protected ExecutorService eventPool = null;
+    protected boolean shutdownEventPool = true;
 
     protected IEventManager eventManager = null;
     protected SessionController controller = null;
@@ -120,6 +131,48 @@ public class LibraryBuilder
         return this;
     }
 
+    @Nonnull
+    public LibraryBuilder setEventLoopGroup(@Nullable EventLoopGroup executor, boolean automaticShutdown)
+    {
+        this.mainSocketPool = executor;
+        this.shutdownMainSocketPool = automaticShutdown;
+        return this;
+    }
+
+    @Nonnull
+    public LibraryBuilder setEventLoopGroup(@Nullable EventLoopGroup executor)
+    {
+        return setEventLoopGroup(executor, executor == null);
+    }
+
+    @Nonnull
+    public LibraryBuilder setCallbackPool(@Nullable ExecutorService executor, boolean automaticShutdown)
+    {
+        this.callbackPool = executor;
+        this.shutdownCallbackPool = automaticShutdown;
+        return this;
+    }
+
+    @Nonnull
+    public LibraryBuilder setCallbackPool(@Nullable ExecutorService executor)
+    {
+        return this.setCallbackPool(executor, executor == null);
+    }
+
+    @Nonnull
+    public LibraryBuilder setEventPool(@Nullable ExecutorService executor, boolean automaticShutdown)
+    {
+        this.eventPool = executor;
+        this.shutdownEventPool = automaticShutdown;
+        return this;
+    }
+
+    @Nonnull
+    public LibraryBuilder setEventPool(ExecutorService eventPool)
+    {
+        return setEventPool(eventPool, eventPool == null);
+    }
+
     /**
      * Changes the internally used EventManager.
      * <br>There are 2 provided Implementations:
@@ -176,7 +229,11 @@ public class LibraryBuilder
     public LibraryImpl build()
     {
         byte[] token = verifyToken();
+
         ThreadingConfig config = new ThreadingConfig();
+        config.setEventLoopScheduler(mainSocketPool, shutdownMainSocketPool);
+        config.setCallbackPool(callbackPool, shutdownCallbackPool);
+        config.setEventPool(eventPool, shutdownEventPool);
 
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
         SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay);

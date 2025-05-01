@@ -3,7 +3,8 @@ package com.github.adamorgan.internal;
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.GenericEvent;
-import com.github.adamorgan.api.events.scheduled.StatusChangeEvent;
+import com.github.adamorgan.api.events.StatusChangeEvent;
+import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
@@ -18,6 +19,7 @@ import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
 import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
@@ -45,19 +47,24 @@ public class LibraryImpl implements Library
     protected final byte[] token;
     protected final SessionConfig sessionConfig;
 
+    protected final Thread shutdownHook;
+
     protected final Requester requester;
-    protected final ThreadingConfig threadingConfig;
+    protected final ThreadingConfig threadConfig;
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ThreadingConfig threadingConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
+
+    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
         this.requester = new Requester(this);
-        this.threadingConfig = threadingConfig;
+        this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
+        this.shutdownHook = null; //TODO://
         this.client = new SocketClient(this, address, compression);
-        this.eventManager = new EventManagerProxy(eventManager, threadingConfig.getEventPool());
+        this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
     }
 
     public SocketClient getClient()
@@ -136,9 +143,16 @@ public class LibraryImpl implements Library
 
     @Nonnull
     @Override
+    public EventLoopGroup getEventLoopScheduler()
+    {
+        return threadConfig.getEventLoopScheduler();
+    }
+
+    @Nonnull
+    @Override
     public ExecutorService getCallbackPool()
     {
-        return threadingConfig.getCallbackPool();
+        return threadConfig.getCallbackPool();
     }
 
     public void handleEvent(@Nonnull GenericEvent event)
@@ -175,5 +189,24 @@ public class LibraryImpl implements Library
     public byte getVersion()
     {
         return LibraryInfo.PROTOCOL_VERSION;
+    }
+
+    @Override
+    public synchronized void shutdownNow()
+    {
+        shutdown();
+        threadConfig.shutdownNow();
+    }
+
+    @Override
+    public synchronized void shutdown()
+    {
+        Status status = getStatus();
+        if (status == Status.SHUTDOWN || status == Status.SHUTTING_DOWN)
+            return;
+
+        setStatus(Status.SHUTTING_DOWN);
+
+        this.client.shutdown();
     }
 }
