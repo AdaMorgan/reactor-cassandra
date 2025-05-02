@@ -11,4 +11,5 @@ public interface TypeCodec<T>
 
     @Nonnull
     T decode(ByteBuf buffer);
+
 }

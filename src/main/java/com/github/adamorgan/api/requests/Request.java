@@ -38,6 +38,11 @@ public class Request<T>
         return body;
     }
 
+    public int getShardId()
+    {
+        return objAction.getLibrary().getShardInfo().getShardId();
+    }
+
     public void onSuccess(T successObj)
     {
         this.onSuccess.accept(successObj);

@@ -44,7 +44,9 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        //api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY)
+                .map(RowsResultImpl::new)
+                .queue(System.out::println, Throwable::printStackTrace);
 
         api.sendRequest(TEST_QUERY_PREPARED, 123546L, "user")
                 .map(RowsResultImpl::new)

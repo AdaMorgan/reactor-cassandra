@@ -37,7 +37,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
     public static final byte DEFAULT_FLAG = 0x00;
-    public static final short DEFAULT_STREAM = 0x00;
 
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
@@ -49,19 +48,21 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
     private final Compression compression;
+    private final int shardId;
 
     public SocketClient(LibraryImpl library, SocketAddress address, Compression compression)
     {
         this.library = library;
         this.address = address;
         this.compression = compression;
+        this.shardId = library.getShardInfo().getShardId();
         this.scheduler = library.getEventLoopScheduler();
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext context)
+    public void channelInactive(@Nonnull ChannelHandlerContext context)
     {
         this.library.setStatus(Library.Status.DISCONNECTED);
         this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
@@ -100,7 +101,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             return Unpooled.directBuffer()
                     .writeByte(this.library.getVersion())
                     .writeByte(DEFAULT_FLAG)
-                    .writeShort(DEFAULT_STREAM)
+                    .writeShort(shardId)
                     .writeByte(SocketCode.OPTIONS)
                     .writeInt(0)
                     .asByteBuf();
@@ -200,10 +201,8 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             }
 
             channel.pipeline().addLast(new MessageEncoder(this));
-
             channel.pipeline().addLast(new MessageDecoder(this));
-
-            channel.pipeline().addLast(new Handler(this.client));
+            channel.pipeline().addLast(new ChannelController(this.client));
         }
     }
 
@@ -265,11 +264,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
     }
 
-    private static final class Handler extends ChannelInboundHandlerAdapter
+    private static final class ChannelController extends ChannelInboundHandlerAdapter
     {
         private final SocketClient client;
 
-        public Handler(SocketClient client)
+        public ChannelController(SocketClient client)
         {
             this.client = client;
         }

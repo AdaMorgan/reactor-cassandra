@@ -61,7 +61,7 @@ public final class ExecuteActionImpl extends ObjectActionImpl<ByteBuf>
         writeLongValue(body, 123456L);
 
         //--- 2
-        DataType.LONG_STRING.encode(body, "user");
+        DataType.LONG_STRING.encode(body, "reganjohn");
 
         //--- flags
         body.writeInt(5000); // page size

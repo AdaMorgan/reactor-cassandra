@@ -37,6 +37,18 @@ public class Checks
             throw new IllegalArgumentException(String.format(message, args));
     }
 
+    public static void positive(final int n, final String name)
+    {
+        if (n <= 0)
+            throw new IllegalArgumentException(name + " may not be negative or zero");
+    }
+
+    public static void positive(final long n, final String name)
+    {
+        if (n <= 0)
+            throw new IllegalArgumentException(name + " may not be negative or zero");
+    }
+
     public static void notNegative(final int n, final String name)
     {
         if (n < 0)

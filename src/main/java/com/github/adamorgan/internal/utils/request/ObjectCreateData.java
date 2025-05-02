@@ -10,6 +10,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.EnumSet;
 
 public class ObjectCreateData
 {
@@ -30,14 +32,19 @@ public class ObjectCreateData
         this.library = (LibraryImpl) action.getLibrary();
         this.version = library.getVersion();
         this.flags = action.getFlagsRaw();
-        this.stream = 0x00;
+        this.stream = (short) action.getLibrary().getShardInfo().getShardId();
         this.opcode = action.getValues().isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
         this.consistency = action.getConsistency();
         this.fields = action.getFieldsRaw();
-        this.length = CONTENT_BYTES + content.length + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
+        this.length = CONTENT_BYTES + content.length + (this.opcode == SocketCode.QUERY ? Short.BYTES : 0) + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
+    }
+
+    public EnumSet<ObjectCreateAction.Field> getFields()
+    {
+        return ObjectCreateAction.Field.fromBitFields(fields);
     }
 
     public ByteBuf applyData()

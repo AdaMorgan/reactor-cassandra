@@ -6,14 +6,17 @@ import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.ConcurrentSessionController;
+import com.github.adamorgan.api.utils.ConfigFlag;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
+import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -21,17 +24,22 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 public class LibraryBuilder
 {
+    public static final Logger LOG = LibraryLogger.getLog(LibraryBuilder.class);
+
     protected final List<ListenerAdapter> listeners = new LinkedList<>();
 
     protected final InetSocketAddress address;
     protected final String username;
     protected final String password;
+
+    protected Library.ShardInfo shardInfo;
 
     protected EventLoopGroup mainSocketPool = null;
     protected boolean shutdownMainSocketPool = true;
@@ -39,6 +47,8 @@ public class LibraryBuilder
     protected boolean shutdownCallbackPool = true;
     protected ExecutorService eventPool = null;
     protected boolean shutdownEventPool = true;
+
+    protected final EnumSet<ConfigFlag> configFlags = ConfigFlag.DEFAULT;
 
     protected IEventManager eventManager = null;
     protected SessionController controller = null;
@@ -109,6 +119,16 @@ public class LibraryBuilder
     }
 
     @Nonnull
+    public LibraryBuilder useSharding(int shardId, int shardTotal)
+    {
+        Checks.notNegative(shardId, "Shard ID");
+        Checks.positive(shardTotal, "Shard Total");
+        Checks.check(shardId < shardTotal, "The shard ID must be lower than the shardTotal! Shard IDs are 0-based.");
+        shardInfo = new Library.ShardInfo(shardId, shardTotal);
+        return this;
+    }
+
+    @Nonnull
     public LibraryBuilder setMaxBufferSize(int bufferSize)
     {
         Checks.notNegative(bufferSize, "The buffer size");
@@ -173,6 +193,41 @@ public class LibraryBuilder
         return setEventPool(eventPool, eventPool == null);
     }
 
+    @Nonnull
+    public LibraryBuilder setEventPassthrough(boolean enable)
+    {
+        return setFlag(ConfigFlag.EVENT_PASSTHROUGH, enable);
+    }
+
+    @Nonnull
+    public LibraryBuilder setEnableShutdownHook(boolean enabled)
+    {
+        return setFlag(ConfigFlag.SHUTDOWN_HOOK, enabled);
+    }
+
+    @Nonnull
+    public LibraryBuilder setAutoReconnect(boolean autoReconnect)
+    {
+        return setFlag(ConfigFlag.AUTO_RECONNECT, autoReconnect);
+    }
+
+    @Nonnull
+    private LibraryBuilder setFlag(ConfigFlag flag, boolean isEnabled)
+    {
+        boolean isChanged = isEnabled ? configFlags.add(flag) : configFlags.remove(flag);
+        LOG.debug("Flag {} {} {}", flag, isChanged ? "has been" : "was already", isEnabled ? "enabled" : "disabled");
+        return this;
+    }
+
+    @Nonnull
+    public LibraryBuilder setMaxReconnectDelay(int maxReconnectDelay)
+    {
+        Checks.check(maxReconnectDelay >= 32, "Max reconnect delay must be 32 seconds or greater. You provided %d.", maxReconnectDelay);
+
+        this.maxReconnectDelay = maxReconnectDelay;
+        return this;
+    }
+
     /**
      * Changes the internally used EventManager.
      * <br>There are 2 provided Implementations:
@@ -203,15 +258,6 @@ public class LibraryBuilder
         return this;
     }
 
-    @Nonnull
-    public LibraryBuilder setMaxReconnectDelay(int maxReconnectDelay)
-    {
-        Checks.check(maxReconnectDelay >= 32, "Max reconnect delay must be 32 seconds or greater. You provided %d.", maxReconnectDelay);
-
-        this.maxReconnectDelay = maxReconnectDelay;
-        return this;
-    }
-
     private byte[] verifyToken()
     {
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
@@ -236,14 +282,14 @@ public class LibraryBuilder
         config.setEventPool(eventPool, shutdownEventPool);
 
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
-        SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay);
+        SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay, configFlags);
 
-        LibraryImpl library = new LibraryImpl(token, address, compression, config, sessionConfig, eventManager);
+        LibraryImpl library = new LibraryImpl(token, address, compression, shardInfo, config, sessionConfig, eventManager);
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
 
-        library.getClient().connect();
+        library.connect();
 
         return library;
     }

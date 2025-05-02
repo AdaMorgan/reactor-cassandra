@@ -4,8 +4,8 @@ import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.concurrent.CountingThreadFactory;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
@@ -13,15 +13,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Deque;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.*;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class Requester
 {
     private final LibraryImpl library;
-    private final StreamManager streamManager;
 
     public final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
     public final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
@@ -29,14 +26,6 @@ public class Requester
     public Requester(LibraryImpl library)
     {
         this.library = library;
-        this.streamManager = new StreamManager((short) 50);
-    }
-
-    public <R> void execute(Request<R> request)
-    {
-        this.streamManager.execute(this.library, (api, stream) -> {
-            this.execute(request, stream);
-        });
     }
 
     @Nullable
@@ -45,15 +34,14 @@ public class Requester
         return this.library.getClient().getContext();
     }
 
-    public <R> void execute(Request<R> request, short stream)
+    public <R> void execute(@Nonnull Request<R> request)
     {
-        if (getContext() != null && !this.queue.containsKey(stream))
-        {
-            ByteBuf body = request.getBody();
-            body.setShort(2, stream);
-            request.handleResponse(stream, this.queue::put);
+        short streamId = (short) request.getShardId();
 
-            getContext().writeAndFlush(body.retain());
+        if (getContext() != null && !this.queue.containsKey(streamId))
+        {
+            request.handleResponse(streamId, this.queue::put);
+            getContext().writeAndFlush(request.getBody().retain());
         }
         else
         {
@@ -93,51 +81,6 @@ public class Requester
         public void execute()
         {
             this.callback.run();
-        }
-    }
-
-    public static class StreamManager
-    {
-        protected final Queue<Short> queue = new ConcurrentLinkedQueue<>();
-        protected final ExecutorService executor;
-
-        public StreamManager(short totalStreams)
-        {
-            this.executor = Executors.newScheduledThreadPool(totalStreams, new CountingThreadFactory(() -> "Stream", "Worker"));
-
-            for (short i = 0; i < totalStreams; i++)
-            {
-                queue.add(i);
-            }
-        }
-
-        public <R> void execute(@Nonnull LibraryImpl api, @Nonnull BiConsumer<LibraryImpl, Short> command)
-        {
-            CompletableFuture<R> future = new CompletableFuture<>();
-
-            Short streamId = queue.poll();
-            if (streamId == null)
-            {
-                future.completeExceptionally(new IllegalStateException("No available streams"));
-                return;
-            }
-
-            executor.execute(() ->
-            {
-                try
-                {
-                    command.accept(api, streamId);
-                }
-                catch (Exception e)
-                {
-                    future.completeExceptionally(e);
-                }
-                finally
-                {
-                    queue.add(streamId);
-                }
-            });
-
         }
     }
 }

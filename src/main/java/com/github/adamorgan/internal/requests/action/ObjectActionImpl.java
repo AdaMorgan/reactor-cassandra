@@ -27,9 +27,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected byte flags = 0x00;
-
     protected final byte version, opcode;
+    protected final int streamId;
+    protected byte flags = 0x00;
 
     private final String localReason;
 
@@ -39,6 +39,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     {
         this.api = api;
         this.version = api.getVersion();
+        this.streamId = api.getShardInfo().getShardId();
         this.opcode = opcode;
         this.handler = handler;
 
@@ -94,7 +95,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
             failure = DEFAULT_FAILURE;
         }
 
-        api.getRequester().execute(new Request<>(this, body, success, failure), (short) 0);
+        api.getRequester().execute(new Request<>(this, body, success, failure));
     }
 
     @Nonnull

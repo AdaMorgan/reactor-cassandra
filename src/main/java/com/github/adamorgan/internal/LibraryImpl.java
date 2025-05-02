@@ -4,7 +4,6 @@ import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.GenericEvent;
 import com.github.adamorgan.api.events.StatusChangeEvent;
-import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
@@ -45,6 +44,7 @@ public class LibraryImpl implements Library
     protected final AtomicInteger responseTotal = new AtomicInteger(0);
 
     protected final byte[] token;
+    protected final ShardInfo shardInfo;
     protected final SessionConfig sessionConfig;
 
     protected final Thread shutdownHook;
@@ -54,15 +54,14 @@ public class LibraryImpl implements Library
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
-
-    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ShardInfo shardInfo, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
         this.requester = new Requester(this);
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
-        this.shutdownHook = null; //TODO://
+        this.shardInfo = shardInfo;
+        this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
         this.client = new SocketClient(this, address, compression);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
     }
@@ -84,6 +83,24 @@ public class LibraryImpl implements Library
     public Status getStatus()
     {
         return status.get();
+    }
+
+    public boolean isEventPassthrough()
+    {
+        return sessionConfig.isEventPassthrough();
+    }
+
+    @Override
+    public boolean isAutoReconnect()
+    {
+        return sessionConfig.isAutoReconnect();
+    }
+
+    @Nonnull
+    @Override
+    public ShardInfo getShardInfo()
+    {
+        return shardInfo == null ? ShardInfo.SINGLE : shardInfo;
     }
 
     @Override
@@ -191,6 +208,14 @@ public class LibraryImpl implements Library
         return LibraryInfo.PROTOCOL_VERSION;
     }
 
+    public synchronized void connect()
+    {
+        if (shutdownHook != null)
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+
+        this.client.connect();
+    }
+
     @Override
     public synchronized void shutdownNow()
     {
@@ -204,6 +229,9 @@ public class LibraryImpl implements Library
         Status status = getStatus();
         if (status == Status.SHUTDOWN || status == Status.SHUTTING_DOWN)
             return;
+
+        if (shutdownHook != null)
+            Runtime.getRuntime().removeShutdownHook(shutdownHook);
 
         setStatus(Status.SHUTTING_DOWN);
 

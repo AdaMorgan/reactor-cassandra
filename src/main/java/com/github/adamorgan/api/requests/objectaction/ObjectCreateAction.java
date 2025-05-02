@@ -1,5 +1,6 @@
 package com.github.adamorgan.api.requests.objectaction;
 
+import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
@@ -15,6 +16,9 @@ import java.util.stream.Collectors;
 
 public interface ObjectCreateAction extends ObjectAction<ByteBuf>, ObjectCreateRequest<ObjectCreateAction>
 {
+    @Nonnull
+    Library getLibrary();
+
     @Nonnull
     Consistency getConsistency();
 

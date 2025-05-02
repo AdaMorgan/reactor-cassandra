@@ -18,4 +18,29 @@ public class DataValue<T>
     {
         return null;
     }
+
+    enum Codec
+    {
+        INT(Integer.class),
+        BIGINT(Long.class),
+        UNKNOWN(Object.class);
+
+        <R> Codec(Class<R> type)
+        {
+
+        }
+
+        public static <R> ByteBuf fromCodec(Class<R> type)
+        {
+            for (Codec value : values())
+            {
+                if (value.getClass() == type)
+                {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+    }
 }
