@@ -137,7 +137,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             if (this.library.getStatus() == Library.Status.CONNECTING_TO_SOCKET)
             {
                 LOG.error("Cannot create a socket connection");
-                this.shutdown();
+                this.library.shutdown();
                 return;
             }
 

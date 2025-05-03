@@ -4,7 +4,6 @@ import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.exceptions.ErrorResponseException;
-import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.Requester;
@@ -20,7 +19,6 @@ import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -102,7 +100,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
             }
             default:
             {
-                enqueue(version, flags, stream, opcode, length, frame);
+                this.requester.enqueue(version, flags, stream, opcode, length, frame);
             }
         }
     }
@@ -172,23 +170,5 @@ public final class MessageDecoder extends ByteToMessageDecoder
                     .writeBytes(body)
                     .asByteBuf();
         }, callback);
-    }
-
-    private void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame)
-    {
-        Queue<Requester.WorkTask> requests = this.requester.requests;
-
-        Consumer<? super Response> consumer = this.requester.queue.remove(stream);
-
-        consumer.accept(new Response(version, flags, stream, opcode, length, frame));
-
-        frame.release();
-
-        if (!requests.isEmpty())
-        {
-            Requester.WorkTask peek = requests.peek();
-            peek.execute();
-            requests.remove(peek);
-        }
     }
 }

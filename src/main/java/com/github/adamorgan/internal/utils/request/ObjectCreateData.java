@@ -32,8 +32,8 @@ public class ObjectCreateData
         this.library = (LibraryImpl) action.getLibrary();
         this.version = library.getVersion();
         this.flags = action.getFlagsRaw();
-        this.stream = (short) action.getLibrary().getShardInfo().getShardId();
-        this.opcode = action.getValues().isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
+        this.stream = 0x00;
+        this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
         this.consistency = action.getConsistency();
         this.fields = action.getFieldsRaw();

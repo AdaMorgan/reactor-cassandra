@@ -21,9 +21,11 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
     EnumSet<ObjectCreateAction.Field> getFields();
 
     @Nonnull
-    List<ByteBuf> getValues();
+    ByteBuf getBody();
 
     int getMaxBufferSize();
+
+    boolean isEmpty();
 
     @Nonnull
     <R> T setContent(@Nullable String content, @Nonnull Collection<? super R> args);

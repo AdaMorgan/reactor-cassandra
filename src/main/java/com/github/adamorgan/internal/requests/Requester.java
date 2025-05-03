@@ -5,7 +5,6 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
@@ -13,6 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Deque;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -20,8 +20,8 @@ public class Requester
 {
     private final LibraryImpl library;
 
-    public final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
-    public final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
+    private final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
+    private final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
 
     public Requester(LibraryImpl library)
     {
@@ -46,6 +46,24 @@ public class Requester
         else
         {
             requests.add(new WorkTask(this, request));
+        }
+    }
+
+    public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame)
+    {
+        Queue<Requester.WorkTask> requests = this.requests;
+
+        Consumer<? super Response> consumer = this.queue.remove(stream);
+
+        consumer.accept(new Response(version, flags, stream, opcode, length, frame));
+
+        frame.release();
+
+        if (!requests.isEmpty())
+        {
+            Requester.WorkTask peek = requests.peek();
+            peek.execute();
+            requests.remove(peek);
         }
     }
 

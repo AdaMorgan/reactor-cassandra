@@ -9,12 +9,6 @@ import java.util.Map;
 public class EncodingUtils {
 
     @Nonnull
-    public static ByteBuf encodeMap(@Nonnull ByteBuf buffer, @Nonnull Map<String, String> chars)
-    {
-        return null;
-    }
-
-    @Nonnull
     public static ByteBuf encodeUTF88(@Nonnull ByteBuf buffer, @Nonnull String... chars)
     {
         return null;
@@ -46,6 +40,18 @@ public class EncodingUtils {
         byte[] content = chars.getBytes(StandardCharsets.UTF_8);
         buffer.writeShort(content.length);
         return buffer.writeBytes(content);
+    }
+
+    public static ByteBuf encodeLong(@Nonnull ByteBuf buffer, long number)
+    {
+        buffer.writeInt(8);
+        return buffer.writeLong(number);
+    }
+
+    public static ByteBuf encodeInt(@Nonnull ByteBuf buffer, int number)
+    {
+        buffer.writeInt(4);
+        return buffer.writeInt(number);
     }
 
     @Nonnull

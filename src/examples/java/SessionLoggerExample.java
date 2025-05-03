@@ -9,6 +9,10 @@ import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -44,13 +48,21 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.sendRequest(TEST_QUERY)
-                .map(RowsResultImpl::new)
-                .queue(System.out::println, Throwable::printStackTrace);
+        //api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
-        api.sendRequest(TEST_QUERY_PREPARED, 123546L, "user")
-                .map(RowsResultImpl::new)
-                .queue(System.out::println, Throwable::printStackTrace);
+        Collection<Object> parameters = new ArrayList<>();
+        parameters.add(123456L);
+        parameters.add("reganjohn");
+
+        //api.sendRequest(TEST_QUERY_PREPARED, 123456L, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+
+        //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("user_id", 123546L);
+        map.put("user_name", "reganjohn");
+
+        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override

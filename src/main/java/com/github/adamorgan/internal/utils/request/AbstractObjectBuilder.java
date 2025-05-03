@@ -16,9 +16,15 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected int fields = ObjectCreateAction.Field.DEFAULT;
     protected int maxBufferSize = 5000;
     protected long nonce;
-    protected final List<ByteBuf> values = new LinkedList<>();
 
-    protected final ByteBuf value = Unpooled.directBuffer();
+    protected final ByteBuf body = Unpooled.directBuffer();
+
+    @Nonnull
+    @Override
+    public ByteBuf getBody()
+    {
+        return body;
+    }
 
     @Nonnull
     @Override
@@ -39,17 +45,16 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
         return this.maxBufferSize;
     }
 
+    @Override
+    public boolean isEmpty()
+    {
+        return !this.body.isReadable();
+    }
+
     @Nonnull
     @Override
     public EnumSet<ObjectCreateAction.Field> getFields()
     {
         return ObjectCreateAction.Field.fromBitFields(this.fields);
-    }
-
-    @Nonnull
-    @Override
-    public List<ByteBuf> getValues()
-    {
-        return this.values;
     }
 }

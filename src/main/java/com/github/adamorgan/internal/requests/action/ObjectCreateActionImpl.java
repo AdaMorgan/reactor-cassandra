@@ -84,6 +84,13 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
+    public ByteBuf getBody()
+    {
+        return null;
+    }
+
+    @Nonnull
+    @Override
     public Consistency getConsistency()
     {
         return consistency;
@@ -147,6 +154,12 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     public int getMaxBufferSize()
     {
         return this.builder.getMaxBufferSize() != 5000 ? this.builder.getMaxBufferSize() : this.api.getMaxBufferSize();
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+        return this.builder.isEmpty();
     }
 
     @Override

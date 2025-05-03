@@ -20,8 +20,5 @@ public interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>, R 
 
     @Nonnull
     @Override
-    default List<ByteBuf> getValues()
-    {
-        return getBuilder().getValues();
-    }
+    ByteBuf getBody();
 }
