@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.print.DocFlavor;
 import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -28,7 +29,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     protected final LibraryImpl api;
 
     protected final byte version, opcode;
-    protected final int streamId;
+    protected final int stream;
     protected byte flags = 0x00;
 
     private final String localReason;
@@ -39,7 +40,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     {
         this.api = api;
         this.version = api.getVersion();
-        this.streamId = api.getShardInfo().getShardId();
+        this.stream = api.getShardInfo().getShardId();
         this.opcode = opcode;
         this.handler = handler;
 
@@ -84,7 +85,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ByteBuf body = this.asByteBuf();
+        ByteBuf body = this.finalizeData();
 
         if (success == null)
         {
@@ -102,7 +103,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public CompletableFuture<T> submit(boolean shouldQueue)
     {
-        ByteBuf body = this.asByteBuf();
+        ByteBuf body = this.finalizeData();
         return new ObjectFuture<>(this, body);
     }
 

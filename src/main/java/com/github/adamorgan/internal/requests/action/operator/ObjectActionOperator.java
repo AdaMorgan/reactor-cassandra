@@ -59,9 +59,9 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
 
     @Nonnull
     @Override
-    public ByteBuf asByteBuf()
+    public ByteBuf finalizeData()
     {
-        return this.action.asByteBuf();
+        return this.action.finalizeData();
     }
 
     @Override

@@ -26,7 +26,7 @@ public interface ObjectAction<T>
     Library getLibrary();
 
     @Nonnull
-    ByteBuf asByteBuf();
+    ByteBuf finalizeData();
 
     byte getFlagsRaw();
 

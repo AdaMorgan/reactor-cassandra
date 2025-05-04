@@ -1,47 +1,93 @@
 package com.github.adamorgan.internal.utils.requestbody;
 
 import com.github.adamorgan.internal.utils.EncodingUtils;
-import com.github.adamorgan.internal.utils.codec.TypeCodec;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
-import java.io.UnsupportedEncodingException;
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class BinaryType<T> implements TypeCodec<T>
+public enum BinaryType
 {
-    public static final BinaryType<Long>    BIGINT     = new BinaryType<>(0x0002, 8, EncodingUtils::encodeLong,    ByteBuf::readLong);
-    public static final BinaryType<Integer> INT        = new BinaryType<>(0x0009, 4, EncodingUtils::encodeInt,     ByteBuf::readInt);
+    BIGINT     (Long.class,      0x0002, 8, EncodingUtils::encodeLong,    ByteBuf::readLong                          ),
+    INT        (Integer.class,   0x0009, 4, EncodingUtils::encodeInt,     ByteBuf::readInt                           ),
+    TEXT       (String.class,    0x000D, 0, EncodingUtils::encodeUTF88,   EncodingUtils::decodeUTF88                 ),
+    VARCHAR    (String.class,    0x000D, 0, EncodingUtils::encodeUTF84,   EncodingUtils::decodeUTF84, false),
+    BOOLEAN    (Boolean.class,   0x0004, 1, EncodingUtils::encodeBoolean, ByteBuf::readBoolean                       );
 
-    public static final BinaryType<String> STRING      = new BinaryType<>(0x000D, 0, EncodingUtils::encodeUTF84, EncodingUtils::decodeUTF84);
-    public static final BinaryType<String> LONG_STRING = new BinaryType<>(0x000D, 0, EncodingUtils::encodeUTF88, EncodingUtils::decodeUTF88);
+    private final long uid;
+    private final int offset;
+    private final int length;
+    private final BiFunction<ByteBuf, Serializable, ByteBuf> pack;
+    private final Function<ByteBuf, Serializable> unpack;
+    private final boolean isReadable;
 
-    public static final BinaryType<Boolean> BOOLEAN    = new BinaryType<>(0x0004, 1, ByteBuf::writeBoolean, ByteBuf::readBoolean);
+    <T extends Serializable> BinaryType(Class<T> type, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, Function<ByteBuf, Serializable> unpack)
+    {
+        this(type, ObjectStreamClass::lookup, ObjectStreamClass::getSerialVersionUID, offset, length, pack, unpack, true);
+    }
 
-    private final int offset, length;
-    private final BiFunction<ByteBuf, T, ByteBuf> encode;
-    private final Function<ByteBuf, T> decode;
+    <T extends Serializable> BinaryType(Class<T> type, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, Function<ByteBuf, Serializable> unpack, boolean isReadable)
+    {
+        this(type, ObjectStreamClass::lookup, ObjectStreamClass::getSerialVersionUID, offset, length, pack, unpack, isReadable);
+    }
 
-    public BinaryType(int offset, int length, BiFunction<ByteBuf, T, ByteBuf> encode, Function<ByteBuf, T> decode)
+    <T extends Serializable> BinaryType(Class<T> type, Function<Class<T>, ObjectStreamClass> lookup, Function<ObjectStreamClass, Long> serialize, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, Function<ByteBuf, Serializable> unpack, boolean isReadable)
     {
         this.offset = offset;
         this.length = length;
-        this.encode = encode;
-        this.decode = decode;
+        this.pack = pack;
+        this.unpack = unpack;
+        this.isReadable = isReadable;
+        this.uid = lookup.andThen(serialize).apply(type);
+    }
+
+    public long getSerialVersionUID()
+    {
+        return uid;
+    }
+
+    public boolean isReadable()
+    {
+        return isReadable;
     }
 
     @Nonnull
-    @Override
-    public ByteBuf pack(ByteBuf buffer, T value)
+    public ByteBuf pack(ByteBuf buffer, Serializable value)
     {
-        return encode.apply(buffer, value);
+        return pack.apply(buffer, value);
     }
 
     @Nonnull
-    @Override
-    public T decode(ByteBuf buffer)
+    public Serializable unpack(ByteBuf buffer)
     {
-        return decode.apply(buffer);
+        return unpack.apply(buffer);
+    }
+
+    @Nonnull
+    public static ByteBuf pack0(ByteBuf buffer, Serializable value)
+    {
+        for (BinaryType binaryType : values())
+        {
+            if (ObjectStreamClass.lookup(value.getClass()).getSerialVersionUID() == binaryType.getSerialVersionUID())
+            {
+                if (binaryType.isReadable())
+                {
+                    return binaryType.pack(buffer, value);
+                }
+            }
+        }
+
+        throw new UnsupportedOperationException("Cannot pack value of type " + value.getClass().getName());
+    }
+
+    @Nonnull
+    public static ByteBuf pack0(ByteBuf buffer, Map.Entry<String, ? extends Serializable> entry)
+    {
+        BinaryType.VARCHAR.pack(buffer, entry.getKey());
+        return pack0(buffer, entry.getValue());
     }
 }

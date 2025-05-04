@@ -10,7 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.EnumSet;
 
 public class ObjectCreateData
@@ -27,12 +26,12 @@ public class ObjectCreateData
     protected final int maxBufferSize;
     protected final long nonce;
 
-    public ObjectCreateData(@Nonnull ObjectCreateAction action)
+    public ObjectCreateData(@Nonnull ObjectCreateAction action, byte version, byte flags, short stream)
     {
         this.library = (LibraryImpl) action.getLibrary();
-        this.version = library.getVersion();
-        this.flags = action.getFlagsRaw();
-        this.stream = 0x00;
+        this.version = version;
+        this.flags = flags;
+        this.stream = stream;
         this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
         this.consistency = action.getConsistency();

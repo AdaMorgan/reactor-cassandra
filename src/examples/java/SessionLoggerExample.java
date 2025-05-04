@@ -1,13 +1,18 @@
 import com.github.adamorgan.api.LibraryBuilder;
 import com.github.adamorgan.api.events.ExceptionEvent;
+import com.github.adamorgan.api.events.ScheduledEvent;
 import com.github.adamorgan.api.events.StatusChangeEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
+import com.github.adamorgan.api.utils.request.ObjectRequest;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.utils.requestbody.BinaryType;
 import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,19 +55,19 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         //api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
-        Collection<Object> parameters = new ArrayList<>();
+        Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(123456L);
         parameters.add("reganjohn");
 
-        //api.sendRequest(TEST_QUERY_PREPARED, 123456L, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_PREPARED, 123456L, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
-        //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
-        Map<String, Object> map = new HashMap<>();
-        map.put("user_id", 123546L);
+        Map<String, Serializable> map = new HashMap<>();
+        map.put("user_id", 123456L);
         map.put("user_name", "reganjohn");
 
-        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        //api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override

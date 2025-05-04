@@ -7,13 +7,12 @@ import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
-import java.util.LinkedList;
-import java.util.List;
 
 public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> implements ObjectRequest<T>
 {
     protected final StringBuilder content = new StringBuilder();
     protected int fields = ObjectCreateAction.Field.DEFAULT;
+    protected ObjectCreateAction.Consistency consistency = ObjectCreateAction.Consistency.ONE;
     protected int maxBufferSize = 5000;
     protected long nonce;
 
@@ -56,5 +55,18 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     public EnumSet<ObjectCreateAction.Field> getFields()
     {
         return ObjectCreateAction.Field.fromBitFields(this.fields);
+    }
+
+    @Nonnull
+    @Override
+    public Consistency getConsistency()
+    {
+        return this.consistency;
+    }
+
+    @Override
+    public long getNonce()
+    {
+        return nonce;
     }
 }

@@ -13,7 +13,8 @@ import javax.annotation.Nullable;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Consumer;
 
 public class Requester

@@ -1,9 +1,11 @@
 package com.github.adamorgan.test;
 
+import com.github.adamorgan.internal.utils.requestbody.BinaryType;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
@@ -50,7 +52,7 @@ public class RowsResultImpl
         {
             for (ColumnImpl column : columns)
             {
-                Object value = readValue(buffer, column.getType());
+                Serializable value = readValue(buffer, column.getType());
                 RowImpl row = new RowImpl(column, value);
                 this.rows.addLast(row);
             }
@@ -89,13 +91,12 @@ public class RowsResultImpl
         }
     }
 
-    @Nullable
-    private static Object readValue(@Nonnull ByteBuf buffer, int type)
+    private static Serializable readValue(@Nonnull ByteBuf buffer, int type)
     {
         int length = buffer.readInt();
         if (length < 0)
         {
-            return null;
+            return Void.class;
         }
 
         byte[] bytes = new byte[length];

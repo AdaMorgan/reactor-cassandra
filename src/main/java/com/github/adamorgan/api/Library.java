@@ -13,7 +13,7 @@ import io.netty.channel.EventLoopGroup;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -224,7 +224,7 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Object... args)
+    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Serializable... args)
     {
         Checks.notNull(text, "Content");
         return new ObjectCreateActionImpl(this).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
@@ -232,16 +232,7 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nullable ObjectCreateAction.Consistency consistency, @Nonnull Object... args)
-    {
-        Checks.notNull(text, "Content");
-        Checks.notNull(consistency, "Consistency");
-        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Collection<? super R> args)
+    default <R extends Serializable> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Collection<? extends R> args)
     {
         Checks.notNull(text, "Content");
         return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
@@ -249,28 +240,10 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull ObjectCreateAction.Consistency consistency, @Nonnull Collection<? super R> args)
-    {
-        Checks.notNull(text, "Content");
-        Checks.notNull(consistency, "Consistency");
-        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Map<String, ? super R> args)
+    default <R extends Serializable> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Map<String, ? extends R> args)
     {
         Checks.notNull(text, "Content");
         return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    default <R> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull ObjectCreateAction.Consistency consistency, @Nonnull Map<String, ? super R> args)
-    {
-        Checks.notNull(text, "Content");
-        Checks.notNull(consistency, "Consistency");
-        return new ObjectCreateActionImpl(this, consistency).setContent(text.toString(), args);
     }
 
     /**

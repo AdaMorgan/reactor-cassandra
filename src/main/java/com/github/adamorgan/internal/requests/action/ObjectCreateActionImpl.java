@@ -1,13 +1,13 @@
 package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
-import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
 import com.github.adamorgan.internal.utils.request.ObjectCreateData;
@@ -16,6 +16,7 @@ import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
@@ -23,41 +24,40 @@ import java.util.Map;
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
-    protected final Consistency consistency;
     protected boolean useCache = true;
     protected long nonce;
 
-    public ObjectCreateActionImpl(Library api, @Nullable Consistency consistency)
-    {
-        super((LibraryImpl) api, SocketCode.QUERY);
-        this.consistency = consistency == null ? Consistency.ONE : consistency;
-    }
-
     public ObjectCreateActionImpl(Library api)
     {
-        this(api, Consistency.ONE);
+        super((LibraryImpl) api, SocketCode.QUERY);
     }
 
     @Override
     protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
     {
-        int kind = response.getBody().readInt();
-
-        switch (kind)
+        switch (response.getType())
         {
-            case 2:
+            case VOID:
+            {
+                throw new UnsupportedOperationException();
+            }
+            case ROWS:
             {
                 request.onSuccess(response.getBody());
                 break;
             }
-            case 4:
+            case SET_KEYSPACE:
             {
-                new ExecuteActionImpl(this, response).queue(request::onSuccess, request::onFailure);
+                throw new UnsupportedOperationException();
+            }
+            case PREPARED:
+            {
+                new ObjectCallbackActionImpl(this, response).queue(request::onSuccess, request::onFailure);
                 break;
             }
-            default:
+            case SCHEMA_CHANGE:
             {
-                throw new UnsupportedOperationException("Unsupported kind: " + kind);
+                throw new UnsupportedOperationException();
             }
         }
     }
@@ -86,14 +86,14 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ByteBuf getBody()
     {
-        return null;
+        return this.getBuilder().getBody();
     }
 
     @Nonnull
     @Override
     public Consistency getConsistency()
     {
-        return consistency;
+        return this.getBuilder().getConsistency();
     }
 
     @Override
@@ -106,8 +106,15 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     @Override
     public ObjectCreateAction setNonce(long timestamp)
     {
-        Checks.notNegative(timestamp, "Nonce");
-        this.nonce = timestamp;
+        getBuilder().setNonce(timestamp);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCreateAction setConsistency(Consistency consistency)
+    {
+        getBuilder().setConsistency(consistency);
         return this;
     }
 
@@ -121,7 +128,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Collection<? super R> args)
+    public <R extends Serializable> ObjectCreateAction setContent(@Nullable String content, @Nonnull Collection<? extends R> args)
     {
         getBuilder().setContent(content, args);
         return this;
@@ -129,7 +136,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public <R> ObjectCreateAction setContent(@Nullable String content, @Nonnull Map<String, ? super R> args)
+    public <R extends Serializable> ObjectCreateAction setContent(@Nullable String content, @Nonnull Map<String, ? extends R> args)
     {
         getBuilder().setContent(content, args);
         return this;
@@ -145,9 +152,10 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ByteBuf asByteBuf()
+    public ByteBuf finalizeData()
     {
-        return new ObjectCreateData(this).applyData();
+        short stream = 0x00;
+        return new ObjectCreateData(this, version, flags, stream).applyData();
     }
 
     @Override
@@ -170,7 +178,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
         if (!(obj instanceof ObjectCreateAction))
             return false;
         ObjectCreateAction other = (ObjectCreateAction) obj;
-        return ByteBufUtil.equals(other.asByteBuf(), this.asByteBuf());
+        return ByteBufUtil.equals(other.finalizeData(), this.finalizeData());
     }
 
     @Override
