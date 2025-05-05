@@ -7,11 +7,11 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 public final class MessageEncoder extends MessageToByteEncoder<ByteBuf>
 {
-    private final SocketClient.ReliableFrameHandler handler;
+    private final SocketClient client;
 
     public MessageEncoder(SocketClient.ReliableFrameHandler handler)
     {
-        this.handler = handler;
+        this.client = handler.getClient();
     }
 
     @Override

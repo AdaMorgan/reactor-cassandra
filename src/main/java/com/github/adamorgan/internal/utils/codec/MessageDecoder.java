@@ -4,6 +4,7 @@ import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.exceptions.ErrorResponseException;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.Requester;
@@ -14,8 +15,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.compression.SnappyFrameDecoder;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,46 +32,49 @@ public final class MessageDecoder extends ByteToMessageDecoder
     private final LibraryImpl library;
     private final SocketClient client;
 
-    private final byte DEFAULT_FLAG = 0x00;
     private final Requester requester;
+    private final Compression compression;
 
     public MessageDecoder(SocketClient.ReliableFrameHandler handler)
     {
         this.library = (LibraryImpl) handler.getLibrary();
         this.client = handler.getClient();
         this.requester = this.library.getRequester();
+        this.compression = client.getCompression();
     }
 
     @Override
-    protected void decode(ChannelHandlerContext context, ByteBuf in, List<Object> out)
+    protected void decode(ChannelHandlerContext context, ByteBuf input, List<Object> out)
     {
-        in.markReaderIndex();
+        input.markReaderIndex();
 
-        if (in.readableBytes() < 9)
+        if (input.readableBytes() < 9)
         {
-            in.resetReaderIndex();
+            input.resetReaderIndex();
             return;
         }
 
-        byte versionHeader = in.readByte();
+        byte versionHeader = input.readByte();
 
         byte version = (byte) ((256 + versionHeader) & 0x7F);
         boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
 
-        byte flags = in.readByte();
-        short stream = in.readShort();
-        byte opcode = in.readByte();
-        int length = in.readInt();
+        byte flags = input.readByte();
+        short stream = input.readShort();
+        byte opcode = input.readByte();
+        int length = input.readInt();
 
-        if (in.readableBytes() < length)
+        if (input.readableBytes() < length)
         {
-            in.resetReaderIndex();
+            input.resetReaderIndex();
             return;
         }
 
-        ByteBuf frame = in.readRetainedSlice(length);
+        ByteBuf body = input.readRetainedSlice(length);
 
-        onDispatch(version, flags, stream, opcode, length, frame, context::writeAndFlush);
+        boolean isCompressed = (flags & 0x01) != 0;
+
+        onDispatch(version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
     }
 
     private synchronized void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame, Consumer<? super ByteBuf> callback)
@@ -117,6 +125,11 @@ public final class MessageDecoder extends ByteToMessageDecoder
             map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
             map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
 
+            if (this.library.getCompression() != null)
+            {
+                map.put("COMPRESSION", this.library.getCompression().toString());
+            }
+
             ByteBuf body = Unpooled.buffer();
 
             body.writeShort(map.size());
@@ -129,7 +142,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
 
             return Unpooled.directBuffer()
                     .writeByte(version)
-                    .writeByte(DEFAULT_FLAG)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)
                     .writeByte(SocketCode.STARTUP)
                     .writeInt(body.readableBytes())
@@ -146,7 +159,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
 
             return Unpooled.directBuffer()
                     .writeByte(version)
-                    .writeByte(DEFAULT_FLAG)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)
                     .writeByte(SocketCode.AUTH_RESPONSE)
                     .writeInt(token.length)
@@ -163,7 +176,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
 
             return Unpooled.directBuffer()
                     .writeByte(version)
-                    .writeByte(DEFAULT_FLAG)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)
                     .writeByte(SocketCode.REGISTER)
                     .writeInt(body.readableBytes())

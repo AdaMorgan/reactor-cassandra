@@ -37,6 +37,11 @@ public class Response
         return (flags & 0x02) != 0;
     }
 
+    public boolean isWarnings()
+    {
+        return (flags & 0x08) != 0;
+    }
+
     @Nonnull
     public ByteBuf getBody()
     {

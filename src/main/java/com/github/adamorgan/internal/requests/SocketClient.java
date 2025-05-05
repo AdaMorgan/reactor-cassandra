@@ -17,6 +17,10 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.compression.Lz4FrameDecoder;
+import io.netty.handler.codec.compression.Lz4FrameEncoder;
+import io.netty.handler.codec.compression.SnappyFrameDecoder;
+import io.netty.handler.codec.compression.SnappyFrameEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
@@ -59,6 +63,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.scheduler = library.getEventLoopScheduler();
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
+    }
+
+    @Nullable
+    public Compression getCompression()
+    {
+        return compression;
     }
 
     @Override
@@ -176,10 +186,12 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     {
 
         private final SocketClient client;
+        private final Compression compression;
 
         public ReliableFrameHandler(SocketClient client)
         {
             this.client = client;
+            this.compression = client.compression;
         }
 
         public Library getLibrary()

@@ -1,7 +1,6 @@
 package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
-import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;

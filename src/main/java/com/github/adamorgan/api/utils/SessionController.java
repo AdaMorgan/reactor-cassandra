@@ -12,7 +12,6 @@ public interface SessionController
 
     interface SessionConnectNode
     {
-
         @Nonnull
         Library getLibrary();
     }

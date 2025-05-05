@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.print.DocFlavor;
 import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -30,7 +29,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final byte version, opcode;
     protected final int stream;
-    protected byte flags = 0x00;
+    protected int flags;
 
     private final String localReason;
 
@@ -43,6 +42,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         this.stream = api.getShardInfo().getShardId();
         this.opcode = opcode;
         this.handler = handler;
+        this.flags = 0x00;
 
         this.localReason = ThreadLocalReason.getCurrent();
     }
@@ -70,7 +70,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     }
 
     @Override
-    public byte getFlagsRaw()
+    public int getFlagsRaw()
     {
         return this.flags;
     }

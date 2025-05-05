@@ -2,7 +2,6 @@ package com.github.adamorgan.api.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 
-import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;

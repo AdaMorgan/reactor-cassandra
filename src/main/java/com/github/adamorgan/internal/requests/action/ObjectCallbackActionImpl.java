@@ -1,6 +1,5 @@
 package com.github.adamorgan.internal.requests.action;
 
-import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
@@ -44,7 +43,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
     }
 
     @Override
-    public byte getFlagsRaw()
+    public int getFlagsRaw()
     {
         return this.action.getFlagsRaw();
     }

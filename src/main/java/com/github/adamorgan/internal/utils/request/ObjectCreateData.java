@@ -4,6 +4,7 @@ import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
+import gnu.trove.impl.hash.THash;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
@@ -17,7 +18,8 @@ public class ObjectCreateData
     public static final int CONTENT_BYTES = Integer.BYTES;
 
     protected final LibraryImpl library;
-    protected final byte version, flags, opcode;
+    protected final byte version, opcode;
+    protected final int flags;
     protected final short stream;
     protected final int length;
     protected final byte[] content;
@@ -26,7 +28,7 @@ public class ObjectCreateData
     protected final int maxBufferSize;
     protected final long nonce;
 
-    public ObjectCreateData(@Nonnull ObjectCreateAction action, byte version, byte flags, short stream)
+    public ObjectCreateData(@Nonnull ObjectCreateAction action, byte version, int flags, short stream)
     {
         this.library = (LibraryImpl) action.getLibrary();
         this.version = version;

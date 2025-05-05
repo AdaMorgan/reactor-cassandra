@@ -5,6 +5,7 @@ import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.internal.utils.Checks;
@@ -13,6 +14,7 @@ import io.netty.channel.EventLoopGroup;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -152,6 +154,15 @@ public interface Library
             return shardId == oInfo.getShardId() && shardTotal == oInfo.getShardTotal();
         }
     }
+
+    /**
+     * The name of the algorithm used to compress protocol frames.
+     * <br> Can be set using {@link LibraryBuilder#setCompression(Compression) LibraryBuilder#setCompression(compression)}
+     *
+     * @return The algorithm used to compress
+     */
+    @Nullable
+    Compression getCompression();
 
     /**
      * The login token that is currently being used for CQL Binary Protocol authentication.

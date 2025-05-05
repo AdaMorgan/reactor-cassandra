@@ -65,7 +65,7 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
     }
 
     @Override
-    public byte getFlagsRaw()
+    public int getFlagsRaw()
     {
         return this.action.getFlagsRaw();
     }

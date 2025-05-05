@@ -3,7 +3,6 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
-import com.github.adamorgan.internal.utils.EncodingUtils;
 import com.github.adamorgan.internal.utils.Helpers;
 import com.github.adamorgan.internal.utils.requestbody.BinaryType;
 import io.netty.buffer.ByteBuf;

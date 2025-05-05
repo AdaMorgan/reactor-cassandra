@@ -28,7 +28,7 @@ public interface ObjectAction<T>
     @Nonnull
     ByteBuf finalizeData();
 
-    byte getFlagsRaw();
+    int getFlagsRaw();
 
     @Nonnull
     EnumSet<Flags> getFlags();
@@ -78,16 +78,16 @@ public interface ObjectAction<T>
 
     enum Flags
     {
-        COMPRESSION(1),
-        TRACING(2),
-        CUSTOM_PAYLOAD(3),
-        WARNING(4);
+        COMPRESSION(0x01),
+        TRACING(0x02),
+        CUSTOM_PAYLOAD(0x04),
+        WARNING(0x08);
 
         private final int value;
 
         Flags(final int offset)
         {
-            this.value = 1 << offset;
+            this.value = offset;
         }
 
         /**
@@ -101,7 +101,7 @@ public interface ObjectAction<T>
         }
 
         @Nonnull
-        public static EnumSet<Flags> fromBitField(byte bitfield)
+        public static EnumSet<Flags> fromBitField(int bitfield)
         {
             Set<Flags> set = Arrays.stream(Flags.values())
                     .filter(e -> (e.value & bitfield) > 0)

@@ -1,13 +1,13 @@
 package com.github.adamorgan.test;
 
-import com.github.adamorgan.internal.utils.requestbody.BinaryType;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class RowsResultImpl
@@ -21,37 +21,46 @@ public class RowsResultImpl
         this.buffer = buffer;
     }
 
-    public String run()
-    {
-        //int kind = buffer.readInt();
-        int flags = buffer.readInt();
+    public String run() {
+        int rowsFlag = buffer.readInt();
 
-        boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
-        boolean hasMorePages = (flags & 0x0002) != 0;
-        boolean noMetadata = (flags & 0x0004) != 0;
+        boolean hasGlobalTableSpec = (rowsFlag & 0x0001) != 0;
+        boolean hasMorePages = (rowsFlag & 0x0002) != 0;
+        boolean noMetadata = (rowsFlag & 0x0004) != 0;
+
+        String keyspace = "";
+        String table = "";
 
         int columnsCount = buffer.readInt();
 
-        if (!noMetadata)
-        {
-            for (int i = 0; i < columnsCount; i++)
-            {
-                String keyspace = readString(buffer);
-                String tableName = readString(buffer);
-                String name = readString(buffer);
+        if (hasGlobalTableSpec) {
+            keyspace = readString(buffer);
+            table = readString(buffer);
+        }
 
+        if (hasMorePages)
+        {
+            buffer.skipBytes(buffer.readInt());
+        }
+
+        if (!noMetadata) {
+            for (int i = 0; i < columnsCount; i++) {
+                if (!hasGlobalTableSpec) {
+                    keyspace = readString(buffer);
+                    table = readString(buffer);
+                }
+
+                String name = readString(buffer);
                 int type = readType(buffer);
 
-                columns.add(new ColumnImpl(keyspace, tableName, name, type));
+                columns.add(new ColumnImpl(keyspace, table, name, type));
             }
         }
 
         int rowsCount = buffer.readInt();
 
-        for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++)
-        {
-            for (ColumnImpl column : columns)
-            {
+        for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++) {
+            for (ColumnImpl column : columns) {
                 Serializable value = readValue(buffer, column.getType());
                 RowImpl row = new RowImpl(column, value);
                 this.rows.addLast(row);
@@ -80,15 +89,7 @@ public class RowsResultImpl
 
     public static int readType(@Nonnull ByteBuf buffer)
     {
-        int code = buffer.readShort();
-        if (code == 34)
-        {
-            throw new UnsupportedOperationException();
-        }
-        else
-        {
-            return code;
-        }
+        return buffer.readShort();
     }
 
     private static Serializable readValue(@Nonnull ByteBuf buffer, int type)

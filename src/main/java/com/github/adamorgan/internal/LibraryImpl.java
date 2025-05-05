@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -69,6 +70,13 @@ public class LibraryImpl implements Library
     public SocketClient getClient()
     {
         return client;
+    }
+
+    @Nullable
+    @Override
+    public Compression getCompression()
+    {
+        return this.client.getCompression();
     }
 
     @Nonnull

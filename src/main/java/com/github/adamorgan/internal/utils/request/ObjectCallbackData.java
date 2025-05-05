@@ -1,5 +1,6 @@
 package com.github.adamorgan.internal.utils.request;
 
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.requests.SocketCode;
@@ -10,14 +11,15 @@ public class ObjectCallbackData
 {
     public static final int CONTENT_BYTES = Integer.BYTES;
 
-    private final byte version, flags, opcode;
+    private final byte version, opcode;
+    private final int flags;
     private final short stream;
     private final ByteBuf token, body;
     private final short consistency;
     private final int fields, maxBufferSize;
     private final long nonce;
 
-    public ObjectCallbackData(ObjectCallbackAction action, byte version, byte flags, short stream)
+    public ObjectCallbackData(ObjectCallbackAction action, byte version, int flags, short stream)
     {
         this.version = version;
         this.flags = flags;
@@ -29,8 +31,6 @@ public class ObjectCallbackData
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
-
-        int length = CONTENT_BYTES + this.token.readableBytes() + body.readableBytes() + Short.BYTES + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
     }
 
     public ByteBuf applyData()
@@ -41,7 +41,7 @@ public class ObjectCallbackData
 
         ByteBuf buf = Unpooled.directBuffer()
                 .writeByte(this.version)
-                .writeByte(this.flags)
+                .writeByte(flags)
                 .writeShort(this.stream)
                 .writeByte(this.opcode);
 

@@ -4,11 +4,7 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.Collection;
 import java.util.EnumSet;
-import java.util.Map;
 
 public interface ObjectRequest<T extends ObjectRequest<T>>
 {
