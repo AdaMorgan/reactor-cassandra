@@ -7,6 +7,7 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.xerial.snappy.Snappy;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.function.Function;
@@ -32,16 +33,19 @@ public enum Compression
         return key;
     }
 
+    @Nonnull
     public ByteBuf pack(ByteBuf body)
     {
         return pack.apply(body);
     }
 
+    @Nonnull
     public ByteBuf unpack(ByteBuf body)
     {
         return unpack.apply(body);
     }
 
+    @Nonnull
     private static ByteBuf packLZ4(ByteBuf body)
     {
         byte[] input = new byte[body.readableBytes()];
@@ -60,6 +64,7 @@ public enum Compression
         return out;
     }
 
+    @Nonnull
     private static ByteBuf unpackLZ4(ByteBuf input)
     {
         int uncompressedLength = input.readInt();
@@ -76,11 +81,13 @@ public enum Compression
         return Unpooled.wrappedBuffer(restored);
     }
 
+    @Nonnull
     private static ByteBuf packSnappy(ByteBuf input)
     {
         return null;
     }
 
+    @Nonnull
     private static ByteBuf unpackSnappy(ByteBuf input)
     {
         ByteBuffer in = inputNioBuffer(input);
@@ -112,6 +119,7 @@ public enum Compression
         }
     }
 
+    @Nonnull
     private static ByteBuffer inputNioBuffer(ByteBuf buf)
     {
         int index = buf.readerIndex();
@@ -119,6 +127,7 @@ public enum Compression
         return buf.nioBufferCount() == 1 ? buf.internalNioBuffer(index, len) : buf.nioBuffer(index, len);
     }
 
+    @Nonnull
     private static ByteBuffer outputNioBuffer(ByteBuf buf)
     {
         int index = buf.writerIndex();

@@ -21,6 +21,11 @@ dependencyResolutionManagement {
             library("netty",                 "io.netty",                 "netty-all"                      ).version("4.1.75.Final")
             library("slf4j",                 "org.slf4j",                "slf4j-api"                      ).version("2.0.17")
 
+            library("netty-codec-lz4",       "org.lz4",                  "lz4-java"                       ).version("1.8.0")
+            library("netty-codec-snappy",    "org.xerial.snappy",        "snappy-java"                    ).version("1.1.10.7")
+
+            bundle("netty-codec", listOf("netty-codec-lz4", "netty-codec-snappy"))
+
             //Test Implementation
             library("junit",                 "org.junit.jupiter",        "junit-jupiter"                  ).version("5.12.2")
             library("junit-launcher",        "org.junit.platform",       "junit-platform-launcher"        ).version("1.12.2")

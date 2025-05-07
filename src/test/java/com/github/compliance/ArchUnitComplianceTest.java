@@ -69,7 +69,7 @@ public class ArchUnitComplianceTest
                 .orShould()
                 .beAnnotatedWith(Contract.class)
                 .orShould()
-                .beMetaAnnotatedWith(UnknownNullability.class)
+                .beAnnotatedWith(UnknownNullability.class)
                 .check(apiClasses);
     }
 

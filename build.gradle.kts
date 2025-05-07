@@ -42,8 +42,7 @@ dependencies {
 
     //Netty
     implementation(libs.netty)
-    implementation("org.lz4:lz4-java:1.8.0")
-    implementation("org.xerial.snappy:snappy-java:1.1.10.7")
+    implementation(libs.bundles.netty.codec)
 
     //Metrics support
     implementation(libs.micrometer.core)
