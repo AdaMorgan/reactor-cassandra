@@ -72,7 +72,7 @@ public class LibraryImpl implements Library
         return client;
     }
 
-    @Nullable
+    @Nonnull
     @Override
     public Compression getCompression()
     {

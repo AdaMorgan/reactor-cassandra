@@ -125,7 +125,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
             map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
             map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
 
-            if (this.library.getCompression() != null)
+            if (!this.library.getCompression().equals(Compression.NONE))
             {
                 map.put("COMPRESSION", this.library.getCompression().toString());
             }

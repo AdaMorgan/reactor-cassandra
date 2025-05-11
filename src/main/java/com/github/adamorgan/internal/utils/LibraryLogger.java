@@ -141,7 +141,7 @@ public class LibraryLogger
         logger.warn("Using fallback logger due to missing SLF4J implementation.");
         logger.warn("Please setup a logging framework.");
         logger.warn("You can use logging setup guide https://logback.qos.ch/manual/configuration.html");
-        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use com.datastax.internal.utils.CustomLogger.setFallbackLoggerEnabled(false)");
+        logger.warn("To disable the fallback logger, add the slf4j-nop dependency or use CustomLogger#setFallbackLoggerEnabled(false)");
     }
 
     private static Logger newFallbackLogger(String name)

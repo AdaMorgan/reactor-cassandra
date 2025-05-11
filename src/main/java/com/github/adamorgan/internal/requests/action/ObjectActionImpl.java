@@ -29,7 +29,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final byte version, opcode;
     protected final int stream;
-    protected int flags;
+    protected int flags = 0x00;
 
     private final String localReason;
 
@@ -39,10 +39,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     {
         this.api = api;
         this.version = api.getVersion();
-        this.stream = api.getShardInfo().getShardId();
+        this.stream = 0x00;
         this.opcode = opcode;
         this.handler = handler;
-        this.flags = 0x00;
 
         this.localReason = ThreadLocalReason.getCurrent();
     }

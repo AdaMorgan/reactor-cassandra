@@ -17,10 +17,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.compression.Lz4FrameDecoder;
-import io.netty.handler.codec.compression.Lz4FrameEncoder;
-import io.netty.handler.codec.compression.SnappyFrameDecoder;
-import io.netty.handler.codec.compression.SnappyFrameEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
@@ -41,6 +37,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
     public static final byte DEFAULT_FLAG = 0x00;
+    public static final int DEFAULT_STREAM_ID = 0x00;
 
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
@@ -52,20 +49,18 @@ public class SocketClient extends ChannelInboundHandlerAdapter
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
     private final Compression compression;
-    private final int shardId;
 
     public SocketClient(LibraryImpl library, SocketAddress address, Compression compression)
     {
         this.library = library;
         this.address = address;
         this.compression = compression;
-        this.shardId = library.getShardInfo().getShardId();
         this.scheduler = library.getEventLoopScheduler();
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
-    @Nullable
+    @Nonnull
     public Compression getCompression()
     {
         return compression;
@@ -111,7 +106,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             return Unpooled.directBuffer()
                     .writeByte(this.library.getVersion())
                     .writeByte(DEFAULT_FLAG)
-                    .writeShort(shardId)
+                    .writeShort(DEFAULT_STREAM_ID)
                     .writeByte(SocketCode.OPTIONS)
                     .writeInt(0)
                     .asByteBuf();

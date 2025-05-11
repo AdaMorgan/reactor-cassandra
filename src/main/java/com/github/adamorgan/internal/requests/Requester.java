@@ -37,7 +37,7 @@ public class Requester
 
     public <R> void execute(@Nonnull Request<R> request)
     {
-        short streamId = (short) request.getShardId();
+        short streamId = (short) 0;
 
         if (getContext() != null && !this.queue.containsKey(streamId))
         {

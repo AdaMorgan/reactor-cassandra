@@ -2,6 +2,7 @@ package com.github.adamorgan.internal.utils.request;
 
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
 import gnu.trove.impl.hash.THash;
@@ -50,12 +51,11 @@ public class ObjectCreateData
 
     public ByteBuf applyData()
     {
-        return Unpooled.directBuffer(length + ObjectAction.HEADER_BYTES)
-                .writeByte(version)
-                .writeByte(flags)
-                .writeShort(stream)
-                .writeByte(opcode)
-                .writeInt(length)
+        int flags = this.flags;
+
+        flags |= this.library.getCompression().equals(Compression.NONE) ? 0 : 1;
+
+        ByteBuf body = Unpooled.directBuffer()
                 .writeInt(content.length)
                 .writeBytes(content)
                 .writeShort(consistency.getCode())
@@ -63,5 +63,17 @@ public class ObjectCreateData
                 .writeInt(maxBufferSize)
                 .writeLong(nonce)
                 .asByteBuf();
+
+        body = this.library.getCompression().pack(body);
+
+        ByteBuf header = Unpooled.directBuffer(length + ObjectAction.HEADER_BYTES)
+                .writeByte(version)
+                .writeByte(flags)
+                .writeShort(stream)
+                .writeByte(opcode)
+                .writeInt(body.readableBytes())
+                .asByteBuf();
+
+        return Unpooled.compositeBuffer().addComponents(true, header, body);
     }
 }

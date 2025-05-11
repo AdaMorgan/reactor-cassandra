@@ -28,7 +28,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
-                .setCompression(Compression.LZ4)
+                .setCompression(Compression.SNAPPY)
                 .build();
     }
 

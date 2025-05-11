@@ -54,7 +54,7 @@ public class LibraryBuilder
     protected SessionController controller = null;
     protected int maxBufferSize = 5000;
     protected int maxReconnectDelay = 900;
-    protected Compression compression;
+    protected Compression compression = Compression.NONE;
 
     private LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {

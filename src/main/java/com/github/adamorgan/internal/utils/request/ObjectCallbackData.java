@@ -3,6 +3,8 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -11,6 +13,7 @@ public class ObjectCallbackData
 {
     public static final int CONTENT_BYTES = Integer.BYTES;
 
+    private final LibraryImpl library;
     private final byte version, opcode;
     private final int flags;
     private final short stream;
@@ -21,6 +24,7 @@ public class ObjectCallbackData
 
     public ObjectCallbackData(ObjectCallbackAction action, byte version, int flags, short stream)
     {
+        this.library = (LibraryImpl) action.getLibrary();
         this.version = version;
         this.flags = flags;
         this.stream = stream;
@@ -35,15 +39,13 @@ public class ObjectCallbackData
 
     public ByteBuf applyData()
     {
+        int flags = this.flags;
+
+        flags |= this.library.getCompression().equals(Compression.NONE) ? 0 : 1;
+
         int fields = this.fields;
 
         fields |= ObjectCreateAction.Field.VALUE_NAMES.getRawValue();
-
-        ByteBuf buf = Unpooled.directBuffer()
-                .writeByte(this.version)
-                .writeByte(flags)
-                .writeShort(this.stream)
-                .writeByte(this.opcode);
 
         ByteBuf body = Unpooled.directBuffer()
                 .writeShort(this.token.readableBytes())
@@ -55,9 +57,16 @@ public class ObjectCallbackData
                 .writeLong(this.nonce)
                 .asByteBuf();
 
-        buf.writeInt(body.readableBytes());
-        buf.writeBytes(body);
+        body = this.library.getCompression().pack(body);
 
-        return buf;
+        ByteBuf header = Unpooled.directBuffer()
+                .writeByte(this.version)
+                .writeByte(flags)
+                .writeShort(this.stream)
+                .writeByte(this.opcode)
+                .writeInt(body.readableBytes())
+                .asByteBuf();
+
+        return Unpooled.compositeBuffer().addComponents(true, header, body);
     }
 }

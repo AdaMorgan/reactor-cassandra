@@ -161,7 +161,7 @@ public interface Library
      *
      * @return The algorithm used to compress
      */
-    @Nullable
+    @Nonnull
     Compression getCompression();
 
     /**
