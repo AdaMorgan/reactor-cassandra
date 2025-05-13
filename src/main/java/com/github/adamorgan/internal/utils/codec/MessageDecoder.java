@@ -15,12 +15,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import io.netty.handler.codec.compression.SnappyFrameDecoder;
-import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.lz4.LZ4SafeDecompressor;
 
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,17 +26,15 @@ import java.util.stream.Stream;
 public final class MessageDecoder extends ByteToMessageDecoder
 {
     private final LibraryImpl library;
-    private final SocketClient client;
 
     private final Requester requester;
     private final Compression compression;
 
-    public MessageDecoder(SocketClient.ReliableFrameHandler handler)
+    public MessageDecoder(LibraryImpl library)
     {
-        this.library = (LibraryImpl) handler.getLibrary();
-        this.client = handler.getClient();
+        this.library = library;
         this.requester = this.library.getRequester();
-        this.compression = client.getCompression();
+        this.compression = library.getCompression();
     }
 
     @Override
@@ -125,9 +119,11 @@ public final class MessageDecoder extends ByteToMessageDecoder
             map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
             map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
 
-            if (!this.library.getCompression().equals(Compression.NONE))
+            if (!this.library.getCompression()
+                    .equals(Compression.NONE))
             {
-                map.put("COMPRESSION", this.library.getCompression().toString());
+                map.put("COMPRESSION", this.library.getCompression()
+                        .toString());
             }
 
             ByteBuf body = Unpooled.buffer();
@@ -154,7 +150,8 @@ public final class MessageDecoder extends ByteToMessageDecoder
     @Nonnull
     private SessionController.SessionConnectNode verifyToken(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
-        return new SocketClient.ConnectNode(this.library, () -> {
+        return new SocketClient.ConnectNode(this.library, () ->
+        {
             byte[] token = this.library.getToken();
 
             return Unpooled.directBuffer()
@@ -171,8 +168,10 @@ public final class MessageDecoder extends ByteToMessageDecoder
     @Nonnull
     private SessionController.SessionConnectNode registry(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
-        return new SocketClient.ConnectNode(this.library, () -> {
-            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::directBuffer, EncodingUtils::encodeUTF88, ByteBuf::writeBytes);
+        return new SocketClient.ConnectNode(this.library, () ->
+        {
+            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
+                    .collect(Unpooled::directBuffer, EncodingUtils::encodeUTF88, ByteBuf::writeBytes);
 
             return Unpooled.directBuffer()
                     .writeByte(version)

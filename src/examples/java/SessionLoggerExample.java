@@ -18,8 +18,8 @@ import java.util.Map;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM demo.test WHERE user_id = :user_id AND user_name = :user_name";
-    public static final String TEST_QUERY_WARNING = "SELECT * FROM demo.test WHERE global_name = :global_name ALLOW FILTERING";
+    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
+    public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
     public static final String TEST_QUERY = "SELECT * FROM system.clients ALLOW FILTERING";
 
     public static void main(String[] args)
@@ -55,18 +55,18 @@ public final class SessionLoggerExample extends ListenerAdapter
         api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
         Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add(123456L);
+        parameters.add(844613816943771649L);
         parameters.add("reganjohn");
 
-        api.sendRequest(TEST_QUERY_WARNING, "John Regan").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
         api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
         Map<String, Serializable> map = new HashMap<>();
-        map.put("user_id", 123456L);
-        map.put("user_name", "reganjohn");
+        map.put("user_id", 844613816943771649L);
+        map.put("username", "reganjohn");
 
-        //api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override

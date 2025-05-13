@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class SocketClient extends ChannelInboundHandlerAdapter
+public class SocketClient
 {
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
@@ -60,18 +60,55 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
+    public class ChannelEventHandler extends ChannelInitializer<SocketChannel>
+    {
+        @Override
+        public void channelActive(@Nonnull ChannelHandlerContext context)
+        {
+            SocketClient.this.context.set(context);
+            library.setStatus(Library.Status.IDENTIFYING_SESSION);
+            sendIdentify(context, context::writeAndFlush);
+        }
+
+        @Override
+        public void channelInactive(@Nonnull ChannelHandlerContext context)
+        {
+            library.setStatus(Library.Status.DISCONNECTED);
+            library.handleEvent(new SessionDisconnectEvent(library, OffsetDateTime.now()));
+            reconnect(0);
+        }
+
+        @Override
+        protected void initChannel(@Nonnull SocketChannel channel)
+        {
+            if (SocketConfig.IS_DEBUG)
+            {
+                channel.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
+            }
+
+            channel.pipeline().addLast(new MessageEncoder());
+            channel.pipeline().addLast(new MessageDecoder(library));
+            channel.pipeline().addLast(new ChannelInboundHandlerAdapter()
+            {
+                @Override
+                public void channelActive(@Nonnull ChannelHandlerContext ctx)
+                {
+                    ChannelEventHandler.this.channelActive(ctx);
+                }
+
+                @Override
+                public void channelInactive(@Nonnull ChannelHandlerContext ctx)
+                {
+                    ChannelEventHandler.this.channelInactive(ctx);
+                }
+            });
+        }
+    }
+
     @Nonnull
     public Compression getCompression()
     {
         return compression;
-    }
-
-    @Override
-    public void channelInactive(@Nonnull ChannelHandlerContext context)
-    {
-        this.library.setStatus(Library.Status.DISCONNECTED);
-        this.library.handleEvent(new SessionDisconnectEvent(this.library, OffsetDateTime.now()));
-        reconnect(0);
     }
 
     public synchronized void shutdown()
@@ -91,18 +128,11 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         return this.context.get();
     }
 
-    @Override
-    public final void channelActive(ChannelHandlerContext context)
-    {
-        this.context.set(context);
-        this.library.setStatus(Library.Status.IDENTIFYING_SESSION);
-        sendIdentify(context, context::writeAndFlush);
-    }
-
-    protected synchronized SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
+    private synchronized SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
         LOG.debug("Sending Identify node...");
-        return new ConnectNode(this.library, () -> {
+        return new ConnectNode(this.library, () ->
+        {
             return Unpooled.directBuffer()
                     .writeByte(this.library.getVersion())
                     .writeByte(DEFAULT_FLAG)
@@ -177,42 +207,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }, delay, TimeUnit.SECONDS);
     }
 
-    public static final class ReliableFrameHandler extends ChannelInitializer<SocketChannel>
-    {
-
-        private final SocketClient client;
-        private final Compression compression;
-
-        public ReliableFrameHandler(SocketClient client)
-        {
-            this.client = client;
-            this.compression = client.compression;
-        }
-
-        public Library getLibrary()
-        {
-            return client.library;
-        }
-
-        public SocketClient getClient()
-        {
-            return client;
-        }
-
-        @Override
-        protected void initChannel(@Nonnull SocketChannel channel)
-        {
-            if (SocketConfig.IS_DEBUG)
-            {
-                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
-            }
-
-            channel.pipeline().addLast(new MessageEncoder(this));
-            channel.pipeline().addLast(new MessageDecoder(this));
-            channel.pipeline().addLast(new ChannelController(this.client));
-        }
-    }
-
     public static class ConnectNode implements SessionController.SessionConnectNode
     {
         protected final Library api;
@@ -228,7 +222,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         @Override
         public Library getLibrary()
         {
-            return api;
+            return this.api;
         }
 
         @Nonnull
@@ -238,7 +232,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         }
     }
 
-    public static class StartingNode implements SessionController.SessionConnectNode
+    public class StartingNode implements SessionController.SessionConnectNode
     {
         private final LibraryImpl api;
         private final Bootstrap connectNode;
@@ -251,7 +245,7 @@ public class SocketClient extends ChannelInboundHandlerAdapter
             this.connectNode = new Bootstrap()
                     .group(client.scheduler)
                     .channel(NioSocketChannel.class)
-                    .handler(new ReliableFrameHandler(client))
+                    .handler(new SocketClient.ChannelEventHandler())
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true);
@@ -268,28 +262,6 @@ public class SocketClient extends ChannelInboundHandlerAdapter
         public ChannelFuture connect(SocketAddress inetSocketAddress)
         {
             return this.connectNode.connect(inetSocketAddress).addListener(future -> this.callback.accept(this));
-        }
-    }
-
-    private static final class ChannelController extends ChannelInboundHandlerAdapter
-    {
-        private final SocketClient client;
-
-        public ChannelController(SocketClient client)
-        {
-            this.client = client;
-        }
-
-        @Override
-        public void channelInactive(@Nonnull ChannelHandlerContext ctx) throws Exception
-        {
-            this.client.channelInactive(ctx);
-        }
-
-        @Override
-        public void channelActive(@Nonnull ChannelHandlerContext ctx) throws Exception
-        {
-            this.client.channelActive(ctx);
         }
     }
 }

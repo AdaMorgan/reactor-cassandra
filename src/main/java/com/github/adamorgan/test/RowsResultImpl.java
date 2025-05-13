@@ -1,13 +1,11 @@
 package com.github.adamorgan.test;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.LinkedList;
 import java.util.stream.Collectors;
 
 public class RowsResultImpl

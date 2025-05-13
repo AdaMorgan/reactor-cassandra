@@ -5,7 +5,7 @@ import javax.annotation.Nonnull;
 /**
  * Allows custom serialization for Binary Payloads of an Object.
  */
-public interface SerializableBinary
+interface SerializableBinary
 {
     /**
      * Serialized {@link BinaryObject BinaryObject} for this object.

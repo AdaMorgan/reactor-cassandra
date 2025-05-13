@@ -14,39 +14,22 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collector;
+import java.util.stream.Stream;
 
 public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuilder> implements ObjectCreateRequest<ObjectCreateBuilder>
 {
     @Nonnull
     @Override
-    public <R extends Serializable> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Collection<? extends R> args)
+    public ObjectCreateBuilder setContent(@Nonnull String content, @Nonnull ByteBuf args, int size, boolean named)
     {
-        Checks.notNull(args, "Values");
+        Checks.notNull(args, "Body");
         Helpers.setContent(this.content, content);
         this.body.clear();
-        if (!args.isEmpty())
+        if (args.readableBytes() > 0)
         {
-            this.fields |= ObjectCreateAction.Field.VALUES.getRawValue();
-            ByteBuf body = args.stream().collect(Collector.of(Unpooled::directBuffer, BinaryType::pack0, ByteBuf::writeBytes));
-            this.body.writeShort(args.size());
-            this.body.writeBytes(body.retain());
-        }
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public <R extends Serializable> ObjectCreateBuilder setContent(@Nullable String content, @Nonnull Map<String, ? extends R> args)
-    {
-        Checks.notNull(args, "Values");
-        Helpers.setContent(this.content, content);
-        this.body.clear();
-        if (!args.isEmpty())
-        {
-            this.fields |= ObjectCreateAction.Field.VALUES.getRawValue();
-            ByteBuf body = args.entrySet().stream().collect(Collector.of(Unpooled::directBuffer, BinaryType::pack0, ByteBuf::writeBytes));
-            this.body.writeShort(args.size());
-            this.body.writeBytes(body.retain());
+            this.fields |= ObjectCreateAction.Field.VALUES.getRawValue() | (named ? ObjectCreateAction.Field.VALUE_NAMES.getRawValue() : 0);
+            this.body.writeShort(size);
+            this.body.writeBytes(args.retain());
         }
         return this;
     }

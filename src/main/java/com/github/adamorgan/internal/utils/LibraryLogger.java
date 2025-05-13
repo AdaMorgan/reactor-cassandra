@@ -202,7 +202,7 @@ public class LibraryLogger
      * Functional interface used for {@link #getLazyString(LazyEvaluation)} to lazily construct a String.
      */
     @FunctionalInterface
-    public interface LazyEvaluation
+    interface LazyEvaluation
     {
         /**
          * This method is used by {@link #getLazyString(LazyEvaluation)}

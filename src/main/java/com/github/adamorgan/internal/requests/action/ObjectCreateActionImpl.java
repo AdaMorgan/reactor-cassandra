@@ -14,11 +14,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.Collection;
 import java.util.EnumSet;
-import java.util.Map;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
@@ -125,19 +121,12 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
         return this;
     }
 
-    @Nonnull
-    @Override
-    public <R extends Serializable> ObjectCreateAction setContent(@Nullable String content, @Nonnull Collection<? extends R> args)
-    {
-        getBuilder().setContent(content, args);
-        return this;
-    }
 
     @Nonnull
     @Override
-    public <R extends Serializable> ObjectCreateAction setContent(@Nullable String content, @Nonnull Map<String, ? extends R> args)
+    public ObjectCreateAction setContent(@Nonnull String content, @Nonnull ByteBuf args, int size, boolean named)
     {
-        getBuilder().setContent(content, args);
+        getBuilder().setContent(content, args, size, named);
         return this;
     }
 
@@ -154,6 +143,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     public ByteBuf finalizeData()
     {
         short stream = 0x00;
+
         return new ObjectCreateData(this, version, flags, stream).applyData();
     }
 
