@@ -1,6 +1,7 @@
 package com.github.adamorgan.internal.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -13,6 +14,7 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected final StringBuilder content = new StringBuilder();
     protected int fields = ObjectCreateAction.Field.DEFAULT;
     protected ObjectCreateAction.Consistency consistency = ObjectCreateAction.Consistency.ONE;
+    protected Compression compression = Compression.NONE;
     protected int maxBufferSize = 5000;
     protected long nonce;
 

@@ -200,6 +200,12 @@ public class LibraryBuilder
     }
 
     @Nonnull
+    public LibraryBuilder setEnableDebug(boolean enable)
+    {
+        return setFlag(ConfigFlag.DEBUG, enable);
+    }
+
+    @Nonnull
     public LibraryBuilder setEnableShutdownHook(boolean enabled)
     {
         return setFlag(ConfigFlag.SHUTDOWN_HOOK, enabled);

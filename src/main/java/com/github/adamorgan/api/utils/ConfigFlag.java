@@ -7,6 +7,7 @@ public enum ConfigFlag
 {
     EVENT_PASSTHROUGH,
     SHUTDOWN_HOOK(true),
+    DEBUG(true),
     AUTO_RECONNECT(true);
 
     private final boolean isDefault;

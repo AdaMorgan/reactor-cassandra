@@ -24,6 +24,12 @@ public class MapObjectAction<I, O> extends ObjectActionOperator<I, O>
         handle(action, failure, (result) -> doSuccess(success, map.apply(result)));
     }
 
+    @Override
+    public O complete(boolean shouldQueue)
+    {
+        return map.apply(action.complete(shouldQueue));
+    }
+
     @Nonnull
     @Override
     public CompletableFuture<O> submit(boolean shouldQueue)

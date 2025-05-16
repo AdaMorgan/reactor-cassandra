@@ -98,6 +98,12 @@ public class LibraryImpl implements Library
     }
 
     @Override
+    public boolean isDebug()
+    {
+        return sessionConfig.isDebug();
+    }
+
+    @Override
     public boolean isAutoReconnect()
     {
         return sessionConfig.isAutoReconnect();

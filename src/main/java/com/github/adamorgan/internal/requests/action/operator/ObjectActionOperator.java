@@ -2,10 +2,9 @@ package com.github.adamorgan.internal.requests.action.operator;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.ObjectAction;
-import io.netty.buffer.ByteBuf;
+import com.github.adamorgan.internal.utils.request.ObjectData;
 
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
 import java.util.function.Consumer;
 
 public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
@@ -59,21 +58,8 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
 
     @Nonnull
     @Override
-    public ByteBuf finalizeData()
+    public ObjectData finalizeData()
     {
         return this.action.finalizeData();
-    }
-
-    @Override
-    public int getFlagsRaw()
-    {
-        return this.action.getFlagsRaw();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<Flags> getFlags()
-    {
-        return this.action.getFlags();
     }
 }

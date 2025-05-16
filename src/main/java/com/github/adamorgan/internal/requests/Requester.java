@@ -1,12 +1,14 @@
 package com.github.adamorgan.internal.requests;
 
+import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,14 +17,18 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.Consumer;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Requester
 {
+    public static final Logger LOG = LibraryLogger.getLog(Requester.class);
+
     private final LibraryImpl library;
 
-    private final Map<Short, Consumer<? super Response>> queue = new ConcurrentHashMap<>();
+    private final Map<Short, Request<?>> buckets = new ConcurrentHashMap<>();
     private final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
+
+    private final ReentrantLock lock = new ReentrantLock();
 
     public Requester(LibraryImpl library)
     {
@@ -35,30 +41,35 @@ public class Requester
         return this.library.getClient().getContext();
     }
 
+    @Nonnull
+    public Queue<WorkTask> getRequests()
+    {
+        return this.requests;
+    }
+
     public <R> void execute(@Nonnull Request<R> request)
     {
         short streamId = (short) 0;
 
-        if (getContext() != null && !this.queue.containsKey(streamId))
+        if (getContext() != null && !this.buckets.containsKey(streamId))
         {
-            request.handleResponse(streamId, this.queue::put);
+            this.buckets.put(streamId, request);
+
             getContext().writeAndFlush(request.getBody().retain());
         }
         else
         {
-            requests.add(new WorkTask(this, request));
+            requests.add(new WorkTask(request));
         }
     }
 
-    public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame)
+    public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
     {
-        Queue<Requester.WorkTask> requests = this.requests;
+        Request<?> request = this.buckets.remove(stream);
 
-        Consumer<? super Response> consumer = this.queue.remove(stream);
+        request.handleResponse(new Response(version, flags, stream, opcode, length, body));
 
-        consumer.accept(new Response(version, flags, stream, opcode, length, frame));
-
-        frame.release();
+        body.release();
 
         if (!requests.isEmpty())
         {
@@ -68,38 +79,65 @@ public class Requester
         }
     }
 
-    public static class WorkTask implements Work
+    public class WorkTask implements Work
     {
-        private final Requester requester;
-        private final CaseInsensitiveMap<String, Integer> headers;
-        private final ByteBuf body;
-        private final Runnable callback;
+        private final Request<?> request;
 
-        public <R> WorkTask(Requester requester, Request<R> request)
+        private boolean done;
+
+        public WorkTask(Request<?> request)
         {
-            this.requester = requester;
-            this.headers = request.getHeaders();
-            this.body = request.getBody();
-            this.callback = () -> this.requester.execute(request);
+            this.request = request;
         }
 
         @Nonnull
         @Override
-        public CaseInsensitiveMap<String, Integer> getHeaders()
+        public Library getLibrary()
         {
-            return this.headers;
+            return this.request.getLibrary();
+        }
+
+        @Override
+        public void execute()
+        {
+            Requester.this.execute(request);
         }
 
         @Nonnull
         @Override
         public ByteBuf getBody()
         {
-            return this.body;
+            return request.getBody();
         }
 
-        public void execute()
+        @Override
+        public boolean isSkipped()
         {
-            this.callback.run();
+            return request.isSkipped();
+        }
+
+        @Override
+        public boolean isDone()
+        {
+            return request.isSkipped() || done;
+        }
+
+        @Override
+        public boolean isCancelled()
+        {
+            return request.isCancelled();
+        }
+
+        @Override
+        public void cancel()
+        {
+            request.cancel();
+        }
+
+        public void handleResponse(Response response)
+        {
+            done = true;
+            request.handleResponse(response);
         }
     }
 }

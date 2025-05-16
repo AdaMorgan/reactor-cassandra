@@ -11,10 +11,10 @@ public class ObjectFuture<T> extends CompletableFuture<T>
     protected final Request<T> request;
     protected final ObjectActionImpl<T> action;
 
-    public ObjectFuture(ObjectActionImpl<T> action, ByteBuf body)
+    public ObjectFuture(ObjectActionImpl<T> action, ByteBuf body, long deadline)
     {
         this.action = action;
-        this.request = new Request<>(action, body, this::complete, this::completeExceptionally);
+        this.request = new Request<>(action, body, this::complete, this::completeExceptionally, deadline);
 
         ((LibraryImpl) this.action.getLibrary()).getRequester().execute(this.request);
     }

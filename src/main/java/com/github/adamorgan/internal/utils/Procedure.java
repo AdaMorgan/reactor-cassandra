@@ -1,6 +1,7 @@
 package com.github.adamorgan.internal.utils;
 
-import javax.annotation.Nonnull;
+import com.github.adamorgan.api.utils.request.ObjectRequest;
+import io.netty.buffer.ByteBuf;
 
 /**
  * Iteration procedure accepting one argument and returning whether to continue iteration.
@@ -8,7 +9,7 @@ import javax.annotation.Nonnull;
  * @param <T> The type of the argument
  */
 @FunctionalInterface
-interface Procedure<T>
+public interface Procedure<T extends ObjectRequest<T>>
 {
-    boolean execute(@Nonnull T value);
+    ByteBuf apply(ObjectRequest<T> objAction, byte version, byte flags, short stream);
 }

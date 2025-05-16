@@ -2,6 +2,7 @@ package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.audit.ThreadLocalReason;
+import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.ObjectFuture;
 import com.github.adamorgan.api.requests.Request;
@@ -9,12 +10,14 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import org.jetbrains.annotations.Blocking;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -27,28 +30,26 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final byte version, opcode;
+    protected final byte version;
     protected final int stream;
-    protected int flags = 0x00;
 
     private final String localReason;
 
     protected final BiFunction<Request<T>, Response, T> handler;
 
-    public ObjectActionImpl(LibraryImpl api, byte opcode, BiFunction<Request<T>, Response, T> handler)
+    public ObjectActionImpl(LibraryImpl api, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
         this.version = api.getVersion();
         this.stream = 0x00;
-        this.opcode = opcode;
         this.handler = handler;
 
         this.localReason = ThreadLocalReason.getCurrent();
     }
 
-    public ObjectActionImpl(LibraryImpl api, byte opcode)
+    public ObjectActionImpl(LibraryImpl api)
     {
-        this(api, opcode, null);
+        this(api, null);
     }
 
     @Nonnull
@@ -69,22 +70,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     }
 
     @Override
-    public int getFlagsRaw()
-    {
-        return this.flags;
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<Flags> getFlags()
-    {
-        return ObjectAction.Flags.fromBitField(this.flags);
-    }
-
-    @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ByteBuf body = this.finalizeData();
+        ByteBuf body = this.finalizeData().applyData();
 
         if (success == null)
         {
@@ -95,15 +83,51 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
             failure = DEFAULT_FAILURE;
         }
 
-        api.getRequester().execute(new Request<>(this, body, success, failure));
+        api.getRequester().execute(new Request<>(this, body, success, failure, getDeadline()));
+    }
+
+    @Override
+    public T complete(boolean shouldQueue)
+    {
+        try
+        {
+            return submit(shouldQueue).join();
+        }
+        catch (CompletionException failException)
+        {
+            if (failException.getCause() != null)
+            {
+                Throwable cause = failException.getCause();
+                if (cause instanceof ErrorResponseException)
+                    throw (ErrorResponseException) cause.fillInStackTrace();
+                if (cause instanceof RuntimeException)
+                    throw (RuntimeException) cause;
+                if (cause instanceof Error)
+                    throw (Error) cause;
+            }
+            throw failException;
+        }
     }
 
     @Nonnull
     @Override
     public CompletableFuture<T> submit(boolean shouldQueue)
     {
-        ByteBuf body = this.finalizeData();
-        return new ObjectFuture<>(this, body);
+        ByteBuf body = this.finalizeData().applyData();
+        return new ObjectFuture<>(this, body, getDeadline());
+    }
+
+    public void handleResponse(Request<T> request, Response response)
+    {
+        if (response.isOk())
+        {
+            handleSuccess(request, response);
+        }
+        else
+        {
+            final ErrorResponseException error = request.createErrorResponseException(response);
+            request.onFailure(error);
+        }
     }
 
     protected void handleSuccess(Request<T> request, Response response)
@@ -112,11 +136,8 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         request.onSuccess(successObj);
     }
 
-    public void handleResponse(Request<T> request, Response response)
+    public long getDeadline()
     {
-        try (ThreadLocalReason.Closable __ = ThreadLocalReason.closable(localReason))
-        {
-            handleSuccess(request, response);
-        }
+        return 0;
     }
 }

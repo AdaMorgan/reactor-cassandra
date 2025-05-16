@@ -1,35 +1,50 @@
 package com.github.adamorgan.api.requests;
 
+import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.exceptions.ErrorResponseException;
+import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
 import javax.annotation.Nonnull;
-import java.util.function.BiConsumer;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 public class Request<T>
 {
+    protected final LibraryImpl api;
     protected final ObjectActionImpl<T> objAction;
-    protected final CaseInsensitiveMap<String, Integer> headers = new CaseInsensitiveMap<>();
     protected final ByteBuf body;
     protected final Consumer<? super T> onSuccess;
     protected final Consumer<? super Throwable> onFailure;
+    protected final long deadline;
 
-    public Request(ObjectActionImpl<T> objAction, ByteBuf body, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure)
+    protected boolean done = false;
+    protected boolean isCancelled = false;
+
+    public Request(ObjectActionImpl<T> objAction, ByteBuf body, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure, long deadline)
     {
         this.objAction = objAction;
         this.body = body;
         this.onSuccess = onSuccess;
         this.onFailure = onFailure;
+        this.deadline = deadline;
+
+        this.api = (LibraryImpl) this.objAction.getLibrary();
     }
 
     @Nonnull
-    public CaseInsensitiveMap<String, Integer> getHeaders()
+    public LibraryImpl getLibrary()
     {
-        return headers;
+        return api;
+    }
+
+    @Nonnull
+    public ObjectAction<?> getObjectAction()
+    {
+        return objAction;
     }
 
     @Nonnull
@@ -38,31 +53,73 @@ public class Request<T>
         return body;
     }
 
+    public void cancel()
+    {
+        if (!this.isCancelled)
+            onCancelled();
+        this.isCancelled = true;
+    }
+
     public void onSuccess(T successObj)
     {
+        if (done)
+        {
+            return;
+        }
+        done = true;
         this.onSuccess.accept(successObj);
     }
 
     public void onFailure(Throwable failException)
     {
+        if (done)
+        {
+            return;
+        }
+        done = true;
         this.onFailure.accept(failException);
     }
 
-    private void handleResponse(Response response)
+    public void onCancelled()
     {
-        if (response.isError())
-        {
-            this.onFailure(createErrorResponseException(response));
-        }
-        else
-        {
-            this.objAction.handleResponse(this, response);
-        }
+        onFailure(new CancellationException("RestAction has been cancelled"));
     }
 
-    public void handleResponse(short stream, BiConsumer<? super Short, Consumer<? super Response>> handler)
+    public void onTimeout()
     {
-        handler.accept(stream, this::handleResponse);
+        this.onFailure(new TimeoutException("ObjectAction has timed out"));
+    }
+
+    public boolean isSkipped()
+    {
+        if (isTimeout())
+        {
+            onTimeout();
+            return true;
+        }
+
+        if (isCancelled())
+        {
+            onCancelled();
+        }
+        return isCancelled();
+    }
+
+    private boolean isTimeout()
+    {
+        return deadline > 0 && deadline < System.currentTimeMillis();
+    }
+
+    public boolean isCancelled()
+    {
+        return isCancelled;
+    }
+
+    public void handleResponse(Response response)
+    {
+        ObjectActionImpl.LOG.trace("Handling response for request with content {}", "");
+        this.objAction.handleResponse(this, response);
+        api.handleEvent(new BinaryRequestEvent(this, response));
     }
 
     @Nonnull

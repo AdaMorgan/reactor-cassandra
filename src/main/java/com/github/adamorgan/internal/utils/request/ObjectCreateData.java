@@ -3,7 +3,6 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -13,13 +12,13 @@ import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 
-public class ObjectCreateData
+public class ObjectCreateData implements ObjectData
 {
     public static final int CONTENT_BYTES = Integer.BYTES;
 
     private final byte version, opcode;
     private final int flags;
-    private final short stream;
+    private final int stream;
     private final byte[] content;
     private final Compression compression;
     private final ObjectCreateAction.Consistency consistency;
@@ -29,14 +28,14 @@ public class ObjectCreateData
     private final ByteBuf header;
     private final ByteBuf body;
 
-    public ObjectCreateData(@Nonnull ObjectCreateAction action, byte version, int flags, short stream)
+    public ObjectCreateData(ObjectCreateAction action, byte version, int stream)
     {
         this.version = version;
-        this.flags = flags;
+        this.compression = action.getCompression();
+        this.flags = compression.equals(Compression.NONE) ? 0 : 1;
         this.stream = stream;
         this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
-        this.compression = action.getLibrary().getCompression();
         this.consistency = action.getConsistency();
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
@@ -45,21 +44,25 @@ public class ObjectCreateData
         this.header = applyHeader();
     }
 
+    @Nonnull
+    @Override
     public EnumSet<ObjectCreateAction.Field> getFields()
     {
         return ObjectCreateAction.Field.fromBitFields(fields);
     }
 
+    @Nonnull
+    @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer().addComponents(true, this.header, this.body);
+        return Unpooled.compositeBuffer().addComponents(true, this.header, this.body).asReadOnly();
     }
 
     public ByteBuf applyHeader()
     {
         return Unpooled.directBuffer(finalizeLength() + ObjectAction.HEADER_BYTES)
                 .writeByte(version)
-                .writeByte(finalizeFlags())
+                .writeByte(flags)
                 .writeShort(stream)
                 .writeByte(opcode)
                 .writeInt(body.readableBytes())
@@ -76,11 +79,6 @@ public class ObjectCreateData
                 .writeInt(maxBufferSize)
                 .writeLong(nonce)
                 .asByteBuf();
-    }
-
-    private int finalizeFlags()
-    {
-        return this.flags | (compression.equals(Compression.NONE) ? 0 : 1);
     }
 
     private int finalizeLength()

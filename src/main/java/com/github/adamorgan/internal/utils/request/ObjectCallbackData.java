@@ -1,17 +1,21 @@
 package com.github.adamorgan.internal.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
+import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-public class ObjectCallbackData
+import javax.annotation.Nonnull;
+import java.util.EnumSet;
+
+public class ObjectCallbackData implements ObjectData
 {
     private final ObjectCallbackAction action;
     private final byte version, opcode;
     private final int flags;
-    private final short stream;
+    private final int stream;
     private final ByteBuf token, body;
     private final ByteBuf header;
     private final short consistency;
@@ -19,11 +23,12 @@ public class ObjectCallbackData
     private final long nonce;
     private final Compression compression;
 
-    public ObjectCallbackData(ObjectCallbackAction action, byte version, int flags, short stream)
+    public ObjectCallbackData(ObjectCallbackAction action, byte version, int stream)
     {
         this.action = action;
+        this.compression = action.getCompression();
         this.version = version;
-        this.flags = flags;
+        this.flags = compression.equals(Compression.NONE) ? 0 : 1;
         this.stream = stream;
         this.opcode = SocketCode.EXECUTE;
         this.token = action.getToken();
@@ -31,21 +36,29 @@ public class ObjectCallbackData
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
-        this.compression = action.getLibrary().getCompression();
         this.body = this.compression.pack(applyBody());
         this.header = applyHeader();
     }
 
+    @Nonnull
+    @Override
+    public EnumSet<ObjectCreateAction.Field> getFields()
+    {
+        return ObjectCreateAction.Field.fromBitFields(fields);
+    }
+
+    @Nonnull
+    @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer().addComponents(true, header, body);
+        return Unpooled.compositeBuffer().addComponents(true, header, body).asReadOnly();
     }
 
     public ByteBuf applyHeader()
     {
         return Unpooled.directBuffer()
                 .writeByte(this.version)
-                .writeByte(finalizeFlags())
+                .writeByte(this.flags)
                 .writeShort(this.stream)
                 .writeByte(this.opcode)
                 .writeInt(body.readableBytes())
@@ -63,10 +76,5 @@ public class ObjectCallbackData
                 .writeInt(this.maxBufferSize)
                 .writeLong(this.nonce)
                 .asByteBuf();
-    }
-
-    private int finalizeFlags()
-    {
-        return this.flags | (compression.equals(Compression.NONE) ? 0 : 1);
     }
 }

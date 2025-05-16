@@ -5,7 +5,8 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.requests.action.operator.MapObjectAction;
 import com.github.adamorgan.internal.utils.Checks;
-import io.netty.buffer.ByteBuf;
+import com.github.adamorgan.internal.utils.request.ObjectData;
+import org.jetbrains.annotations.Blocking;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -26,12 +27,7 @@ public interface ObjectAction<T>
     Library getLibrary();
 
     @Nonnull
-    ByteBuf finalizeData();
-
-    int getFlagsRaw();
-
-    @Nonnull
-    EnumSet<Flags> getFlags();
+    ObjectData finalizeData();
 
     default void queue()
     {
@@ -44,6 +40,15 @@ public interface ObjectAction<T>
     }
 
     void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
+
+    @Blocking
+    default T complete()
+    {
+        return complete(true);
+    }
+
+    @Blocking
+    T complete(boolean shouldQueue);
 
     @Nonnull
     @CheckReturnValue

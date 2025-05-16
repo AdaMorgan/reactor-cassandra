@@ -180,6 +180,12 @@ public interface Library
     Status getStatus();
 
     /**
+     *
+     * @return True if {@link Library Library} will attempt to auto ByteBuf release.
+     */
+    boolean isDebug();
+
+    /**
      * Used to determine whether autoReconnect is enabled for {@link Library Library}.
      *
      * @return True if {@link Library Library} will attempt to automatically reconnect when a connection-error is encountered.

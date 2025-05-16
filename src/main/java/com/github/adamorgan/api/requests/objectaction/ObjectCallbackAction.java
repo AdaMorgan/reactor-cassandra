@@ -1,6 +1,7 @@
 package com.github.adamorgan.api.requests.objectaction;
 
 import com.github.adamorgan.api.requests.ObjectAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
 
@@ -10,4 +11,7 @@ public interface ObjectCallbackAction extends ObjectAction<ByteBuf>, ObjectReque
 {
     @Nonnull
     ByteBuf getToken();
+
+    @Nonnull
+    Compression getCompression();
 }

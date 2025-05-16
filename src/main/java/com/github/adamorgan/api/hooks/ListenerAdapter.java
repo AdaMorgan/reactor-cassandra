@@ -1,6 +1,7 @@
 package com.github.adamorgan.api.hooks;
 
 import com.github.adamorgan.api.events.*;
+import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
 import com.github.adamorgan.api.events.scheduled.GenericScheduledEvent;
 import com.github.adamorgan.api.events.session.GenericSessionEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
@@ -28,6 +29,8 @@ public class ListenerAdapter implements EventListener
     public void onReady(@Nonnull ReadyEvent event) {}
     public void onSessionDisconnect(@Nonnull SessionDisconnectEvent event) {}
     public void onShutdown(@Nonnull ShutdownEvent event) {}
+
+    public void onBinaryRequest(@Nonnull BinaryRequestEvent event) {}
 
     public void onException(@Nonnull ExceptionEvent event) {}
 

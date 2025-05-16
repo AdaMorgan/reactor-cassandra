@@ -10,7 +10,6 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.codec.MessageDecoder;
 import com.github.adamorgan.internal.utils.codec.MessageEncoder;
-import com.github.adamorgan.test.SocketConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -81,9 +80,9 @@ public class SocketClient
         @Override
         protected void initChannel(@Nonnull SocketChannel channel)
         {
-            if (SocketConfig.IS_DEBUG)
+            if (library.isDebug())
             {
-                channel.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
+                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             }
 
             channel.pipeline().addLast(new MessageEncoder());

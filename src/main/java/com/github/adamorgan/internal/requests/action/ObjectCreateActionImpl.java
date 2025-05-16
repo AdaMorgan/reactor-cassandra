@@ -5,16 +5,17 @@ import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
 import com.github.adamorgan.internal.utils.request.ObjectCreateData;
+import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
+import java.util.Objects;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
 {
@@ -24,7 +25,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     public ObjectCreateActionImpl(Library api)
     {
-        super((LibraryImpl) api, SocketCode.QUERY);
+        super((LibraryImpl) api);
     }
 
     @Override
@@ -68,6 +69,13 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     public int getFieldsRaw()
     {
         return this.getBuilder().getFieldsRaw();
+    }
+
+    @Nonnull
+    @Override
+    public Compression getCompression()
+    {
+        return this.api.getCompression();
     }
 
     @Nonnull
@@ -140,11 +148,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ByteBuf finalizeData()
+    public ObjectData finalizeData()
     {
-        short stream = 0x00;
-
-        return new ObjectCreateData(this, version, flags, stream).applyData();
+        return new ObjectCreateData(this, version, stream);
     }
 
     @Override
@@ -167,7 +173,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
         if (!(obj instanceof ObjectCreateAction))
             return false;
         ObjectCreateAction other = (ObjectCreateAction) obj;
-        return ByteBufUtil.equals(other.finalizeData(), this.finalizeData());
+        return Objects.equals(this, other);
     }
 
     @Override

@@ -64,14 +64,14 @@ public final class MessageDecoder extends ByteToMessageDecoder
             return;
         }
 
-        ByteBuf body = input.readRetainedSlice(length);
+        ByteBuf body = input.readRetainedSlice(length).asReadOnly();
 
         boolean isCompressed = (flags & 0x01) != 0;
 
         onDispatch(version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
     }
 
-    private synchronized void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf frame, Consumer<? super ByteBuf> callback)
+    private void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
     {
         switch (opcode)
         {
@@ -98,11 +98,11 @@ public final class MessageDecoder extends ByteToMessageDecoder
             }
             case SocketCode.ERROR:
             {
-                throw ErrorResponseException.create(ErrorResponse.fromBuffer(frame), frame);
+                throw ErrorResponseException.create(ErrorResponse.fromBuffer(body), body);
             }
             default:
             {
-                this.requester.enqueue(version, flags, stream, opcode, length, frame);
+                this.requester.enqueue(version, flags, stream, opcode, length, body);
             }
         }
     }

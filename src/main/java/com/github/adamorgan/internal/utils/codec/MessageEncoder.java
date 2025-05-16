@@ -1,6 +1,5 @@
 package com.github.adamorgan.internal.utils.codec;
 
-import com.github.adamorgan.internal.requests.SocketClient;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;

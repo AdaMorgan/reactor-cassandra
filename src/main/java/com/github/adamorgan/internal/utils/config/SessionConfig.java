@@ -44,6 +44,11 @@ public class SessionConfig
         return flags.contains(ConfigFlag.EVENT_PASSTHROUGH);
     }
 
+    public boolean isDebug()
+    {
+        return flags.contains(ConfigFlag.DEBUG);
+    }
+
     public boolean isUseShutdownHook()
     {
         return flags.contains(ConfigFlag.SHUTDOWN_HOOK);

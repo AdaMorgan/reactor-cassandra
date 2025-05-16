@@ -4,14 +4,15 @@ import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.request.ObjectCallbackData;
+import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
+import java.util.Objects;
 
 public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCallbackAction
 {
@@ -22,7 +23,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
 
     public ObjectCallbackActionImpl(@Nonnull ObjectCreateActionImpl action, @Nonnull Response response)
     {
-        super((LibraryImpl) action.getLibrary(), SocketCode.EXECUTE);
+        super((LibraryImpl) action.getLibrary());
         this.action = action;
         this.response = response.getBody();
         this.length = this.response.readUnsignedShort();
@@ -42,17 +43,11 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
         return this.token;
     }
 
-    @Override
-    public int getFlagsRaw()
-    {
-        return this.action.getFlagsRaw();
-    }
-
     @Nonnull
     @Override
-    public EnumSet<Flags> getFlags()
+    public Compression getCompression()
     {
-        return this.action.getFlags();
+        return this.action.getCompression();
     }
 
     @Nonnull
@@ -103,10 +98,9 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
 
     @Nonnull
     @Override
-    public ByteBuf finalizeData()
+    public ObjectData finalizeData()
     {
-        short stream = (short) this.stream;
-        return new ObjectCallbackData(this, version, flags, stream).applyData();
+        return new ObjectCallbackData(this, version, stream);
     }
 
     @Override
@@ -123,6 +117,6 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
         if (!(obj instanceof ObjectCallbackAction))
             return false;
         ObjectCallbackAction other = (ObjectCallbackAction) obj;
-        return ByteBufUtil.equals(other.finalizeData(), this.finalizeData());
+        return Objects.equals(this, other);
     }
 }
