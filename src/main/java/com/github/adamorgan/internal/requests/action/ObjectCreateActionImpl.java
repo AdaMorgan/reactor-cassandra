@@ -132,9 +132,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ObjectCreateAction setContent(@Nonnull String content, @Nonnull ByteBuf args, int size, boolean named)
+    public ObjectCreateAction setContent(@Nonnull String content, @Nonnull ByteBuf body, int size, boolean named)
     {
-        getBuilder().setContent(content, args, size, named);
+        getBuilder().setContent(content, body, size, named);
         return this;
     }
 

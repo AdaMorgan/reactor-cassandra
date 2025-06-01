@@ -1,38 +1,35 @@
 package com.github.adamorgan.internal.utils.config;
 
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollIoHandler;
+import io.netty.channel.nio.NioIoHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 
 public class ThreadingConfig
 {
-    protected ExecutorService callbackPool;
+    protected final IoHandlerFactory handler;
+
+    protected EventLoopGroup callbackPool;
     protected ExecutorService eventPool;
-    protected EventLoopGroup eventLoopScheduler;
 
     protected boolean shutdownCallbackPool;
     protected boolean shutdownEventPool;
-    protected boolean shutdownEventLoopScheduler;
 
     public ThreadingConfig()
     {
-        this.shutdownEventLoopScheduler = true;
+        this.handler = Epoll.isAvailable() ? EpollIoHandler.newFactory() : NioIoHandler.newFactory();
         this.shutdownCallbackPool = false;
-    }
-
-    public void setEventLoopScheduler(@Nullable EventLoopGroup executor, boolean shutdown)
-    {
-        this.eventLoopScheduler = executor == null ? new NioEventLoopGroup() : executor;
-        this.shutdownEventLoopScheduler = shutdown;
     }
 
     public void setCallbackPool(@Nullable ExecutorService executor, boolean shutdown)
     {
-        this.callbackPool = executor == null ? ForkJoinPool.commonPool() : executor;
+        this.callbackPool = executor == null ? new MultiThreadIoEventLoopGroup(200, handler) : new MultiThreadIoEventLoopGroup(executor, handler);
         this.shutdownCallbackPool = shutdown;
     }
 
@@ -42,34 +39,29 @@ public class ThreadingConfig
         this.shutdownEventPool = shutdown;
     }
 
+    public boolean isAvailable()
+    {
+        return Epoll.isAvailable();
+    }
+
     public void shutdown()
     {
-        if (shutdownEventLoopScheduler)
-            eventLoopScheduler.shutdownGracefully();
         if (shutdownCallbackPool)
-            callbackPool.shutdown();
+            callbackPool.shutdownGracefully();
         if (shutdownEventPool)
             eventPool.shutdownNow();
     }
 
     public void shutdownNow()
     {
-        if (shutdownEventLoopScheduler)
-            eventLoopScheduler.shutdownGracefully();
         if (shutdownCallbackPool)
-            callbackPool.shutdownNow();
+            callbackPool.shutdownGracefully();
         if (shutdownEventPool)
             eventPool.shutdownNow();
     }
 
     @Nonnull
-    public EventLoopGroup getEventLoopScheduler()
-    {
-        return eventLoopScheduler;
-    }
-
-    @Nonnull
-    public ExecutorService getCallbackPool()
+    public EventLoopGroup getCallbackPool()
     {
         return callbackPool;
     }

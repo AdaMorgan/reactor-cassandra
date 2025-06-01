@@ -28,6 +28,7 @@ public class SnappyCompressor extends AbstractCompressor
         // If the input is direct we will allocate a direct output buffer as well as this will allow us
         // to use Snappy.compress(ByteBuffer, ByteBuffer) and so eliminate memory copies.
         ByteBuf output = body.alloc().directBuffer(maxCompressedLength);
+
         try
         {
             ByteBuffer in = inputNioBuffer(body);

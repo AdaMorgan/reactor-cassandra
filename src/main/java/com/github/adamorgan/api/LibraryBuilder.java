@@ -13,8 +13,8 @@ import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
@@ -41,18 +41,18 @@ public class LibraryBuilder
 
     protected Library.ShardInfo shardInfo;
 
-    protected EventLoopGroup mainSocketPool = null;
-    protected boolean shutdownMainSocketPool = true;
     protected ExecutorService callbackPool = null;
     protected boolean shutdownCallbackPool = true;
     protected ExecutorService eventPool = null;
     protected boolean shutdownEventPool = true;
 
-    protected final EnumSet<ConfigFlag> configFlags = ConfigFlag.DEFAULT;
+    protected final Bootstrap client = new Bootstrap();
+
+    protected final EnumSet<ConfigFlag> flags = ConfigFlag.DEFAULT;
 
     protected IEventManager eventManager = null;
     protected SessionController controller = null;
-    protected int maxBufferSize = 5000;
+    protected int maxBufferSize = 1 << 6; // 64 KB
     protected int maxReconnectDelay = 900;
     protected Compression compression = Compression.NONE;
 
@@ -152,20 +152,6 @@ public class LibraryBuilder
     }
 
     @Nonnull
-    public LibraryBuilder setEventLoopGroup(@Nullable EventLoopGroup executor, boolean automaticShutdown)
-    {
-        this.mainSocketPool = executor;
-        this.shutdownMainSocketPool = automaticShutdown;
-        return this;
-    }
-
-    @Nonnull
-    public LibraryBuilder setEventLoopGroup(@Nullable EventLoopGroup executor)
-    {
-        return setEventLoopGroup(executor, executor == null);
-    }
-
-    @Nonnull
     public LibraryBuilder setCallbackPool(@Nullable ExecutorService executor, boolean automaticShutdown)
     {
         this.callbackPool = executor;
@@ -218,10 +204,12 @@ public class LibraryBuilder
     }
 
     @Nonnull
-    private LibraryBuilder setFlag(ConfigFlag flag, boolean isEnabled)
+    private LibraryBuilder setFlag(ConfigFlag flag, boolean enable)
     {
-        boolean isChanged = isEnabled ? configFlags.add(flag) : configFlags.remove(flag);
-        LOG.debug("Flag {} {} {}", flag, isChanged ? "has been" : "was already", isEnabled ? "enabled" : "disabled");
+        if (enable)
+            this.flags.add(flag);
+        else
+            this.flags.remove(flag);
         return this;
     }
 
@@ -229,7 +217,6 @@ public class LibraryBuilder
     public LibraryBuilder setMaxReconnectDelay(int maxReconnectDelay)
     {
         Checks.check(maxReconnectDelay >= 32, "Max reconnect delay must be 32 seconds or greater. You provided %d.", maxReconnectDelay);
-
         this.maxReconnectDelay = maxReconnectDelay;
         return this;
     }
@@ -283,12 +270,12 @@ public class LibraryBuilder
         byte[] token = verifyToken();
 
         ThreadingConfig config = new ThreadingConfig();
-        config.setEventLoopScheduler(mainSocketPool, shutdownMainSocketPool);
+
         config.setCallbackPool(callbackPool, shutdownCallbackPool);
         config.setEventPool(eventPool, shutdownEventPool);
 
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
-        SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay, configFlags);
+        SessionConfig sessionConfig = new SessionConfig(controller, client, maxBufferSize, maxReconnectDelay, flags);
 
         LibraryImpl library = new LibraryImpl(token, address, compression, shardInfo, config, sessionConfig, eventManager);
 

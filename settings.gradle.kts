@@ -18,7 +18,7 @@ dependencyResolutionManagement {
             library("commons-collections",   "org.apache.commons",       "commons-collections4"           ).version("4.4")
             library("commons-lang3",         "org.apache.commons",       "commons-lang3"                  ).version("3.14.0")
             library("commons-text",          "org.apache.commons",       "commons-text"                   ).version("1.13.0")
-            library("netty",                 "io.netty",                 "netty-all"                      ).version("4.1.75.Final")
+            library("netty",                 "io.netty",                 "netty-all"                      ).version("4.2.1.Final")
             library("slf4j",                 "org.slf4j",                "slf4j-api"                      ).version("2.0.17")
 
             library("netty-codec-lz4",       "org.lz4",                  "lz4-java"                       ).version("1.8.0")

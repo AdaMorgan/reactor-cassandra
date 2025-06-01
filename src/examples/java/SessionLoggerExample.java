@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -31,6 +32,26 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setCompression(Compression.SNAPPY)
                 .setEnableDebug(false)
                 .build();
+
+        Collection<Serializable> parameters = new ArrayList<>();
+        parameters.add(844613816943771649L);
+        parameters.add("reganjohn");
+
+        long startTime = System.currentTimeMillis();
+        AtomicInteger counter = new AtomicInteger();
+
+        for (int i = 0; i < 25000; i++)
+        {
+            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(rowsResult -> {
+                counter.incrementAndGet();
+                if (counter.get() == 25000)
+                {
+                    System.out.println(System.currentTimeMillis() - startTime);
+                }
+            }, error -> {
+
+            });
+        }
     }
 
     @Override
@@ -42,32 +63,29 @@ public final class SessionLoggerExample extends ListenerAdapter
     @Override
     public void onException(@Nonnull ExceptionEvent event)
     {
-        if (!event.isLogged())
-        {
-            LibraryImpl.LOG.warn(event.getCause().getMessage());
-        }
+
     }
 
     @Override
     public void onReady(@Nonnull ReadyEvent event)
     {
-        LibraryImpl api = (LibraryImpl) event.getLibrary();
-
-        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-
-        Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add(844613816943771649L);
-        parameters.add("reganjohn");
-
-        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-
-        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-
-        Map<String, Serializable> map = new HashMap<>();
-        map.put("user_id", 844613816943771649L);
-        map.put("username", "reganjohn");
-
-        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+//        LibraryImpl api = (LibraryImpl) event.getLibrary();
+//
+//        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+//
+//        Collection<Serializable> parameters = new ArrayList<>();
+//        parameters.add(844613816943771649L);
+//        parameters.add("reganjohn");
+//
+//        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+//
+//        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+//
+//        Map<String, Serializable> map = new HashMap<>();
+//        map.put("user_id", 844613816943771649L);
+//        map.put("username", "reganjohn");
+//
+//        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override

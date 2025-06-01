@@ -12,17 +12,18 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
 {
     @Nonnull
     @Override
-    public ObjectCreateBuilder setContent(@Nonnull String content, @Nonnull ByteBuf args, int size, boolean named)
+    public ObjectCreateBuilder setContent(@Nonnull String content, @Nonnull ByteBuf body, int size, boolean named)
     {
-        Checks.notNull(args, "Body");
+        Checks.notNull(body, "Body");
         Helpers.setContent(this.content, content);
         this.body.clear();
-        if (args.readableBytes() > 0)
+        if (body.readableBytes() > 0)
         {
             this.fields |= ObjectCreateAction.Field.VALUES.getRawValue() | (named ? ObjectCreateAction.Field.VALUE_NAMES.getRawValue() : 0);
             this.body.writeShort(size);
-            this.body.writeBytes(args.retain());
+            this.body.writeBytes(body.retain());
         }
+        body.release();
         return this;
     }
 

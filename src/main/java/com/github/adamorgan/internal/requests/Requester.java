@@ -7,6 +7,7 @@ import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 
@@ -30,9 +31,12 @@ public class Requester
 
     private final ReentrantLock lock = new ReentrantLock();
 
+    private final LibraryImpl.StreamManager manager;
+
     public Requester(LibraryImpl library)
     {
         this.library = library;
+        this.manager = library.getStreamManager();
     }
 
     @Nullable
@@ -49,13 +53,19 @@ public class Requester
 
     public <R> void execute(@Nonnull Request<R> request)
     {
-        short streamId = (short) 0;
-
-        if (getContext() != null && !this.buckets.containsKey(streamId))
+        if (getContext() != null)
         {
-            this.buckets.put(streamId, request);
+            short streamId = (short) request.getObjectAction().getStreamId();
 
-            getContext().writeAndFlush(request.getBody().retain());
+            try
+            {
+                buckets.put(streamId, request);
+                getContext().writeAndFlush(request.getBody().retain());
+            }
+            catch (IllegalStateException e)
+            {
+                requests.add(new WorkTask(request));
+            }
         }
         else
         {
@@ -65,17 +75,17 @@ public class Requester
 
     public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
     {
-        Request<?> request = this.buckets.remove(stream);
+        Request<?> request = buckets.remove(stream);
 
-        request.handleResponse(new Response(version, flags, stream, opcode, length, body));
-
-        body.release();
-
-        if (!requests.isEmpty())
+        if (request != null)
         {
-            Requester.WorkTask peek = requests.peek();
-            peek.execute();
-            requests.remove(peek);
+            manager.release(stream);
+            request.handleResponse(new Response(version, flags, stream, opcode, length, body));
+            body.release();
+        }
+        else
+        {
+            body.release();
         }
     }
 

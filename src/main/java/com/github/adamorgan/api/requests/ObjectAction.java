@@ -26,6 +26,8 @@ public interface ObjectAction<T>
     @Nonnull
     Library getLibrary();
 
+    int getStreamId();
+
     @Nonnull
     ObjectData finalizeData();
 

@@ -16,6 +16,12 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
         this.action = action;
     }
 
+    @Override
+    public int getStreamId()
+    {
+        return this.action.getStreamId();
+    }
+
     protected static <E> void doSuccess(Consumer<? super E> callback, E value)
     {
         if (callback == null)

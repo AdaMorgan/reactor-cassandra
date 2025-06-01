@@ -17,7 +17,6 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 public interface Library
@@ -279,23 +278,15 @@ public interface Library
     long getResponseTotal();
 
     /**
-     * {@link EventLoopGroup} used to send Socket messages to CQL Binary Server.
-     *
-     * @return The {@link EventLoopGroup} used for Socket transmissions
-     */
-    @Nonnull
-    EventLoopGroup getEventLoopScheduler();
-
-    /**
-     * {@link ExecutorService} used to handle {@link ObjectAction ObjectAction} callbacks
+     * {@link EventLoopGroup ExecutorService} used to handle {@link ObjectAction ObjectAction} callbacks
      * and completions.
      *
      * <br>By default this uses the {@link ForkJoinPool#commonPool() CommonPool} of the runtime.
      *
-     * @return The {@link ExecutorService} used for callbacks
+     * @return The {@link EventLoopGroup ExecutorService} used for callbacks
      */
     @Nonnull
-    ExecutorService getCallbackPool();
+    EventLoopGroup getCallbackPool();
 
     /**
      * Shutdown this {@link Library Library} instance, closing all its connections.

@@ -21,7 +21,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     default <R extends Serializable> T setContent(@Nonnull String content, @Nonnull Collection<? extends R> args)
     {
         Checks.notNull(content, "content");
-        ByteBuf body = args.stream().collect(Collector.of(Unpooled::directBuffer, BinaryType::pack0, ByteBuf::writeBytes));
+        ByteBuf body = args.stream().collect(Collector.of(Unpooled::buffer, BinaryType::pack0, ByteBuf::writeBytes));
         return setContent(content, body, args.size(), false);
     }
 

@@ -55,7 +55,7 @@ public class ObjectCreateData implements ObjectData
     @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer().addComponents(true, this.header, this.body).asReadOnly();
+        return Unpooled.compositeBuffer(2).addComponents(true, this.header, this.body);
     }
 
     public ByteBuf applyHeader()

@@ -10,8 +10,6 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import org.jetbrains.annotations.Blocking;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -30,8 +28,9 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final byte version;
     protected final int stream;
+
+    protected final byte version;
 
     private final String localReason;
 
@@ -41,9 +40,8 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     {
         this.api = api;
         this.version = api.getVersion();
-        this.stream = 0x00;
+        this.stream = api.getStreamManager().acquire();
         this.handler = handler;
-
         this.localReason = ThreadLocalReason.getCurrent();
     }
 
@@ -57,6 +55,12 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     public Library getLibrary()
     {
         return this.api;
+    }
+
+    @Override
+    public int getStreamId()
+    {
+        return this.stream;
     }
 
     public static Consumer<? super Throwable> getDefaultFailure()

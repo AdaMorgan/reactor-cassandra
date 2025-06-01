@@ -51,7 +51,7 @@ public class ObjectCallbackData implements ObjectData
     @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer().addComponents(true, header, body).asReadOnly();
+        return Unpooled.compositeBuffer().addComponents(true, header, body);
     }
 
     public ByteBuf applyHeader()

@@ -12,6 +12,7 @@ import com.github.adamorgan.internal.requests.SocketClient;
 import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -100,9 +101,14 @@ public final class MessageDecoder extends ByteToMessageDecoder
             {
                 throw ErrorResponseException.create(ErrorResponse.fromBuffer(body), body);
             }
-            default:
+            case SocketCode.RESULT:
             {
                 this.requester.enqueue(version, flags, stream, opcode, length, body);
+                break;
+            }
+            default:
+            {
+                throw new UnsupportedOperationException("Unsupported opcode: " + opcode);
             }
         }
     }

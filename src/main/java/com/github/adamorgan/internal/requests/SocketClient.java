@@ -10,10 +10,13 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.codec.MessageDecoder;
 import com.github.adamorgan.internal.utils.codec.MessageEncoder;
+import com.github.adamorgan.internal.utils.config.SessionConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -38,28 +41,32 @@ public class SocketClient
     public static final byte DEFAULT_FLAG = 0x00;
     public static final int DEFAULT_STREAM_ID = 0x00;
 
+    public static final Class<? extends SocketChannel> CHANNEL_TYPE = Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class;
+
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
     private final StartingNode connectNode;
     private final LibraryImpl library;
-    private final EventLoopGroup scheduler;
+    private final Bootstrap client;
+    private final EventLoopGroup executor;
     private final SessionController controller;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
     private final Compression compression;
 
-    public SocketClient(LibraryImpl library, SocketAddress address, Compression compression)
+    public SocketClient(LibraryImpl library, SocketAddress address, Compression compression, SessionConfig config)
     {
         this.library = library;
+        this.client = config.getClient();
         this.address = address;
         this.compression = compression;
-        this.scheduler = library.getEventLoopScheduler();
+        this.executor = library.getCallbackPool();
         this.controller = library.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
-    public class ChannelEventHandler extends ChannelInitializer<SocketChannel>
+    public class SocketHandler extends ChannelInitializer<SocketChannel>
     {
         @Override
         public void channelActive(@Nonnull ChannelHandlerContext context)
@@ -92,13 +99,13 @@ public class SocketClient
                 @Override
                 public void channelActive(@Nonnull ChannelHandlerContext ctx)
                 {
-                    ChannelEventHandler.this.channelActive(ctx);
+                    SocketHandler.this.channelActive(ctx);
                 }
 
                 @Override
                 public void channelInactive(@Nonnull ChannelHandlerContext ctx)
                 {
-                    ChannelEventHandler.this.channelInactive(ctx);
+                    SocketHandler.this.channelInactive(ctx);
                 }
             });
         }
@@ -115,7 +122,7 @@ public class SocketClient
         this.library.setStatus(Library.Status.SHUTDOWN);
         this.library.handleEvent(new ShutdownEvent(this.library, OffsetDateTime.now()));
 
-        this.scheduler.shutdownGracefully().addListener(future -> {
+        this.executor.shutdownGracefully().addListener(future -> {
             if (this.connectNode != null)
                 this.controller.removeSession(this.connectNode);
         });
@@ -150,6 +157,7 @@ public class SocketClient
         }
 
         ChannelFuture future = connectNode.connect(address);
+
         future.awaitUninterruptibly();
 
         if (future.isSuccess())
@@ -190,7 +198,7 @@ public class SocketClient
 
         this.library.setStatus(Library.Status.WAITING_TO_RECONNECT);
 
-        this.scheduler.schedule(() ->
+        this.executor.schedule(() ->
         {
             try
             {
@@ -241,13 +249,7 @@ public class SocketClient
         {
             this.api = client.library;
             this.callback = callback;
-            this.connectNode = new Bootstrap()
-                    .group(client.scheduler)
-                    .channel(NioSocketChannel.class)
-                    .handler(new SocketClient.ChannelEventHandler())
-                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                    .option(ChannelOption.SO_KEEPALIVE, true)
-                    .option(ChannelOption.TCP_NODELAY, true);
+            this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE).handler(new SocketHandler());
         }
 
         @Nonnull

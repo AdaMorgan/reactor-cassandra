@@ -24,8 +24,8 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.net.SocketAddress;
+import java.util.BitSet;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -53,17 +53,54 @@ public class LibraryImpl implements Library
     protected final ThreadingConfig threadConfig;
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
+    private final StreamManager streamManager;
 
     public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ShardInfo shardInfo, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
+        this.streamManager = new StreamManager();
         this.requester = new Requester(this);
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
         this.shardInfo = shardInfo;
         this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
-        this.client = new SocketClient(this, address, compression);
+        this.client = new SocketClient(this, address, compression, sessionConfig);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
+
+    }
+
+    @Nonnull
+    public StreamManager getStreamManager()
+    {
+        return streamManager;
+    }
+
+    public static class StreamManager {
+        private final BitSet used = new BitSet(32768);
+        private final ReentrantLock lock = new ReentrantLock();
+
+        public short acquire() {
+            lock.lock();
+            try {
+                int id = used.nextClearBit(1);
+                if (id == -1 || id >= 32768) {
+                    throw new IllegalStateException("No available stream IDs");
+                }
+                used.set(id);
+                return (short) id;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public void release(short id) {
+            lock.lock();
+            try {
+                used.clear(id & 0xFFFF); // Ensure unsigned short
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 
     public SocketClient getClient()
@@ -173,14 +210,7 @@ public class LibraryImpl implements Library
 
     @Nonnull
     @Override
-    public EventLoopGroup getEventLoopScheduler()
-    {
-        return threadConfig.getEventLoopScheduler();
-    }
-
-    @Nonnull
-    @Override
-    public ExecutorService getCallbackPool()
+    public EventLoopGroup getCallbackPool()
     {
         return threadConfig.getCallbackPool();
     }
