@@ -1,11 +1,12 @@
 package com.github.adamorgan.api.utils.binary;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 
 /**
  * Allows custom serialization for Binary Payloads of an Object.
  */
-interface SerializableBinary
+interface SerializableBinary extends Serializable
 {
     /**
      * Serialized {@link BinaryObject BinaryObject} for this object.
@@ -15,11 +16,5 @@ interface SerializableBinary
     @Nonnull
     BinaryObject toBinary();
 
-    /**
-     * Serialized {@code ByteArray} for this object.
-     * @return a {@code ByteArray} representing the current object
-     */
-    @Nonnull
-    byte[] toByteArray();
 }
 
