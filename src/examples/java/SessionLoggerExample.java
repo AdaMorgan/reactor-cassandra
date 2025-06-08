@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -27,31 +28,11 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         InetSocketAddress address = InetSocketAddress.createUnresolved("127.0.0.1", 9042);
 
-        LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
+        LibraryBuilder.createLight(address, "cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
                 .setCompression(Compression.SNAPPY)
                 .setEnableDebug(false)
                 .build();
-
-        Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add(844613816943771649L);
-        parameters.add("reganjohn");
-
-        long startTime = System.currentTimeMillis();
-        AtomicInteger counter = new AtomicInteger();
-
-        for (int i = 0; i < 25000; i++)
-        {
-            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(rowsResult -> {
-                counter.incrementAndGet();
-                if (counter.get() == 25000)
-                {
-                    System.out.println(System.currentTimeMillis() - startTime);
-                }
-            }, error -> {
-
-            });
-        }
     }
 
     @Override
@@ -69,28 +50,52 @@ public final class SessionLoggerExample extends ListenerAdapter
     @Override
     public void onReady(@Nonnull ReadyEvent event)
     {
-//        LibraryImpl api = (LibraryImpl) event.getLibrary();
-//
-//        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-//
-//        Collection<Serializable> parameters = new ArrayList<>();
-//        parameters.add(844613816943771649L);
-//        parameters.add("reganjohn");
-//
-//        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-//
-//        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
-//
-//        Map<String, Serializable> map = new HashMap<>();
-//        map.put("user_id", 844613816943771649L);
-//        map.put("username", "reganjohn");
-//
-//        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        LibraryImpl api = (LibraryImpl) event.getLibrary();
+
+        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+
+        Collection<Serializable> parameters = new ArrayList<>();
+        parameters.add(844613816943771649L);
+        parameters.add("reganjohn");
+
+        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+
+        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+
+        Map<String, Serializable> map = new HashMap<>();
+        map.put("user_id", 844613816943771649L);
+        map.put("username", "reganjohn");
+
+        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override
     public void onShutdown(@Nonnull ShutdownEvent event)
     {
         LibraryImpl.LOG.info("Shutting down...");
+    }
+
+    public void testResourceLeakDetector(LibraryImpl api)
+    {
+        Collection<Serializable> parameters = new ArrayList<>();
+        parameters.add(844613816943771649L);
+        parameters.add("reganjohn");
+
+        long startTime = System.currentTimeMillis();
+        AtomicInteger counter = new AtomicInteger();
+        final int count = 25000;
+
+        Consumer<RowsResultImpl> result = (rowsResult) -> {
+            counter.incrementAndGet();
+            if (counter.get() == count)
+            {
+                System.out.println(System.currentTimeMillis() - startTime);
+            }
+        };
+
+        for (int i = 0; i < count; i++)
+        {
+            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(result, Throwable::printStackTrace);
+        }
     }
 }

@@ -145,8 +145,7 @@ public class SnappyCompressor extends AbstractCompressor
             }
             // Allocate a heap buffer from the ByteBufAllocator as we may use a PooledByteBufAllocator and
             // so can eliminate the overhead of allocate a new byte[].
-            output = input.alloc()
-                    .heapBuffer(Snappy.uncompressedLength(in, inOffset, len));
+            output = input.alloc().heapBuffer(Snappy.uncompressedLength(in, inOffset, len));
             // Calculate the correct offset.
             int offset = output.arrayOffset() + output.writerIndex();
             byte[] out = output.array();
