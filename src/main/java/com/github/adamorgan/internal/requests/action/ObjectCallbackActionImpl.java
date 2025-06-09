@@ -1,5 +1,6 @@
 package com.github.adamorgan.internal.requests.action;
 
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
@@ -101,6 +102,13 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
     public ObjectData finalizeData()
     {
         return new ObjectCallbackData(this, version, stream);
+    }
+
+    @Nonnull
+    @Override
+    public ObjectAction<ByteBuf> deadline(long timestamp)
+    {
+        return this.action.deadline(timestamp);
     }
 
     @Override

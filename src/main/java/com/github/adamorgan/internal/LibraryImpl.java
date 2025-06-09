@@ -19,13 +19,18 @@ import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
+import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.net.SocketAddress;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -41,6 +46,9 @@ public class LibraryImpl implements Library
     protected final ReentrantLock statusLock = new ReentrantLock();
     protected final Condition statusCondition = statusLock.newCondition();
 
+    protected final BitSet used = new BitSet(32768);
+    protected final ReentrantLock bitLock = new ReentrantLock();
+
     protected final AtomicInteger responseTotal = new AtomicInteger(0);
 
     protected final byte[] token;
@@ -49,16 +57,16 @@ public class LibraryImpl implements Library
 
     protected final Thread shutdownHook;
 
+    protected final ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(32768, false);
+
     protected final Requester requester;
     protected final ThreadingConfig threadConfig;
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
-    private final StreamManager streamManager;
 
     public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ShardInfo shardInfo, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
-        this.streamManager = new StreamManager();
         this.requester = new Requester(this);
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
@@ -67,39 +75,9 @@ public class LibraryImpl implements Library
         this.client = new SocketClient(this, address, compression, sessionConfig);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
 
-    }
-
-    @Nonnull
-    public StreamManager getStreamManager()
-    {
-        return streamManager;
-    }
-
-    public static class StreamManager {
-        private final BitSet used = new BitSet(32768);
-        private final ReentrantLock lock = new ReentrantLock();
-
-        public short acquire() {
-            lock.lock();
-            try {
-                int id = used.nextClearBit(1);
-                if (id == -1 || id >= 32768) {
-                    throw new IllegalStateException("No available stream IDs");
-                }
-                used.set(id);
-                return (short) id;
-            } finally {
-                lock.unlock();
-            }
-        }
-
-        public void release(short id) {
-            lock.lock();
-            try {
-                used.clear(id & 0xFFFF); // Ensure unsigned short
-            } finally {
-                lock.unlock();
-            }
+        for (int i = 1; i <= 32768; i++)
+        {
+            this.queue.add(i);
         }
     }
 
@@ -228,6 +206,24 @@ public class LibraryImpl implements Library
     public int getMaxBufferSize()
     {
         return sessionConfig.getMaxBufferSize();
+    }
+
+    @Blocking
+    public int acquire(long timeout) throws TimeoutException
+    {
+        try
+        {
+            return this.queue.poll(timeout, TimeUnit.MILLISECONDS);
+        }
+        catch (InterruptedException | NullPointerException failException)
+        {
+            throw new TimeoutException();
+        }
+    }
+
+    public void release(int id)
+    {
+        this.queue.offer(id);
     }
 
     public void setStatus(Status status)

@@ -16,12 +16,6 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
         this.action = action;
     }
 
-    @Override
-    public int getStreamId()
-    {
-        return this.action.getStreamId();
-    }
-
     protected static <E> void doSuccess(Consumer<? super E> callback, E value)
     {
         if (callback == null)
@@ -53,6 +47,20 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
                 doFailure(failure, ex);
             }
         }, failure);
+    }
+
+    @Override
+    public int getStreamId()
+    {
+        return this.action.getStreamId();
+    }
+
+    @Nonnull
+    @Override
+    public ObjectAction<O> deadline(long timestamp)
+    {
+        action.deadline(timestamp);
+        return this;
     }
 
     @Nonnull

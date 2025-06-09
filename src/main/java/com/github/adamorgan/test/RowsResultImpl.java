@@ -19,7 +19,9 @@ public class RowsResultImpl
         this.buffer = buffer;
     }
 
-    public String run() {
+    @Override
+    public String toString()
+    {
         int rowsFlag = buffer.readInt();
 
         boolean hasGlobalTableSpec = (rowsFlag & 0x0001) != 0;
@@ -69,12 +71,6 @@ public class RowsResultImpl
         LinkedList<String> rows = this.rows.stream().map(RowImpl::toString).collect(Collectors.toCollection(LinkedList::new));
 
         return new StringTableUtils.Table(columns, rows).toString();
-    }
-
-    @Override
-    public String toString()
-    {
-        return run();
     }
 
     private static String readString(@Nonnull ByteBuf buffer)

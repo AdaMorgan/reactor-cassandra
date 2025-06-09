@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -74,6 +75,18 @@ public interface ObjectAction<T>
     {
         return ObjectActionImpl.getDefaultSuccess();
     }
+
+    @Nonnull
+    @CheckReturnValue
+    default ObjectAction<T> timeout(long timeout, @Nonnull TimeUnit unit)
+    {
+        Checks.notNull(unit, "TimeUnit");
+        return deadline(timeout <= 0 ? 0 : System.currentTimeMillis() + unit.toMillis(timeout));
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    ObjectAction<T> deadline(long timestamp);
 
     @Nonnull
     @CheckReturnValue

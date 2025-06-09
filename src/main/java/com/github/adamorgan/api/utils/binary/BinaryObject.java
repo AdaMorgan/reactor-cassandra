@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Spliterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -17,6 +18,8 @@ import java.util.function.Function;
 public class BinaryObject implements SerializableBinary, Iterable<Serializable>
 {
     public static final Logger LOG = LibraryLogger.getLog(BinaryObject.class);
+
+    protected final AtomicInteger index = new AtomicInteger(0);
 
     public BinaryObject(ByteBuf buffer)
     {

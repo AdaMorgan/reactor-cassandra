@@ -7,18 +7,13 @@ import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Deque;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Requester
 {
@@ -26,17 +21,11 @@ public class Requester
 
     private final LibraryImpl library;
 
-    private final Map<Short, Request<?>> buckets = new ConcurrentHashMap<>();
-    private final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
-
-    private final ReentrantLock lock = new ReentrantLock();
-
-    private final LibraryImpl.StreamManager manager;
+    private final Map<Short, Request<?>> queue = new ConcurrentHashMap<>();
 
     public Requester(LibraryImpl library)
     {
         this.library = library;
-        this.manager = library.getStreamManager();
     }
 
     @Nullable
@@ -45,41 +34,28 @@ public class Requester
         return this.library.getClient().getContext();
     }
 
-    @Nonnull
-    public Queue<WorkTask> getRequests()
-    {
-        return this.requests;
-    }
-
     public <R> void execute(@Nonnull Request<R> request)
     {
         if (getContext() != null)
         {
             short streamId = (short) request.getObjectAction().getStreamId();
 
-            try
-            {
-                buckets.put(streamId, request);
-                getContext().writeAndFlush(request.getBody().retain());
-            }
-            catch (IllegalStateException e)
-            {
-                requests.add(new WorkTask(request));
-            }
+            queue.put(streamId, request);
+            getContext().writeAndFlush(request.getBody().retain());
         }
         else
         {
-            requests.add(new WorkTask(request));
+            throw new IllegalStateException("Premature execution of a request");
         }
     }
 
     public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
     {
-        Request<?> request = buckets.remove(stream);
+        Request<?> request = queue.remove(stream);
 
         if (request != null)
         {
-            manager.release(stream);
+            this.library.release(stream);
             request.handleResponse(new Response(version, flags, stream, opcode, length, body));
             body.release();
         }

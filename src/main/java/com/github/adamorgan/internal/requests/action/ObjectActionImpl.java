@@ -1,7 +1,6 @@
 package com.github.adamorgan.internal.requests.action;
 
 import com.github.adamorgan.api.Library;
-import com.github.adamorgan.api.audit.ThreadLocalReason;
 import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.ObjectFuture;
@@ -16,6 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -32,17 +32,23 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final byte version;
 
-    private final String localReason;
-
     protected final BiFunction<Request<T>, Response, T> handler;
 
+    //TODO-Failure: TimeoutException should be thrown in queue(onFailure)
     public ObjectActionImpl(LibraryImpl api, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
         this.version = api.getVersion();
-        this.stream = api.getStreamManager().acquire();
         this.handler = handler;
-        this.localReason = ThreadLocalReason.getCurrent();
+
+        try
+        {
+            this.stream = api.acquire(1000);
+        }
+        catch (TimeoutException e)
+        {
+            throw new IllegalStateException("Request timed out");
+        }
     }
 
     public ObjectActionImpl(LibraryImpl api)

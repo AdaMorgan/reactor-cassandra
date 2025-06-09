@@ -28,11 +28,13 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         InetSocketAddress address = InetSocketAddress.createUnresolved("127.0.0.1", 9042);
 
-        LibraryBuilder.createLight(address, "cassandra", "cassandra")
+        LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
                 .addEventListeners(new SessionLoggerExample())
                 .setCompression(Compression.SNAPPY)
                 .setEnableDebug(false)
                 .build();
+
+        //new SessionLoggerExample().testResourceLeakDetector(api);
     }
 
     @Override
@@ -52,7 +54,9 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, error -> {
+            System.out.println(error.getMessage());
+        });
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);
@@ -60,13 +64,13 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
-        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
         Map<String, Serializable> map = new HashMap<>();
         map.put("user_id", 844613816943771649L);
         map.put("username", "reganjohn");
 
-        api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        //api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
     }
 
     @Override
