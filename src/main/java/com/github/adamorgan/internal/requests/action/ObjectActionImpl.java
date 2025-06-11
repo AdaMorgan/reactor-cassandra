@@ -15,6 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -43,7 +44,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
         try
         {
-            this.stream = api.acquire(1000);
+            this.stream = api.acquire(1000, TimeUnit.MILLISECONDS);
         }
         catch (TimeoutException e)
         {
@@ -93,7 +94,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
             failure = DEFAULT_FAILURE;
         }
 
-        api.getRequester().execute(new Request<>(this, body, success, failure, getDeadline()));
+        api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
     }
 
     @Override
@@ -140,6 +141,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         }
     }
 
+    //TODO: replace void with CallbackRunnable
     protected void handleSuccess(Request<T> request, Response response)
     {
         T successObj = handler == null ? null : handler.apply(request, response);

@@ -34,13 +34,18 @@ public class Requester
         return this.library.getClient().getContext();
     }
 
-    public <R> void execute(@Nonnull Request<R> request)
+    public <R> void request(@Nonnull Request<R> request)
+    {
+        execute(new WorkTask(request));
+    }
+
+    private void execute(WorkTask request)
     {
         if (getContext() != null)
         {
-            short streamId = (short) request.getObjectAction().getStreamId();
+            short streamId = (short) request.request.getObjectAction().getStreamId();
 
-            queue.put(streamId, request);
+            queue.put(streamId, request.request);
             getContext().writeAndFlush(request.getBody().retain());
         }
         else
@@ -51,18 +56,10 @@ public class Requester
 
     public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
     {
-        Request<?> request = queue.remove(stream);
-
-        if (request != null)
-        {
-            this.library.release(stream);
-            request.handleResponse(new Response(version, flags, stream, opcode, length, body));
-            body.release();
-        }
-        else
-        {
-            body.release();
-        }
+        WorkTask task = new WorkTask(queue.remove(stream));
+        this.library.release(stream);
+        task.handleResponse(new Response(version, flags, stream, opcode, length, body));
+        body.release();
     }
 
     public class WorkTask implements Work
@@ -86,7 +83,7 @@ public class Requester
         @Override
         public void execute()
         {
-            Requester.this.execute(request);
+            Requester.this.request(request);
         }
 
         @Nonnull
@@ -105,7 +102,7 @@ public class Requester
         @Override
         public boolean isDone()
         {
-            return request.isSkipped() || done;
+            return isSkipped() || done;
         }
 
         @Override

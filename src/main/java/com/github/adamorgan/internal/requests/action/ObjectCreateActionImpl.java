@@ -7,6 +7,7 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
@@ -18,7 +19,7 @@ import javax.annotation.Nonnull;
 import java.util.EnumSet;
 import java.util.Objects;
 
-public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<ByteBuf>
+public class ObjectCreateActionImpl extends ObjectActionImpl<BinaryArray> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<BinaryArray>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
     protected boolean useCache = true;
@@ -30,7 +31,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
     }
 
     @Override
-    protected void handleSuccess(@Nonnull Request<ByteBuf> request, @Nonnull Response response)
+    protected void handleSuccess(@Nonnull Request<BinaryArray> request, @Nonnull Response response)
     {
         switch (response.getType())
         {
@@ -40,7 +41,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
             }
             case ROWS:
             {
-                request.onSuccess(response.getBody());
+                request.onSuccess(new BinaryArray(response.getBody()));
                 break;
             }
             case SET_KEYSPACE:
@@ -141,7 +142,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public CacheObjectAction<ByteBuf> useCache(boolean useCache)
+    public CacheObjectAction<BinaryArray> useCache(boolean useCache)
     {
         this.useCache = useCache;
         return this;
@@ -149,7 +150,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<ByteBuf> implements
 
     @Nonnull
     @Override
-    public ObjectAction<ByteBuf> deadline(long timestamp)
+    public ObjectAction<BinaryArray> deadline(long timestamp)
     {
         return this;
     }

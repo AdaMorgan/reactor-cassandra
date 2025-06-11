@@ -6,6 +6,7 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCallbackData;
 import com.github.adamorgan.internal.utils.request.ObjectData;
@@ -15,7 +16,7 @@ import javax.annotation.Nonnull;
 import java.util.EnumSet;
 import java.util.Objects;
 
-public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> implements ObjectCallbackAction
+public final class ObjectCallbackActionImpl extends ObjectActionImpl<BinaryArray> implements ObjectCallbackAction
 {
     private final ByteBuf token;
     private final ObjectCreateActionImpl action;
@@ -32,7 +33,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
     }
 
     @Override
-    protected void handleSuccess(Request<ByteBuf> request, Response response)
+    protected void handleSuccess(Request<BinaryArray> request, Response response)
     {
         this.action.handleSuccess(request, response);
     }
@@ -106,7 +107,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<ByteBuf> im
 
     @Nonnull
     @Override
-    public ObjectAction<ByteBuf> deadline(long timestamp)
+    public ObjectAction<BinaryArray> deadline(long timestamp)
     {
         return this.action.deadline(timestamp);
     }

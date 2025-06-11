@@ -5,6 +5,8 @@ import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.binary.BinaryArray;
+import com.github.adamorgan.api.utils.binary.BinaryObject;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.test.RowsResultImpl;
 
@@ -54,15 +56,13 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.sendRequest(TEST_QUERY).map(RowsResultImpl::new).queue(System.out::println, error -> {
-            System.out.println(error.getMessage());
-        });
+        api.sendRequest(TEST_QUERY).map(array -> array).queue(System.out::println, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);
         parameters.add("reganjohn");
 
-        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(array -> array).queue(System.out::println, Throwable::printStackTrace);
 
         //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 
@@ -89,7 +89,7 @@ public final class SessionLoggerExample extends ListenerAdapter
         AtomicInteger counter = new AtomicInteger();
         final int count = 25000;
 
-        Consumer<RowsResultImpl> result = (rowsResult) -> {
+        Consumer<BinaryArray> result = (rowsResult) -> {
             counter.incrementAndGet();
             if (counter.get() == count)
             {
@@ -99,7 +99,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         for (int i = 0; i < count; i++)
         {
-            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(result, Throwable::printStackTrace);
+            api.sendRequest(TEST_QUERY_PREPARED, parameters).queue(result, Throwable::printStackTrace);
         }
     }
 }

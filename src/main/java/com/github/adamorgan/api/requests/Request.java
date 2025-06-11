@@ -1,9 +1,11 @@
 package com.github.adamorgan.api.requests;
 
+import com.github.adamorgan.api.events.ExceptionEvent;
 import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.requests.CallbackContext;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 
@@ -67,7 +69,21 @@ public class Request<T>
             return;
         }
         done = true;
-        this.onSuccess.accept(successObj);
+        ObjectActionImpl.LOG.trace("Scheduling success callback for request");
+        try (CallbackContext ___ = CallbackContext.getInstance())
+        {
+            ObjectActionImpl.LOG.trace("Running success callback for request");
+            onSuccess.accept(successObj);
+        }
+        catch (Throwable t)
+        {
+            ObjectActionImpl.LOG.error("Encountered error while processing success consumer", t);
+            if (t instanceof Error)
+            {
+                api.handleEvent(new ExceptionEvent(api, t, true));
+                throw (Error) t;
+            }
+        }
     }
 
     public void onFailure(Throwable failException)
@@ -77,7 +93,22 @@ public class Request<T>
             return;
         }
         done = true;
-        this.onFailure.accept(failException);
+        try (CallbackContext ___ = CallbackContext.getInstance())
+        {
+            ObjectActionImpl.LOG.trace("Running failure callback for request");
+            onFailure.accept(failException);
+            if (failException instanceof Error)
+                api.handleEvent(new ExceptionEvent(api, failException, false));
+        }
+        catch (Throwable failure)
+        {
+            ObjectActionImpl.LOG.error("Encountered error while processing failure consumer", failure);
+            if (failure instanceof Error)
+            {
+                api.handleEvent(new ExceptionEvent(api, failure, true));
+                throw (Error) failure;
+            }
+        }
     }
 
     public void onCancelled()

@@ -20,6 +20,7 @@ import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import org.jetbrains.annotations.Blocking;
+import org.jetbrains.annotations.NonBlocking;
 import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
@@ -28,6 +29,7 @@ import javax.annotation.Nullable;
 import java.net.SocketAddress;
 import java.util.BitSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -208,12 +210,25 @@ public class LibraryImpl implements Library
         return sessionConfig.getMaxBufferSize();
     }
 
-    @Blocking
-    public int acquire(long timeout) throws TimeoutException
+    @NonBlocking
+    public int acquire() throws NoSuchElementException
     {
         try
         {
-            return this.queue.poll(timeout, TimeUnit.MILLISECONDS);
+            return this.queue.poll();
+        }
+        catch (NullPointerException failException)
+        {
+            throw new NoSuchElementException();
+        }
+    }
+
+    @Blocking
+    public int acquire(long timeout, TimeUnit unit) throws TimeoutException
+    {
+        try
+        {
+            return this.queue.poll(timeout, unit);
         }
         catch (InterruptedException | NullPointerException failException)
         {

@@ -16,7 +16,7 @@ public class ObjectFuture<T> extends CompletableFuture<T>
         this.action = action;
         this.request = new Request<>(action, body, this::complete, this::completeExceptionally, deadline);
 
-        ((LibraryImpl) this.action.getLibrary()).getRequester().execute(this.request);
+        ((LibraryImpl) this.action.getLibrary()).getRequester().request(this.request);
     }
 
     @Override
