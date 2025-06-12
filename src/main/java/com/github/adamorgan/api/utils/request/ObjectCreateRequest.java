@@ -2,7 +2,7 @@ package com.github.adamorgan.api.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.utils.Checks;
-import com.github.adamorgan.internal.utils.requestbody.BinaryType;
+import com.github.adamorgan.api.utils.binary.BinaryType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

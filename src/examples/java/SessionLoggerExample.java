@@ -6,9 +6,7 @@ import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.binary.BinaryArray;
-import com.github.adamorgan.api.utils.binary.BinaryObject;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.test.RowsResultImpl;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -24,7 +22,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 {
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
     public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
-    public static final String TEST_QUERY = "SELECT * FROM system.clients ALLOW FILTERING";
+    public static final String TEST_QUERY = "SELECT * FROM system_traces.all_types";
 
     public static void main(String[] args)
     {
@@ -62,7 +60,7 @@ public final class SessionLoggerExample extends ListenerAdapter
         parameters.add(844613816943771649L);
         parameters.add("reganjohn");
 
-        api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(array -> array).queue(System.out::println, Throwable::printStackTrace);
+        //api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(array -> array).queue(System.out::println, Throwable::printStackTrace);
 
         //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
 

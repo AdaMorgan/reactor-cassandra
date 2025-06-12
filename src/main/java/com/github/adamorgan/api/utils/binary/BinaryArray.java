@@ -1,22 +1,18 @@
 package com.github.adamorgan.api.utils.binary;
 
+import com.github.adamorgan.internal.utils.EncodingUtils;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
-import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.io.Serializable;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * <p>Throws {@link java.lang.IndexOutOfBoundsException}
- * if provided with index out of bounds.
- *
- * <p>This class is not Thread-Safe
+ * <p>Throws {@link java.lang.IndexOutOfBoundsException} if provided with index out of bounds.
  */
 public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
 {
@@ -27,10 +23,131 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
     protected final ByteBuf obj;
     protected final int flags;
 
-    public BinaryArray(ByteBuf obj)
+    public BinaryArray(@Nonnull ByteBuf obj)
     {
         this.obj = obj;
         this.flags = obj.readInt();
+
+        boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
+        boolean hasMorePages = (flags & 0x0002) != 0;
+        boolean noMetadata = (flags & 0x0004) != 0;
+
+        String keyspace = "";
+        String table = "";
+
+        int columnsCount = obj.readInt();
+
+        if (hasGlobalTableSpec)
+        {
+            keyspace = EncodingUtils.unpackUTF84(obj);
+            table = EncodingUtils.unpackUTF84(obj);
+        }
+
+        if (hasMorePages)
+        {
+            obj.skipBytes(obj.readInt());
+        }
+
+        List<ColumnImpl> columns = new ArrayList<>();
+        if (!noMetadata)
+        {
+            for (int i = 0; i < columnsCount; i++)
+            {
+                if (!hasGlobalTableSpec)
+                {
+                    keyspace = EncodingUtils.unpackUTF84(obj);
+                    table = EncodingUtils.unpackUTF84(obj);
+                }
+
+                String name = EncodingUtils.unpackUTF84(obj);
+                int type = obj.readUnsignedShort();
+
+                switch (type)
+                {
+                    case 0x0020: // LIST
+                    case 0x0022: // SET
+                    {
+                        int x = obj.readShort();
+                        break;
+                    }
+                    case 0x0021: // MAP
+                    {
+                        int k = obj.readShort();
+                        int v = obj.readShort();
+                        break;
+                    }
+                    case 0x0030: //UDP
+                    {
+                        String udtKeyspace = EncodingUtils.unpackUTF84(obj);
+                        String udtName = EncodingUtils.unpackUTF84(obj);
+                        int fieldsCount = obj.readUnsignedShort();
+                        for (int j = 0; j < fieldsCount; j++) {
+                            String fieldName = EncodingUtils.unpackUTF84(obj);
+                            int x = obj.readUnsignedShort();
+                        }
+                        break;
+                    }
+                    case 0x0031: // TUPLE
+                    {
+                        int count = obj.readUnsignedShort();
+                        for (int j = 0; j < count; j++) {
+                            int x = obj.readShort();
+                        }
+                        break;
+                    }
+                }
+
+                ColumnImpl column = new ColumnImpl(keyspace, table, name, type);
+                columns.add(column);
+            }
+
+            int rowsCount = obj.readInt();
+
+            List<Serializable> rows = new ArrayList<>();
+            for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++)
+            {
+                for (ColumnImpl column : columns)
+                {
+                    int length = obj.readInt();
+                    Serializable value = EncodingUtils.unpack(obj, column.type, length);
+                    rows.add(value);
+                }
+            }
+            System.out.println(rows);
+        }
+    }
+
+    public static class ColumnImpl
+    {
+        private final String keyspace;
+        private final String tableName;
+        private final String name;
+        private final int type;
+
+        public ColumnImpl(String keyspace, String tableName, String name, int type)
+        {
+            this.keyspace = keyspace;
+            this.tableName = tableName;
+            this.name = name;
+            this.type = type;
+        }
+
+        @Nonnull
+        public String getName()
+        {
+            return name;
+        }
+
+        public int getType()
+        {
+            return type;
+        }
+
+        @Override
+        public String toString()
+        {
+            return String.format("%s.%s.%s [%s]", keyspace, tableName, name, type);
+        }
     }
 
     public int getRawFlags()
@@ -38,6 +155,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return flags;
     }
 
+    @Nonnull
     public EnumSet<BinaryFlags> getFlags()
     {
         return BinaryFlags.fromBitField(flags);
@@ -89,7 +207,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
     @Override
     public String toString()
     {
-        return super.toString();
+        return "";
     }
 
     @Nonnull

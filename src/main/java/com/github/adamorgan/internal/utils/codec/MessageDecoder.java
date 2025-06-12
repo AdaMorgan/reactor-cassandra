@@ -12,7 +12,6 @@ import com.github.adamorgan.internal.requests.SocketClient;
 import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -138,8 +137,8 @@ public final class MessageDecoder extends ByteToMessageDecoder
 
             for (Map.Entry<String, String> entry : map.entrySet())
             {
-                EncodingUtils.encodeUTF84(body, entry.getKey());
-                EncodingUtils.encodeUTF84(body, entry.getValue());
+                EncodingUtils.packUTF84(body, entry.getKey());
+                EncodingUtils.packUTF84(body, entry.getValue());
             }
 
             return Unpooled.directBuffer()
@@ -177,7 +176,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
         return new SocketClient.ConnectNode(this.library, () ->
         {
             ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
-                    .collect(Unpooled::directBuffer, EncodingUtils::encodeUTF88, ByteBuf::writeBytes);
+                    .collect(Unpooled::directBuffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
 
             return Unpooled.directBuffer()
                     .writeByte(version)

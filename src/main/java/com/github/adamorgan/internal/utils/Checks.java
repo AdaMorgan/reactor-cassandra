@@ -3,6 +3,7 @@ package com.github.adamorgan.internal.utils;
 import org.intellij.lang.annotations.PrintFormat;
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serializable;
 import java.util.Collection;
 
 public class Checks
