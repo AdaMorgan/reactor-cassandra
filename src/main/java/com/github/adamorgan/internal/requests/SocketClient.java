@@ -30,6 +30,7 @@ import java.net.SocketAddress;
 import java.time.OffsetDateTime;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -40,6 +41,8 @@ public class SocketClient
 
     public static final byte DEFAULT_FLAG = 0x00;
     public static final int DEFAULT_STREAM_ID = 0x00;
+
+    private int reconnectTimeoutS = 0;
 
     public static final Class<? extends SocketChannel> CHANNEL_TYPE = Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class;
 
@@ -81,7 +84,7 @@ public class SocketClient
         {
             library.setStatus(Library.Status.DISCONNECTED);
             library.handleEvent(new SessionDisconnectEvent(library, OffsetDateTime.now()));
-            reconnect(0);
+            reconnect(reconnectTimeoutS);
         }
 
         @Override
@@ -192,7 +195,7 @@ public class SocketClient
 
     public final void reconnect(int reconnectTimeS)
     {
-        int delay = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.library.getMaxReconnectDelay());
+        int delay = reconnectTimeoutS = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.library.getMaxReconnectDelay());
 
         LOG.debug("Reconnect attempt in {}s", delay);
 
@@ -262,7 +265,9 @@ public class SocketClient
         @Nonnull
         public ChannelFuture connect(SocketAddress inetSocketAddress)
         {
-            return this.connectNode.connect(inetSocketAddress).addListener(future -> this.callback.accept(this));
+            return this.connectNode.connect(inetSocketAddress).addListener(future -> {
+                this.callback.accept(this);
+            });
         }
     }
 }
