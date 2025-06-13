@@ -1,15 +1,14 @@
 package com.github.adamorgan.api.utils.binary;
 
 import com.github.adamorgan.internal.utils.EncodingUtils;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 
 import javax.annotation.Nonnull;
-import java.io.Serializable;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 /**
  * <p>Throws {@link java.lang.IndexOutOfBoundsException} if provided with index out of bounds.
@@ -18,136 +17,66 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
 {
     public static final BinaryObject[] EMPTY_BUFFER = new BinaryObject[0];
 
-    protected final TLongObjectMap<BinaryObject> elements = new TLongObjectHashMap<>();
+    protected final List<BinaryObject> elements;
 
-    protected final ByteBuf obj;
+    protected final ByteBuf raw;
     protected final int flags;
+    protected final int columnsCount;
 
-    public BinaryArray(@Nonnull ByteBuf obj)
+    protected final boolean isGlobal;
+    protected final boolean hasMorePages;
+    protected final boolean hasMetadata;
+
+    protected final String keyspace;
+    protected final String table;
+
+    public BinaryArray(@Nonnull ByteBuf raw)
     {
-        this.obj = obj;
-        this.flags = obj.readInt();
+        this.raw = raw;
+        this.flags = raw.readInt();
 
-        boolean hasGlobalTableSpec = (flags & 0x0001) != 0;
-        boolean hasMorePages = (flags & 0x0002) != 0;
-        boolean noMetadata = (flags & 0x0004) != 0;
+        this.isGlobal = (flags & 0x0001) != 0;
+        this.hasMorePages = (flags & 0x0002) != 0;
+        this.hasMetadata = (flags & 0x0004) != 0;
 
-        String keyspace = "";
-        String table = "";
+        this.columnsCount = raw.readInt();
 
-        int columnsCount = obj.readInt();
-
-        if (hasGlobalTableSpec)
-        {
-            keyspace = EncodingUtils.unpackUTF84(obj);
-            table = EncodingUtils.unpackUTF84(obj);
-        }
+        this.keyspace = isGlobal ? EncodingUtils.unpackUTF84(raw) : null;
+        this.table = isGlobal ? EncodingUtils.unpackUTF84(raw) : null;
 
         if (hasMorePages)
         {
-            obj.skipBytes(obj.readInt());
+            raw.skipBytes(raw.readInt()); // The assembly of frames is done via Netty
         }
 
-        List<ColumnImpl> columns = new ArrayList<>();
-        if (!noMetadata)
-        {
-            for (int i = 0; i < columnsCount; i++)
-            {
-                if (!hasGlobalTableSpec)
-                {
-                    keyspace = EncodingUtils.unpackUTF84(obj);
-                    table = EncodingUtils.unpackUTF84(obj);
-                }
+        this.elements = new BinaryCollector(this).finisher().apply(this).collect(Collectors.toList());
 
-                String name = EncodingUtils.unpackUTF84(obj);
-                int type = obj.readUnsignedShort();
-
-                switch (type)
-                {
-                    case 0x0020: // LIST
-                    case 0x0022: // SET
-                    {
-                        int x = obj.readShort();
-                        break;
-                    }
-                    case 0x0021: // MAP
-                    {
-                        int k = obj.readShort();
-                        int v = obj.readShort();
-                        break;
-                    }
-                    case 0x0030: //UDP
-                    {
-                        String udtKeyspace = EncodingUtils.unpackUTF84(obj);
-                        String udtName = EncodingUtils.unpackUTF84(obj);
-                        int fieldsCount = obj.readUnsignedShort();
-                        for (int j = 0; j < fieldsCount; j++) {
-                            String fieldName = EncodingUtils.unpackUTF84(obj);
-                            int x = obj.readUnsignedShort();
-                        }
-                        break;
-                    }
-                    case 0x0031: // TUPLE
-                    {
-                        int count = obj.readUnsignedShort();
-                        for (int j = 0; j < count; j++) {
-                            int x = obj.readShort();
-                        }
-                        break;
-                    }
-                }
-
-                ColumnImpl column = new ColumnImpl(keyspace, table, name, type);
-                columns.add(column);
-            }
-
-            int rowsCount = obj.readInt();
-
-            List<Serializable> rows = new ArrayList<>();
-            for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++)
-            {
-                for (ColumnImpl column : columns)
-                {
-                    int length = obj.readInt();
-                    Serializable value = EncodingUtils.unpack(obj, column.type, length);
-                    rows.add(value);
-                }
-            }
-            System.out.println(rows);
-        }
-    }
-
-    public static class ColumnImpl
-    {
-        private final String keyspace;
-        private final String tableName;
-        private final String name;
-        private final int type;
-
-        public ColumnImpl(String keyspace, String tableName, String name, int type)
-        {
-            this.keyspace = keyspace;
-            this.tableName = tableName;
-            this.name = name;
-            this.type = type;
-        }
-
-        @Nonnull
-        public String getName()
-        {
-            return name;
-        }
-
-        public int getType()
-        {
-            return type;
-        }
-
-        @Override
-        public String toString()
-        {
-            return String.format("%s.%s.%s [%s]", keyspace, tableName, name, type);
-        }
+//        if (!hasMetadata)
+//        {
+//            this.paths = IntStream.range(0, columnsCount)
+//                    .mapToObj(i ->
+//                    {
+//                        String x = !isGlobal ? EncodingUtils.unpackUTF84(raw) : keyspace;
+//                        String y = !isGlobal ? EncodingUtils.unpackUTF84(raw) : table;
+//
+//                        return new BinaryPath(x, y, EncodingUtils.unpackUTF84(raw), raw.readUnsignedShort());
+//                    })
+//                    .collect(Collectors.toList());
+//
+//            this.elements = IntStream.range(0, raw.readInt())
+//                    .boxed()
+//                    .flatMap(i -> this.paths.stream())
+//                    .map(path ->
+//                    {
+//                        int length = raw.readInt();
+//                        ByteBuf rawData = raw.readSlice(length).retain();
+//                        return new BinaryObject(rawData, path, length);
+//                    }).collect(Collectors.toList());
+//        }
+//        else
+//        {
+//            throw new UnsupportedOperationException();
+//        }
     }
 
     public int getRawFlags()
@@ -166,7 +95,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return elements.size();
     }
 
-    public boolean isEmpty()
+    public boolean isHasMetadata()
     {
         return elements.isEmpty();
     }
@@ -175,7 +104,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
     @Override
     public Iterator<BinaryObject> iterator()
     {
-        return new ObjectArrayIterator<>(elements.values(EMPTY_BUFFER));
+        return elements.iterator();
     }
 
     @Override
@@ -193,7 +122,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
     @Override
     public void forEach(Consumer<? super BinaryObject> action)
     {
-        for (BinaryObject value : this.elements.valueCollection())
+        for (BinaryObject value : this.elements)
         {
             action.accept(value);
         }

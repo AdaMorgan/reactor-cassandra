@@ -4,13 +4,14 @@ import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.awt.*;
+import java.awt.List;
 import java.io.ObjectStreamClass;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.text.DecimalFormat;
 import java.time.OffsetDateTime;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -30,6 +31,9 @@ public enum BinaryType
     VARCHAR(String.class, 0x000D, 0, EncodingUtils::packUTF84, EncodingUtils::unpackUTF, false),
     INET(InetAddress.class, 0x0010, 16, EncodingUtils::packInet, EncodingUtils::unpackInet),
     DATE(OffsetDateTime.class, 0x0011, 16, EncodingUtils::packDate, EncodingUtils::unpackDate),
+    LIST(List.class, 0x0020, 0, null, null),
+    MAP(HashMap.class, 0x0021, 0, null, null),
+    SET(HashSet.class, 0x0022, 16, null, null),
     BOOLEAN(Boolean.class, 0x0004, 1, EncodingUtils::packBoolean, EncodingUtils::unpackBoolean);
 
     private final long uid;
@@ -56,7 +60,8 @@ public enum BinaryType
         this.pack = pack;
         this.unpack = unpack;
         this.isReadable = isReadable;
-        this.uid = lookup.andThen(serialize).apply(type);
+        this.uid = lookup.andThen(serialize)
+                .apply(type);
     }
 
     public long getSerialVersionUID()

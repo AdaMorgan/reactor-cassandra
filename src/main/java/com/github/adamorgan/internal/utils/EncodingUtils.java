@@ -76,6 +76,47 @@ public class EncodingUtils {
             return EncodingUtils.unpackUUID(buffer, length);
         }
 
+        if (LIST.offset == type)
+        {
+            int x = buffer.readShort();
+            return null;
+        }
+
+        if (MAP.offset == type)
+        {
+            int k = buffer.readShort();
+            int v = buffer.readShort();
+            return null;
+        }
+
+        if (SET.offset == type)
+        {
+            int x = buffer.readShort();
+            return null;
+        }
+
+        if (0x0030 == type) //UDT
+        {
+            String udtKeyspace = EncodingUtils.unpackUTF84(buffer);
+            String udtName = EncodingUtils.unpackUTF84(buffer);
+            int fieldsCount = buffer.readUnsignedShort();
+            for (int j = 0; j < fieldsCount; j++)
+            {
+                String fieldName = EncodingUtils.unpackUTF84(buffer);
+                int x = buffer.readUnsignedShort();
+            }
+            return null;
+        }
+
+        if (0x0031 == type) // TUPLE
+        {
+            int count = buffer.readUnsignedShort();
+            for (int j = 0; j < count; j++) {
+                int x = buffer.readShort();
+            }
+            return null;
+        }
+
         throw new UnsupportedOperationException(String.format("Unsupported type: 0x%04X", type));
     }
 
@@ -169,7 +210,7 @@ public class EncodingUtils {
 
         long other = (long) obj;
 
-        buffer.writeInt(BIGINT.length);
+        buffer.writeInt(8);
         return buffer.writeLong(other);
     }
 
@@ -183,7 +224,7 @@ public class EncodingUtils {
         }
 
         int other = (int) obj;
-        buffer.writeInt(INT.length);
+        buffer.writeInt(4);
         return buffer.writeInt(other);
     }
 
@@ -196,7 +237,7 @@ public class EncodingUtils {
             throw new ClassCastException();
         }
         short other = (short) obj;
-        buffer.writeShort(SMALLINT.length);
+        buffer.writeShort(2);
         return buffer.writeShort(other);
     }
 
@@ -210,7 +251,7 @@ public class EncodingUtils {
         }
 
         boolean other = (boolean) obj;
-        buffer.writeInt(BOOLEAN.length);
+        buffer.writeInt(1);
         return buffer.writeBoolean(other);
     }
 
@@ -223,7 +264,7 @@ public class EncodingUtils {
             throw new ClassCastException();
         }
         double other = (double) obj;
-        buffer.writeInt(DOUBLE.length);
+        buffer.writeInt(4);
         return buffer.writeDouble(other);
     }
 
@@ -249,7 +290,7 @@ public class EncodingUtils {
         }
 
         UUID other = (UUID) obj;
-        buffer.writeInt(UUID.length);
+        buffer.writeInt(16);
         buffer.writeLong(other.getMostSignificantBits());
         buffer.writeLong(other.getLeastSignificantBits());
         return buffer;
@@ -298,6 +339,7 @@ public class EncodingUtils {
         if (length < 0) {
             return null;
         }
+
         byte[] content = new byte[length];
         buffer.readBytes(content);
         return new String(content);

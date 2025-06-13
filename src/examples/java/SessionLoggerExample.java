@@ -22,7 +22,8 @@ public final class SessionLoggerExample extends ListenerAdapter
 {
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
     public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
-    public static final String TEST_QUERY = "SELECT * FROM system_traces.all_types";
+    //public static final String TEST_QUERY = "SELECT * FROM system_traces.all_types";
+    public static final String TEST_QUERY = "SELECT port FROM system.clients";
 
     public static void main(String[] args)
     {
@@ -54,7 +55,11 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.sendRequest(TEST_QUERY).map(array -> array).queue(System.out::println, error -> System.out.println(error.getMessage()));
+        api.sendRequest(TEST_QUERY).queue(array -> {
+            array.forEach(element -> {
+                System.out.println(element.getInt());
+            });
+        }, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);

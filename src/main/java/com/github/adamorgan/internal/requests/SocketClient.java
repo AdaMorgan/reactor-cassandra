@@ -195,9 +195,9 @@ public class SocketClient
 
     public final void reconnect(int reconnectTimeS)
     {
-        int delay = reconnectTimeoutS = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.library.getMaxReconnectDelay());
+        reconnectTimeoutS = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.library.getMaxReconnectDelay());
 
-        LOG.debug("Reconnect attempt in {}s", delay);
+        LOG.debug("Reconnect attempt in {}s", reconnectTimeoutS);
 
         this.library.setStatus(Library.Status.WAITING_TO_RECONNECT);
 
@@ -211,10 +211,10 @@ public class SocketClient
             }
             catch (RuntimeException failure)
             {
-                LOG.warn("Reconnect failed! Next attempt in {}s", delay);
-                reconnect(delay);
+                LOG.warn("Reconnect failed! Next attempt in {}s", reconnectTimeoutS);
+                reconnect(reconnectTimeS);
             }
-        }, delay, TimeUnit.SECONDS);
+        }, reconnectTimeoutS, TimeUnit.SECONDS);
     }
 
     public static class ConnectNode implements SessionController.SessionConnectNode

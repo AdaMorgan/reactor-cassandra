@@ -7,7 +7,7 @@ import io.netty.buffer.ByteBufUtil;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.io.Serializable;
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.BiFunction;
 
@@ -18,20 +18,31 @@ public class BinaryObject implements SerializableBinary
 {
     public static final Logger LOG = LibraryLogger.getLog(BinaryObject.class);
 
-    protected final ByteBuf obj;
-    protected final BinaryType type;
+    private final ByteBuf obj;
+    private final BinaryPath path;
+    private final int raw;
+    private final int length;
 
-    public BinaryObject(@Nonnull ByteBuf obj, final BinaryType type)
+    public BinaryObject(@Nonnull ByteBuf obj, final BinaryPath path, final int length)
     {
         this.obj = obj;
-        this.type = type;
+        this.path = path;
+        this.raw = 1 << path.offset;
+        this.length = length;
     }
 
-    public <T extends Serializable> T get(@Nonnull Class<T> clazz, @Nonnull BiFunction<ByteBuf, Integer, T> parser)
+    public int getRawValue()
     {
-        return parser.apply(obj, type.length);
+        return raw;
     }
 
+    @Nullable
+    public <T> T get(@Nonnull Class<T> clazz, @Nonnull BiFunction<ByteBuf, Integer, T> parser)
+    {
+        return this.length >= 0 ? parser.apply(obj, length) : null;
+    }
+
+    @Nullable
     public String getString()
     {
         return get(String.class, EncodingUtils::unpackUTF);
@@ -39,22 +50,16 @@ public class BinaryObject implements SerializableBinary
 
     public boolean getBoolean()
     {
-        if (!(type == BinaryType.BOOLEAN))
-            throw new ClassCastException();
         return get(Boolean.class, EncodingUtils::unpackBoolean);
     }
 
     public int getInt()
     {
-        if (!(type == BinaryType.INT))
-            throw new ClassCastException();
         return get(Integer.class, EncodingUtils::unpackInt);
     }
 
     public long getLong()
     {
-        if (!(type == BinaryType.BIGINT))
-            throw new ClassCastException();
         return get(Long.class, EncodingUtils::unpackLong);
     }
 
