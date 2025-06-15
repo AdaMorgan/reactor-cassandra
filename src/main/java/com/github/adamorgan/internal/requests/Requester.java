@@ -2,19 +2,24 @@ package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class Requester
 {
@@ -37,21 +42,43 @@ public class Requester
 
     public <R> void request(@Nonnull Request<R> request)
     {
-        execute(new WorkTask(request));
+        WorkTask task = new WorkTask(request);
+
+        ObjectAction<?> objectAction = task.request.getObjectAction();
+        short streamId = (short) objectAction.getStreamId();
+
+        queue.put(streamId, task.request);
+
+        if (getContext() != null)
+            execute(getContext(), new WorkTask(request));
     }
 
-    private void execute(WorkTask request)
+    public void ready(@Nonnull ChannelHandlerContext context)
     {
-        if (getContext() != null)
-        {
-            short streamId = (short) request.request.getObjectAction().getStreamId();
+        this.queue.forEach((id, request) -> {
+            this.execute(context, new WorkTask(request));
+        });
+    }
 
-            queue.put(streamId, request.request);
-            getContext().writeAndFlush(request.getBody().retain());
-        }
-        else
+    private void execute(@Nonnull ChannelHandlerContext context, WorkTask task)
+    {
+        ObjectAction<?> objectAction = task.request.getObjectAction();
+        short streamId = (short) objectAction.getStreamId();
+
+        queue.put(streamId, task.request);
+
+        try
         {
-            throw new IllegalStateException("Premature execution of a request");
+            context.writeAndFlush(task.getBody().retain()).addListener(result -> {
+                if (!result.isSuccess())
+                {
+                    queue.remove(streamId);
+                }
+            }).await(objectAction.getDeadline(), TimeUnit.MILLISECONDS);
+        }
+        catch (InterruptedException failure)
+        {
+            task.request.onTimeout();
         }
     }
 
@@ -61,6 +88,7 @@ public class Requester
         this.library.release(stream);
         task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body));
         body.release();
+
     }
 
     public class WorkTask implements Work

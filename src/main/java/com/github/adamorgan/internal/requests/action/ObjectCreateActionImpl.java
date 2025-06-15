@@ -143,13 +143,6 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 
     @Nonnull
     @Override
-    public ObjectAction<Response> deadline(long timestamp)
-    {
-        return this;
-    }
-
-    @Nonnull
-    @Override
     public ObjectData finalizeData()
     {
         return new ObjectCreateData(this, version, stream);

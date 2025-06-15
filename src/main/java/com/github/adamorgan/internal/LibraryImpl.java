@@ -66,12 +66,12 @@ public class LibraryImpl implements Library
     public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ShardInfo shardInfo, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
-        this.requester = new Requester(this);
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
         this.shardInfo = shardInfo;
         this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
         this.client = new SocketClient(this, address, compression, sessionConfig);
+        this.requester = new Requester(this);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
 
         for (int i = 1; i <= 32768; i++)
@@ -207,30 +207,10 @@ public class LibraryImpl implements Library
         return sessionConfig.getMaxBufferSize();
     }
 
-    @NonBlocking
-    public int acquire() throws NoSuchElementException
+    //TODO-Failure: Make an implementation in which ObjectAction will wait for its turn
+    public int acquire()
     {
-        try
-        {
-            return this.queue.poll();
-        }
-        catch (NullPointerException failException)
-        {
-            throw new NoSuchElementException();
-        }
-    }
-
-    @Blocking
-    public int acquire(long timeout, TimeUnit unit) throws TimeoutException
-    {
-        try
-        {
-            return this.queue.poll(timeout, unit);
-        }
-        catch (InterruptedException | NullPointerException failException)
-        {
-            throw new TimeoutException();
-        }
+        return this.queue.poll();
     }
 
     public void release(int id)

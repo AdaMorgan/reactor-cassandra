@@ -1,5 +1,6 @@
 package com.github.adamorgan.internal.utils.codec;
 
+import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
@@ -76,23 +77,26 @@ public final class MessageDecoder extends ByteToMessageDecoder
         {
             case SocketCode.SUPPORTED:
             {
+                library.setStatus(Library.Status.IDENTIFYING_SESSION);
                 sendStartup(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTHENTICATE:
             {
+                this.library.setStatus(Library.Status.LOGGING_IN);
                 verifyToken(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTH_SUCCESS:
             {
+                this.library.setStatus(Library.Status.LOGIN_CONFIRMATION);
                 registry(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.READY:
             {
-                LibraryImpl.LOG.info("Finished Loading!");
-                this.library.handleEvent(new ReadyEvent(this.library));
+                this.library.setStatus(Library.Status.CONNECTED);
+                this.library.getClient().ready();
                 break;
             }
             case SocketCode.ERROR:
@@ -120,11 +124,9 @@ public final class MessageDecoder extends ByteToMessageDecoder
             map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
             map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
 
-            if (!this.library.getCompression()
-                    .equals(Compression.NONE))
+            if (!this.library.getCompression().equals(Compression.NONE))
             {
-                map.put("COMPRESSION", this.library.getCompression()
-                        .toString());
+                map.put("COMPRESSION", this.library.getCompression().toString());
             }
 
             ByteBuf body = Unpooled.buffer();
@@ -154,7 +156,6 @@ public final class MessageDecoder extends ByteToMessageDecoder
         return new SocketClient.ConnectNode(this.library, () ->
         {
             byte[] token = this.library.getToken();
-
             return Unpooled.directBuffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)

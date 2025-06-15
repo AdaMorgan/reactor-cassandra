@@ -27,6 +27,8 @@ public interface ObjectAction<T>
 
     int getStreamId();
 
+    long getDeadline();
+
     @Nonnull
     ObjectData finalizeData();
 

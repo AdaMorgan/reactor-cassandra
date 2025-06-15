@@ -40,6 +40,9 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
+        api.sendRequest(TEST_QUERY).map(Response::getArray).deadline(1).queue(array -> {
+
+        }, error -> System.out.println(error.getMessage()));
         //new SessionLoggerExample().testResourceLeakDetector(api);
     }
 
@@ -61,7 +64,9 @@ public final class SessionLoggerExample extends ListenerAdapter
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
         //api.sendRequest(TEST_USE_KEYSPACE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
-        api.sendRequest(TEST_SCHEMA_CHANGE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
+        api.sendRequest(TEST_QUERY).map(Response::getArray).deadline(1).queue(array -> {
+
+        }, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);

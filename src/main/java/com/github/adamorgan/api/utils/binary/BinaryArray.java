@@ -106,12 +106,6 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         elements.clear();
     }
 
-    @Override
-    public String toString()
-    {
-        return "";
-    }
-
     @Nonnull
     @Override
     public BinaryArray toBinaryArray()

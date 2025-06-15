@@ -49,18 +49,24 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
         }, failure);
     }
 
-    @Override
-    public int getStreamId()
-    {
-        return this.action.getStreamId();
-    }
-
     @Nonnull
     @Override
     public ObjectAction<O> deadline(long timestamp)
     {
-        action.deadline(timestamp);
+        this.action.deadline(timestamp);
         return this;
+    }
+
+    @Override
+    public long getDeadline()
+    {
+        return action.getDeadline();
+    }
+
+    @Override
+    public int getStreamId()
+    {
+        return this.action.getStreamId();
     }
 
     @Nonnull

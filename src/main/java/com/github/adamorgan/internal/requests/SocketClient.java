@@ -2,6 +2,7 @@ package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.events.ExceptionEvent;
+import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.utils.Compression;
@@ -75,7 +76,6 @@ public class SocketClient
         public void channelActive(@Nonnull ChannelHandlerContext context)
         {
             SocketClient.this.context.set(context);
-            library.setStatus(Library.Status.IDENTIFYING_SESSION);
             sendIdentify(context, context::writeAndFlush);
         }
 
@@ -165,7 +165,6 @@ public class SocketClient
 
         if (future.isSuccess())
         {
-            this.library.setStatus(Library.Status.CONNECTED);
             return;
         }
 
@@ -215,6 +214,13 @@ public class SocketClient
                 reconnect(reconnectTimeS);
             }
         }, reconnectTimeoutS, TimeUnit.SECONDS);
+    }
+
+    public final void ready()
+    {
+        this.reconnectTimeoutS = 0;
+        LibraryImpl.LOG.info("Finished Loading!");
+        this.library.handleEvent(new ReadyEvent(this.library));
     }
 
     public static class ConnectNode implements SessionController.SessionConnectNode

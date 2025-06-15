@@ -37,9 +37,9 @@ public interface Library
         IDENTIFYING_SESSION(true),
         /**{@link Library} is currently attempting to log in.*/
         LOGGING_IN(true),
-        /**{@link Library} has sent authentication to CQL Binary Protocol and is awaiting confirmation*/
-        AWAITING_LOGIN_CONFIRMATION(true),
-        /**{@link Library} has finished loading everything, is receiving information from CQL Binary Protocol and is firing events.*/
+        /**{@link Library} has sent authentication to CQL Binary Protocol and is received confirmation.*/
+        LOGIN_CONFIRMATION(true),
+        /**{@link Library} has finished loading everything, is receiving information from CQL Binary Protocol and is can now send requests.*/
         CONNECTED(true),
         /**{@link Library}'s main socket has been disconnected. This <b>DOES NOT</b> mean {@link Library} has shutdown permanently.
          * This is an in-between status. Most likely {@link Status#ATTEMPTING_TO_RECONNECT}

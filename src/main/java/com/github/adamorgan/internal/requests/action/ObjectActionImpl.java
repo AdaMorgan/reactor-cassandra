@@ -15,8 +15,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -35,21 +33,14 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final BiFunction<Request<T>, Response, T> handler;
 
-    //TODO-Failure: TimeoutException should be thrown in queue(onFailure)
+    protected long deadline;
+
     public ObjectActionImpl(LibraryImpl api, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
         this.version = api.getVersion();
         this.handler = handler;
-
-        try
-        {
-            this.stream = api.acquire(1000, TimeUnit.MILLISECONDS);
-        }
-        catch (TimeoutException e)
-        {
-            throw new IllegalStateException("Request timed out");
-        }
+        this.stream = api.acquire();
     }
 
     public ObjectActionImpl(LibraryImpl api)
@@ -147,8 +138,17 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         request.onSuccess(successObj);
     }
 
+    @Nonnull
+    @Override
+    public ObjectAction<T> deadline(long timestamp)
+    {
+        this.deadline = timestamp;
+        return this;
+    }
+
+    @Override
     public long getDeadline()
     {
-        return 0;
+        return deadline;
     }
 }

@@ -123,22 +123,11 @@ public class Request<T>
 
     public boolean isSkipped()
     {
-        if (isTimeout())
-        {
-            onTimeout();
-            return true;
-        }
-
         if (isCancelled())
         {
             onCancelled();
         }
         return isCancelled();
-    }
-
-    private boolean isTimeout()
-    {
-        return deadline > 0 && deadline < System.currentTimeMillis();
     }
 
     public boolean isCancelled()
@@ -151,11 +140,5 @@ public class Request<T>
         ObjectActionImpl.LOG.trace("Handling response for request with content {}", "");
         this.objAction.handleResponse(this, response);
         api.handleEvent(new BinaryRequestEvent(this, response));
-    }
-
-    @Nonnull
-    public ErrorResponseException createErrorResponseException(@Nonnull Response response)
-    {
-        return ErrorResponseException.create(ErrorResponse.from(response.getBody()), response);
     }
 }

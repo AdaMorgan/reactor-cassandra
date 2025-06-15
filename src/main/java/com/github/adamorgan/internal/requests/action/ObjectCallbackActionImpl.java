@@ -105,13 +105,6 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
         return new ObjectCallbackData(this, version, stream);
     }
 
-    @Nonnull
-    @Override
-    public ObjectAction<Response> deadline(long timestamp)
-    {
-        return this.action.deadline(timestamp);
-    }
-
     @Override
     public boolean isEmpty()
     {
