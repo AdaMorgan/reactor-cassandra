@@ -62,7 +62,7 @@ public class Request<T>
         this.isCancelled = true;
     }
 
-    public void onSuccess(T successObj)
+    public void onSuccess(@Nonnull T successObj)
     {
         if (done)
         {

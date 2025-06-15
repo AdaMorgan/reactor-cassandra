@@ -1,9 +1,11 @@
 package com.github.adamorgan.api.requests;
 
+import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class Response
 {
@@ -32,6 +34,11 @@ public class Response
         return this.opcode == SocketCode.ERROR;
     }
 
+    public boolean isEmpty()
+    {
+        return this.body.readableBytes() == 0;
+    }
+
     public boolean isTrace()
     {
         return (flags & 0x02) != 0;
@@ -46,6 +53,12 @@ public class Response
     public ByteBuf getBody()
     {
         return body;
+    }
+
+    @Nullable
+    public BinaryArray getArray()
+    {
+        return !isEmpty() ? new BinaryArray(body) : null;
     }
 
     @Nonnull

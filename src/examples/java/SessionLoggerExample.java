@@ -4,6 +4,7 @@ import com.github.adamorgan.api.events.StatusChangeEvent;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
+import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
@@ -24,6 +25,10 @@ public final class SessionLoggerExample extends ListenerAdapter
     public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
     //public static final String TEST_QUERY = "SELECT * FROM system_traces.all_types";
     public static final String TEST_QUERY = "SELECT port FROM system.clients";
+    public static final String TEST_INSERT_QUERY = "INSERT INTO system_traces.test (id, username) VALUES (1, 'user')";
+    public static final String TEST_USE_KEYSPACE = "USE demo";
+    public static final String TEST_SCHEMA_CHANGE = "CREATE TABLE IF NOT EXISTS my_table (id UUID PRIMARY KEY, name TEXT);";
+    public static final String TEST_DROP_TABLE = "DROP TABLE IF EXISTS demo.my_table";
 
     public static void main(String[] args)
     {
@@ -55,11 +60,8 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        api.sendRequest(TEST_QUERY).queue(array -> {
-            array.forEach(element -> {
-                System.out.println(element.getInt());
-            });
-        }, error -> System.out.println(error.getMessage()));
+        //api.sendRequest(TEST_USE_KEYSPACE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
+        api.sendRequest(TEST_SCHEMA_CHANGE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);
@@ -102,7 +104,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         for (int i = 0; i < count; i++)
         {
-            api.sendRequest(TEST_QUERY_PREPARED, parameters).queue(result, Throwable::printStackTrace);
+            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(result, Throwable::printStackTrace);
         }
     }
 }

@@ -14,12 +14,13 @@ import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
 import com.github.adamorgan.internal.utils.request.ObjectCreateData;
 import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
 import java.util.Objects;
 
-public class ObjectCreateActionImpl extends ObjectActionImpl<BinaryArray> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<BinaryArray>
+public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<Response>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
     protected boolean useCache = true;
@@ -31,17 +32,14 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<BinaryArray> implem
     }
 
     @Override
-    protected void handleSuccess(@Nonnull Request<BinaryArray> request, @Nonnull Response response)
+    protected void handleSuccess(@Nonnull Request<Response> request, @Nonnull Response response)
     {
         switch (response.getType())
         {
             case VOID:
-            {
-                throw new UnsupportedOperationException();
-            }
             case ROWS:
             {
-                request.onSuccess(new BinaryArray(response.getBody()));
+                request.onSuccess(response);
                 break;
             }
             case SET_KEYSPACE:
@@ -142,7 +140,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<BinaryArray> implem
 
     @Nonnull
     @Override
-    public CacheObjectAction<BinaryArray> useCache(boolean useCache)
+    public CacheObjectAction<Response> useCache(boolean useCache)
     {
         this.useCache = useCache;
         return this;
@@ -150,7 +148,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<BinaryArray> implem
 
     @Nonnull
     @Override
-    public ObjectAction<BinaryArray> deadline(long timestamp)
+    public ObjectAction<Response> deadline(long timestamp)
     {
         return this;
     }

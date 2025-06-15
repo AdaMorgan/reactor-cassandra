@@ -175,8 +175,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
     {
         return new SocketClient.ConnectNode(this.library, () ->
         {
-            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE")
-                    .collect(Unpooled::directBuffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
+            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::directBuffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
 
             return Unpooled.directBuffer()
                     .writeByte(version)

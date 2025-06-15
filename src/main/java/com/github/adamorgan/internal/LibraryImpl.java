@@ -59,6 +59,8 @@ public class LibraryImpl implements Library
 
     protected final Thread shutdownHook;
 
+    protected final AtomicReference<String> CURRENT_KEYSPACE = new AtomicReference<>(null);
+
     protected final ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(32768, false);
 
     protected final Requester requester;

@@ -50,33 +50,6 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         }
 
         this.elements = new BinaryCollector(this).finisher().apply(this).collect(Collectors.toList());
-
-//        if (!hasMetadata)
-//        {
-//            this.paths = IntStream.range(0, columnsCount)
-//                    .mapToObj(i ->
-//                    {
-//                        String x = !isGlobal ? EncodingUtils.unpackUTF84(raw) : keyspace;
-//                        String y = !isGlobal ? EncodingUtils.unpackUTF84(raw) : table;
-//
-//                        return new BinaryPath(x, y, EncodingUtils.unpackUTF84(raw), raw.readUnsignedShort());
-//                    })
-//                    .collect(Collectors.toList());
-//
-//            this.elements = IntStream.range(0, raw.readInt())
-//                    .boxed()
-//                    .flatMap(i -> this.paths.stream())
-//                    .map(path ->
-//                    {
-//                        int length = raw.readInt();
-//                        ByteBuf rawData = raw.readSlice(length).retain();
-//                        return new BinaryObject(rawData, path, length);
-//                    }).collect(Collectors.toList());
-//        }
-//        else
-//        {
-//            throw new UnsupportedOperationException();
-//        }
     }
 
     public int getRawFlags()

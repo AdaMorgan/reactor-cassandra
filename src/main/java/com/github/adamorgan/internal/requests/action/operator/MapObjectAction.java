@@ -7,6 +7,8 @@ import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MapObjectAction<I, O> extends ObjectActionOperator<I, O>
 {

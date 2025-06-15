@@ -16,7 +16,7 @@ import javax.annotation.Nonnull;
 import java.util.EnumSet;
 import java.util.Objects;
 
-public final class ObjectCallbackActionImpl extends ObjectActionImpl<BinaryArray> implements ObjectCallbackAction
+public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> implements ObjectCallbackAction
 {
     private final ByteBuf token;
     private final ObjectCreateActionImpl action;
@@ -33,7 +33,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<BinaryArray
     }
 
     @Override
-    protected void handleSuccess(Request<BinaryArray> request, Response response)
+    protected void handleSuccess(Request<Response> request, Response response)
     {
         this.action.handleSuccess(request, response);
     }
@@ -107,7 +107,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<BinaryArray
 
     @Nonnull
     @Override
-    public ObjectAction<BinaryArray> deadline(long timestamp)
+    public ObjectAction<Response> deadline(long timestamp)
     {
         return this.action.deadline(timestamp);
     }
