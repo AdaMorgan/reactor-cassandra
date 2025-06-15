@@ -23,7 +23,7 @@ public final class SessionLoggerExample extends ListenerAdapter
 {
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
     public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
-    //public static final String TEST_QUERY = "SELECT * FROM system_traces.all_types";
+    public static final String TEST_QUERY_TYPES = "SELECT * FROM system_traces.all_types";
     public static final String TEST_QUERY = "SELECT port FROM system.clients";
     public static final String TEST_INSERT_QUERY = "INSERT INTO system_traces.test (id, username) VALUES (1, 'user')";
     public static final String TEST_USE_KEYSPACE = "USE demo";

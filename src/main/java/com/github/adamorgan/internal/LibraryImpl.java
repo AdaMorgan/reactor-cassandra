@@ -21,11 +21,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NonBlocking;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.net.SocketAddress;
 import java.util.BitSet;
 import java.util.List;
@@ -48,9 +48,6 @@ public class LibraryImpl implements Library
     protected final ReentrantLock statusLock = new ReentrantLock();
     protected final Condition statusCondition = statusLock.newCondition();
 
-    protected final BitSet used = new BitSet(32768);
-    protected final ReentrantLock bitLock = new ReentrantLock();
-
     protected final AtomicInteger responseTotal = new AtomicInteger(0);
 
     protected final byte[] token;
@@ -58,8 +55,6 @@ public class LibraryImpl implements Library
     protected final SessionConfig sessionConfig;
 
     protected final Thread shutdownHook;
-
-    protected final AtomicReference<String> CURRENT_KEYSPACE = new AtomicReference<>(null);
 
     protected final ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(32768, false);
 

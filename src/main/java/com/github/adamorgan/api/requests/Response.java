@@ -1,5 +1,7 @@
 package com.github.adamorgan.api.requests;
 
+import com.github.adamorgan.api.exceptions.ErrorResponse;
+import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
@@ -13,7 +15,9 @@ public class Response
     protected final ByteBuf body;
     protected final Type type;
 
-    public Response(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
+    protected final Exception exception;
+
+    public Response(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse error, ByteBuf body)
     {
         this.version = version;
         this.flags = flags;
@@ -21,12 +25,14 @@ public class Response
         this.opcode = opcode;
         this.length = length;
         this.body = body;
-        this.type = Type.valueOf(body.readInt());
+
+        this.type = error == null ? Type.valueOf(body.readInt()) : Type.ERROR;
+        this.exception = error != null ? ErrorResponseException.create(error, this) : null;
     }
 
     public boolean isOk()
     {
-        return this.opcode != SocketCode.ERROR;
+        return this.exception == null;
     }
 
     public boolean isError()
@@ -36,7 +42,7 @@ public class Response
 
     public boolean isEmpty()
     {
-        return this.body.readableBytes() == 0;
+        return this.body.readableBytes() == 0 || !type.equals(Type.ROWS) || isError();
     }
 
     public boolean isTrace()
@@ -61,6 +67,12 @@ public class Response
         return !isEmpty() ? new BinaryArray(body) : null;
     }
 
+    @Nullable
+    public Exception getException()
+    {
+        return exception;
+    }
+
     @Nonnull
     public Type getType()
     {
@@ -69,6 +81,7 @@ public class Response
 
     public enum Type
     {
+        ERROR(0x0000), // not included in CQL Protocol
         VOID(0x0001),
         ROWS(0x0002),
         SET_KEYSPACE(0x0003),

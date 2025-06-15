@@ -136,8 +136,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         }
         else
         {
-            final ErrorResponseException error = request.createErrorResponseException(response);
-            request.onFailure(error);
+            request.onFailure(response.getException());
         }
     }
 

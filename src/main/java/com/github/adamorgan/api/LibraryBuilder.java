@@ -129,6 +129,12 @@ public class LibraryBuilder
     }
 
     @Nonnull
+    public LibraryBuilder useKeyspace(String name)
+    {
+        return this;
+    }
+
+    @Nonnull
     public LibraryBuilder setMaxBufferSize(int bufferSize)
     {
         Checks.notNegative(bufferSize, "The buffer size");

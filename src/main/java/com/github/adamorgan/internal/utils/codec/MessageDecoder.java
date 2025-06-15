@@ -3,7 +3,6 @@ package com.github.adamorgan.internal.utils.codec;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
-import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
@@ -97,12 +96,9 @@ public final class MessageDecoder extends ByteToMessageDecoder
                 break;
             }
             case SocketCode.ERROR:
-            {
-                throw ErrorResponseException.create(ErrorResponse.fromBuffer(body), body);
-            }
             case SocketCode.RESULT:
             {
-                this.requester.enqueue(version, flags, stream, opcode, length, body);
+                this.requester.enqueue(version, flags, stream, opcode, length, opcode == SocketCode.ERROR ? ErrorResponse.from(body) : null, body);
                 break;
             }
             default:

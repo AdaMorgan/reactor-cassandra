@@ -46,7 +46,7 @@ public enum ErrorResponse
     }
 
     @Nonnull
-    public static ErrorResponse fromBuffer(final ByteBuf buffer)
+    public static ErrorResponse from(final ByteBuf buffer)
     {
         return ErrorResponse.fromCode(buffer.readInt());
     }

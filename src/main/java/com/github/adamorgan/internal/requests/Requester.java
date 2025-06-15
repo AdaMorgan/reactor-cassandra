@@ -1,6 +1,7 @@
 package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
@@ -54,11 +55,11 @@ public class Requester
         }
     }
 
-    public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body)
+    public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
     {
         WorkTask task = new WorkTask(queue.remove(stream));
         this.library.release(stream);
-        task.handleResponse(new Response(version, flags, stream, opcode, length, body));
+        task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body));
         body.release();
     }
 

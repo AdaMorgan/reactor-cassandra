@@ -36,24 +36,19 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     {
         switch (response.getType())
         {
+            case ERROR:
             case VOID:
             case ROWS:
+            case SET_KEYSPACE:
+            case SCHEMA_CHANGE:
             {
                 request.onSuccess(response);
                 break;
-            }
-            case SET_KEYSPACE:
-            {
-                throw new UnsupportedOperationException();
             }
             case PREPARED:
             {
                 new ObjectCallbackActionImpl(this, response).queue(request::onSuccess, request::onFailure);
                 break;
-            }
-            case SCHEMA_CHANGE:
-            {
-                throw new UnsupportedOperationException();
             }
         }
     }

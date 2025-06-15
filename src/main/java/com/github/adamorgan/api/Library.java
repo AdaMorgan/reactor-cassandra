@@ -14,6 +14,7 @@ import io.netty.channel.EventLoopGroup;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -179,7 +180,6 @@ public interface Library
     Status getStatus();
 
     /**
-     *
      * @return True if {@link Library Library} will attempt to auto ByteBuf release.
      */
     boolean isDebug();

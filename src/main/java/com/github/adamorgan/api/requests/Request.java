@@ -62,7 +62,7 @@ public class Request<T>
         this.isCancelled = true;
     }
 
-    public void onSuccess(@Nonnull T successObj)
+    public void onSuccess(T successObj)
     {
         if (done)
         {
@@ -156,6 +156,6 @@ public class Request<T>
     @Nonnull
     public ErrorResponseException createErrorResponseException(@Nonnull Response response)
     {
-        return ErrorResponseException.create(ErrorResponse.fromBuffer(response.getBody()), response);
+        return ErrorResponseException.create(ErrorResponse.from(response.getBody()), response);
     }
 }
