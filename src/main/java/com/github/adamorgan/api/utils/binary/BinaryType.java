@@ -60,8 +60,7 @@ public enum BinaryType
         this.pack = pack;
         this.unpack = unpack;
         this.isReadable = isReadable;
-        this.uid = lookup.andThen(serialize)
-                .apply(type);
+        this.uid = lookup.andThen(serialize).apply(type);
     }
 
     public long getSerialVersionUID()
@@ -101,8 +100,7 @@ public enum BinaryType
             }
         }
 
-        throw new UnsupportedOperationException("Cannot pack value of type " + value.getClass()
-                .getName());
+        throw new UnsupportedOperationException("Cannot pack value of type " + value.getClass().getName());
     }
 
     @Nonnull

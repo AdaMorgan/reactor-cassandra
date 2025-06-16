@@ -2,8 +2,10 @@ package com.github.adamorgan.api.utils.binary;
 
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
+import javax.jws.soap.SOAPBinding;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -54,9 +56,9 @@ public class BinaryCollector implements Collector<ByteBuf, BinaryArray, Stream<B
     @Nonnull
     public BinaryPath mapper(int expensive)
     {
-        String x = !array.isGlobal ? EncodingUtils.unpackUTF84(rawArray) : array.keyspace;
-        String y = !array.isGlobal ? EncodingUtils.unpackUTF84(rawArray) : array.table;
-        return new BinaryPath(x, y, EncodingUtils.unpackUTF84(rawArray), rawArray.readUnsignedShort());
+        String keyspace = !array.isGlobal ? EncodingUtils.unpackUTF84(rawArray) : array.keyspace;
+        String table = !array.isGlobal ? EncodingUtils.unpackUTF84(rawArray) : array.table;
+        return new BinaryPath(rawArray, keyspace, table, EncodingUtils.unpackUTF84(rawArray), rawArray.readUnsignedShort(), BinaryPath::getTypes);
     }
 
     @Nonnull

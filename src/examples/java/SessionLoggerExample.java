@@ -40,10 +40,9 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
-        api.sendRequest(TEST_QUERY).map(Response::getArray).deadline(1).queue(array -> {
+        api.sendRequest(TEST_QUERY_TYPES).map(Response::getArray).queue(array -> {
 
-        }, error -> System.out.println(error.getMessage()));
-        //new SessionLoggerExample().testResourceLeakDetector(api);
+        }, error -> error.printStackTrace());
     }
 
     @Override

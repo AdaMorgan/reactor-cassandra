@@ -10,6 +10,7 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
@@ -69,6 +70,7 @@ public class Requester
 
         try
         {
+            LOG.trace("Executing request {}", ByteBufUtil.prettyHexDump(task.request.getBody()));
             context.writeAndFlush(task.getBody().retain()).addListener(result -> {
                 if (!result.isSuccess())
                 {

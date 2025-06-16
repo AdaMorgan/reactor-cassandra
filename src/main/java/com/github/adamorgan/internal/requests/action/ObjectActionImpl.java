@@ -131,7 +131,6 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         }
     }
 
-    //TODO: replace void with CallbackRunnable
     protected void handleSuccess(Request<T> request, Response response)
     {
         T successObj = handler == null ? null : handler.apply(request, response);
