@@ -21,77 +21,8 @@ public class EncodingUtils {
     @Nullable
     public static Serializable unpack(@Nonnull ByteBuf buffer, int type, int length)
     {
-        if (INT.offset == type)
-        {
-            return EncodingUtils.unpackInt(buffer, length);
-        }
-
-        if (BIGINT.offset == type)
-        {
-            return EncodingUtils.unpackLong(buffer, length);
-        }
-
-        if (INET.offset == type)
-        {
-            return EncodingUtils.unpackInet(buffer, length);
-        }
-
-        if (TEXT.offset == type || ASCII.offset == type)
-        {
-            return EncodingUtils.unpackUTF(buffer, length);
-        }
-
         if (DECIMAL.offset == type)
         {
-            return null;
-        }
-
-        if (DOUBLE.offset == type)
-        {
-            return EncodingUtils.unpackDouble(buffer, length);
-        }
-
-        if (FLOAT.offset == type)
-        {
-            return EncodingUtils.unpackFloat(buffer, length);
-        }
-
-        if (BLOB.offset == type)
-        {
-            return EncodingUtils.unpackBytes(buffer, length);
-        }
-
-        if (BOOLEAN.offset == type)
-        {
-            return EncodingUtils.unpackBoolean(buffer, length);
-        }
-
-        if (DATE.offset == type)
-        {
-            return EncodingUtils.unpackDate(buffer, length);
-        }
-
-        if (UUID.offset == type)
-        {
-            return EncodingUtils.unpackUUID(buffer, length);
-        }
-
-        if (LIST.offset == type)
-        {
-            int x = buffer.readShort();
-            return null;
-        }
-
-        if (MAP.offset == type)
-        {
-            int k = buffer.readShort();
-            int v = buffer.readShort();
-            return null;
-        }
-
-        if (SET.offset == type)
-        {
-            int x = buffer.readShort();
             return null;
         }
 

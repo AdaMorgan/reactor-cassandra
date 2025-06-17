@@ -3,6 +3,8 @@ package com.github.adamorgan.api.utils.binary;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.EmptyByteBuf;
+import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import javax.jws.soap.SOAPBinding;
@@ -65,7 +67,7 @@ public class BinaryCollector implements Collector<ByteBuf, BinaryArray, Stream<B
     public BinaryObject mapper(BinaryPath path)
     {
         int length = rawArray.readInt();
-        ByteBuf rawData = rawArray.readSlice(length).retain();
+        ByteBuf rawData = length >= 0 ? rawArray.readSlice(length).retain() : Unpooled.EMPTY_BUFFER;
         return new BinaryObject(rawData, path, length);
     }
 

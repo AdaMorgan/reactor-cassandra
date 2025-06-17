@@ -24,7 +24,7 @@ public final class SessionLoggerExample extends ListenerAdapter
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
     public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
     public static final String TEST_QUERY_TYPES = "SELECT * FROM system_traces.all_types";
-    public static final String TEST_QUERY = "SELECT port FROM system.clients";
+    public static final String TEST_QUERY = "SELECT hostname FROM system.clients";
     public static final String TEST_INSERT_QUERY = "INSERT INTO system_traces.test (id, username) VALUES (1, 'user')";
     public static final String TEST_USE_KEYSPACE = "USE demo";
     public static final String TEST_SCHEMA_CHANGE = "CREATE TABLE IF NOT EXISTS my_table (id UUID PRIMARY KEY, name TEXT);";
@@ -40,9 +40,11 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
-        api.sendRequest(TEST_QUERY_TYPES).map(Response::getArray).queue(array -> {
-
-        }, error -> error.printStackTrace());
+        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(array -> {
+            array.forEach(binaryObject -> {
+                System.out.println(binaryObject.getString());
+            });
+        }, Throwable::printStackTrace);
     }
 
     @Override

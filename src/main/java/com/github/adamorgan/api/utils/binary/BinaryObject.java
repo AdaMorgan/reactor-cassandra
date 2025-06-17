@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.net.InetAddress;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.function.BiFunction;
 
@@ -73,25 +75,43 @@ public class BinaryObject implements SerializableBinary
         return get(Float.class, EncodingUtils::unpackFloat);
     }
 
-    @Nonnull
+    @Nullable
     public UUID getUUID()
     {
         return get(UUID.class, EncodingUtils::unpackUUID);
     }
 
-    @Nonnull
+    @Nullable
+    public OffsetDateTime getTime()
+    {
+        return get(OffsetDateTime.class, EncodingUtils::unpackDate);
+    }
+
+    @Nullable
+    public InetAddress getInetAddress()
+    {
+        return get(InetAddress.class, EncodingUtils::unpackInet);
+    }
+
+    @Nullable
+    public byte[] getBytes()
+    {
+        return get(byte[].class, EncodingUtils::unpackBytes);
+    }
+
+    @Nullable
     public <V> Set<V> getSet()
     {
         throw new UnsupportedOperationException();
     }
 
-    @Nonnull
+    @Nullable
     public <V> List<V> getList()
     {
         throw new UnsupportedOperationException();
     }
 
-    @Nonnull
+    @Nullable
     public <K, V> Map<K, V> getMap()
     {
         throw new UnsupportedOperationException();
