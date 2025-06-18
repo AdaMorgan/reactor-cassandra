@@ -50,29 +50,76 @@ public class BinaryObject implements SerializableBinary
         return get(String.class, EncodingUtils::unpackUTF);
     }
 
-    public boolean getBoolean()
+    @Nonnull
+    public String getString(@Nonnull String defaultValue)
+    {
+        String value = get(String.class, EncodingUtils::unpackUTF);
+        return value == null ? defaultValue : value;
+    }
+
+    @Nullable
+    public Boolean getBoolean()
     {
         return get(Boolean.class, EncodingUtils::unpackBoolean);
     }
 
-    public int getInt()
+    @Nonnull
+    public Boolean getBoolean(boolean defaultValue)
+    {
+        Boolean value = get(Boolean.class, EncodingUtils::unpackBoolean);
+        return value == null ? defaultValue : value;
+    }
+
+    @Nullable
+    public Integer getInt()
     {
         return get(Integer.class, EncodingUtils::unpackInt);
     }
 
-    public long getLong()
+    @Nonnull
+    public Integer getInt(int defaultValue)
+    {
+        Integer value = get(Integer.class, EncodingUtils::unpackInt);
+        return value == null ? defaultValue : value;
+    }
+
+    @Nullable
+    public Long getLong()
     {
         return get(Long.class, EncodingUtils::unpackLong);
     }
 
-    public double getDouble()
+    @Nonnull
+    public Long getLong(long defaultValue)
+    {
+        Long value = get(Long.class, EncodingUtils::unpackLong);
+        return value == null ? defaultValue : value;
+    }
+
+    @Nullable
+    public Double getDouble()
     {
         return get(Double.class, EncodingUtils::unpackDouble);
     }
 
-    public double getFloat()
+    @Nonnull
+    public Double getDouble(double defaultValue)
+    {
+        Double value = get(Double.class, EncodingUtils::unpackDouble);
+        return value == null ? defaultValue : value;
+    }
+
+    @Nullable
+    public Float getFloat()
     {
         return get(Float.class, EncodingUtils::unpackFloat);
+    }
+
+    @Nonnull
+    public Float getFloat(float defaultValue)
+    {
+        Float value = get(Float.class, EncodingUtils::unpackFloat);
+        return value == null ? defaultValue : value;
     }
 
     @Nullable
@@ -81,10 +128,24 @@ public class BinaryObject implements SerializableBinary
         return get(UUID.class, EncodingUtils::unpackUUID);
     }
 
+    @Nonnull
+    public UUID getUUID(UUID defaultValue)
+    {
+        UUID value = get(UUID.class, EncodingUtils::unpackUUID);
+        return value == null ? defaultValue : value;
+    }
+
     @Nullable
     public OffsetDateTime getTime()
     {
         return get(OffsetDateTime.class, EncodingUtils::unpackDate);
+    }
+
+    @Nonnull
+    public OffsetDateTime getTime(OffsetDateTime defaultValue)
+    {
+        OffsetDateTime value = get(OffsetDateTime.class, EncodingUtils::unpackDate);
+        return value == null ? defaultValue : value;
     }
 
     @Nullable
@@ -93,28 +154,69 @@ public class BinaryObject implements SerializableBinary
         return get(InetAddress.class, EncodingUtils::unpackInet);
     }
 
+    @Nonnull
+    public InetAddress getInetAddress(InetAddress defaultValue)
+    {
+        InetAddress value = get(InetAddress.class, EncodingUtils::unpackInet);
+        return value == null ? defaultValue : value;
+    }
+
     @Nullable
     public byte[] getBytes()
     {
         return get(byte[].class, EncodingUtils::unpackBytes);
     }
 
+    @Nonnull
+    public byte[] getBytes(byte[] defaultValue)
+    {
+        byte[] value = get(byte[].class, EncodingUtils::unpackBytes);
+        return value == null ? defaultValue : value;
+    }
+
     @Nullable
+    @SuppressWarnings("unchecked")
     public <V> Set<V> getSet()
     {
-        throw new UnsupportedOperationException();
+        return (Set<V>) get(Set.class, EncodingUtils::unpackSet);
+    }
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    public <V> Set<V> getSet(Set<V> defaultValue)
+    {
+        Set<V> set = get(Set.class, EncodingUtils::unpackSet);
+        return set == null ? defaultValue : set;
     }
 
     @Nullable
+    @SuppressWarnings("unchecked")
     public <V> List<V> getList()
     {
-        throw new UnsupportedOperationException();
+        return get(List.class, EncodingUtils::unpackList);
+    }
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    public <V> List<V> getList(List<V> defaultValue)
+    {
+        List<V> list = get(List.class, EncodingUtils::unpackList);
+        return list == null ? defaultValue : list;
     }
 
     @Nullable
+    @SuppressWarnings("unchecked")
     public <K, V> Map<K, V> getMap()
     {
-        throw new UnsupportedOperationException();
+        return get(Map.class, EncodingUtils::unpackMap);
+    }
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    public <K, V> Map<K, V> getMap(Map<K, V> defaultValue)
+    {
+        Map<K, V> map = get(Map.class, EncodingUtils::unpackMap);
+        return map == null ? defaultValue : map;
     }
 
     @Override

@@ -12,6 +12,8 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.github.adamorgan.api.utils.binary.BinaryType.*;
@@ -337,5 +339,35 @@ public class EncodingUtils {
             return null;
         }
         return new UUID(buffer.readLong(), buffer.readLong());
+    }
+
+    @Nullable
+    public static <V> Set<V> unpackSet(@Nonnull ByteBuf buffer, int length)
+    {
+        Checks.notNull(buffer, "Buffer");
+        if (length < 0) {
+            return null;
+        }
+        throw new UnsupportedOperationException();
+    }
+
+    @Nullable
+    public static <V> List<V> unpackList(@Nonnull ByteBuf buffer, int length)
+    {
+        Checks.notNull(buffer, "Buffer");
+        if (length < 0) {
+            return null;
+        }
+        throw new UnsupportedOperationException();
+    }
+
+    @Nullable
+    public static <K, V> Map<K, V> unpackMap(@Nonnull ByteBuf buffer, int length)
+    {
+        Checks.notNull(buffer, "Buffer");
+        if (length < 0) {
+            return null;
+        }
+        throw new UnsupportedOperationException();
     }
 }
