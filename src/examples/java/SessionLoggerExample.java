@@ -40,10 +40,8 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
-        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(array -> {
-            array.forEach(binaryObject -> {
-                System.out.println(binaryObject.getString());
-            });
+        api.sendRequest(TEST_QUERY_TYPES).map(Response::getArray).queue(array -> {
+
         }, Throwable::printStackTrace);
     }
 
