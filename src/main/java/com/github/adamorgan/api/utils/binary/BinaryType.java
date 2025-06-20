@@ -1,112 +1,68 @@
 package com.github.adamorgan.api.utils.binary;
 
-import com.github.adamorgan.internal.utils.EncodingUtils;
-import io.netty.buffer.ByteBuf;
-
 import javax.annotation.Nonnull;
-import java.awt.*;
-import java.awt.List;
-import java.io.ObjectStreamClass;
 import java.io.Serializable;
 import java.net.InetAddress;
-import java.text.DecimalFormat;
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
-//TODO-remove: move functional to BinaryObject
 public enum BinaryType
 {
-    ASCII(String.class, 0x0001, 0, EncodingUtils::packUTF84, EncodingUtils::unpackUTF),
-    BIGINT(Long.class, 0x0002, 8, EncodingUtils::packLong, EncodingUtils::unpackLong),
-    BLOB(byte[].class, 0x0003, 0, EncodingUtils::packBytes, EncodingUtils::unpackBytes),
-    DECIMAL(DecimalFormat.class, 0x0006, 0, null, null),
-    DOUBLE(Double.class, 0x0007, 8, EncodingUtils::packDouble, EncodingUtils::unpackDouble),
-    FLOAT(Float.class, 0x0008, 4, EncodingUtils::packFloat, EncodingUtils::unpackFloat),
-    INT(Integer.class, 0x0009, 4, EncodingUtils::packInt, EncodingUtils::unpackInt),
-    SMALLINT(Short.class, 0x0013, 2, EncodingUtils::packShort, EncodingUtils::unpackShort),
-    TEXT(String.class, 0x000D, 0, EncodingUtils::packUTF88, EncodingUtils::unpackUTF),
-    UUID(UUID.class, 0x000C, 16, EncodingUtils::packUUID, EncodingUtils::unpackUUID),
-    VARCHAR(String.class, 0x000D, 0, EncodingUtils::packUTF84, EncodingUtils::unpackUTF, false),
-    INET(InetAddress.class, 0x0010, 16, EncodingUtils::packInet, EncodingUtils::unpackInet),
-    DATE(OffsetDateTime.class, 0x0011, 16, EncodingUtils::packDate, EncodingUtils::unpackDate),
-    LIST(List.class, 0x0020, 0, null, null),
-    MAP(HashMap.class, 0x0021, 0, null, null),
-    SET(HashSet.class, 0x0022, 16, null, null),
-    BOOLEAN(Boolean.class, 0x0004, 1, EncodingUtils::packBoolean, EncodingUtils::unpackBoolean);
+    ASCII(0x0001, String.class),
+    BIGINT(0x0002, Long.class),
+    BLOB(0x0003, byte[].class),
+    BOOLEAN(0x0004, Boolean.class),
+    COUNTER(0x0005, Long.class),
+    DECIMAL(0x0006, String.class),
+    DOUBLE(0x0007, Double.class),
+    FLOAT(0x0008, Float.class),
+    INT(0x0009, Integer.class),
+    TIMESTAMP(0x000B, OffsetDateTime.class, Long.class),
+    UUID(0x000C, UUID.class),
+    VARCHAR(0x000D, String.class),
+    VARINT(0x000E, null),
+    TIMEUUID(0x000F, UUID.class),
+    INET(0x0010, InetAddress.class),
+    DATE(0x0011, OffsetDateTime.class),
+    TIME(0x0012, Long.class),
+    SMALLINT(0x0013, Short.class),
+    TINYINT(0x0014, Byte.class),
+    LIST(0x0020, ArrayList.class),
+    MAP(0x0021, HashMap.class),
+    SET(0x0022, HashSet.class),
+    UDT(0x0030, null),
+    TUPLE(0x0031, null);
 
-    private final long uid;
-    public final int offset;
-    public final int length;
-    private final BiFunction<ByteBuf, Serializable, ByteBuf> pack;
-    private final BiFunction<ByteBuf, Integer, Serializable> unpack;
-    private final boolean isReadable;
 
-    <T extends Serializable> BinaryType(Class<T> type, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, BiFunction<ByteBuf, Integer, Serializable> unpack)
-    {
-        this(type, ObjectStreamClass::lookup, ObjectStreamClass::getSerialVersionUID, offset, length, pack, unpack, true);
-    }
+    private final int offset;
+    private final Class<?>[] clazz;
 
-    <T extends Serializable> BinaryType(Class<T> type, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, BiFunction<ByteBuf, Integer, Serializable> unpack, boolean isReadable)
-    {
-        this(type, ObjectStreamClass::lookup, ObjectStreamClass::getSerialVersionUID, offset, length, pack, unpack, isReadable);
-    }
-
-    <T extends Serializable> BinaryType(Class<T> type, Function<Class<T>, ObjectStreamClass> lookup, Function<ObjectStreamClass, Long> serialize, int offset, int length, BiFunction<ByteBuf, Serializable, ByteBuf> pack, BiFunction<ByteBuf, Integer, Serializable> unpack, boolean isReadable)
+    BinaryType(int offset, Class<?>... clazz)
     {
         this.offset = offset;
-        this.length = length;
-        this.pack = pack;
-        this.unpack = unpack;
-        this.isReadable = isReadable;
-        this.uid = lookup.andThen(serialize).apply(type);
+        this.clazz = clazz;
     }
 
-    public long getSerialVersionUID()
+    public int getRawValue()
     {
-        return uid;
-    }
-
-    public boolean isReadable()
-    {
-        return isReadable;
+        return offset;
     }
 
     @Nonnull
-    public ByteBuf pack(ByteBuf buffer, Serializable value)
+    public static <R extends Serializable> BinaryType fromValue(@Nonnull R value)
     {
-        return pack.apply(buffer, value);
+        return Arrays.stream(values()).filter(type -> type.equals(value)).findFirst().orElseThrow(ClassCastException::new);
     }
 
-    @Nonnull
-    public Serializable unpack(ByteBuf buffer, int length)
+    public static BinaryType fromValue(int offset)
     {
-        return unpack.apply(buffer, length);
+        return Arrays.stream(values()).filter(type -> type.offset == offset).findFirst().orElseThrow(NullPointerException::new);
     }
 
-    @Nonnull
-    public static ByteBuf pack0(ByteBuf buffer, Serializable value)
+    public <R extends Serializable> boolean equals(R obj)
     {
-        for (BinaryType binaryType : values())
-        {
-            if (ObjectStreamClass.lookup(value.getClass())
-                    .getSerialVersionUID() == binaryType.getSerialVersionUID())
-            {
-                if (binaryType.isReadable())
-                {
-                    return binaryType.pack(buffer, value);
-                }
-            }
-        }
-
-        throw new UnsupportedOperationException("Cannot pack value of type " + value.getClass().getName());
-    }
-
-    @Nonnull
-    public static ByteBuf pack0(ByteBuf buffer, Map.Entry<String, ? extends Serializable> entry)
-    {
-        BinaryType.VARCHAR.pack(buffer, entry.getKey());
-        return pack0(buffer, entry.getValue());
+        if (clazz == null)
+            return false;
+        return Arrays.stream(clazz).anyMatch(clazz -> clazz.isInstance(obj));
     }
 }

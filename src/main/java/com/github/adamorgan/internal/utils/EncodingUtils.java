@@ -1,68 +1,112 @@
 package com.github.adamorgan.internal.utils;
 
+import com.github.adamorgan.api.utils.binary.BinaryType;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
-import static com.github.adamorgan.api.utils.binary.BinaryType.*;
-
-public class EncodingUtils {
-
-    @Nullable
-    public static Serializable unpack(@Nonnull ByteBuf buffer, int type, int length)
+public class EncodingUtils
+{
+    @Nonnull
+    public static ByteBuf pack(@Nonnull ByteBuf buffer, Serializable value)
     {
-        if (DECIMAL.offset == type)
+        switch (BinaryType.fromValue(value))
         {
-            return null;
+            case ASCII:
+                return EncodingUtils.packUTF84(buffer, value);
+            case BIGINT:
+                return EncodingUtils.packLong(buffer, value);
+            case BLOB:
+                return EncodingUtils.packBytes(buffer, value);
+            case BOOLEAN:
+                return EncodingUtils.packBoolean(buffer, value);
+            case COUNTER:
+                return EncodingUtils.packLong(buffer, value);
+            case DECIMAL:
+                return EncodingUtils.packDecimal(buffer, value);
+            case DOUBLE:
+                return EncodingUtils.packDouble(buffer, value);
+            case FLOAT:
+                return EncodingUtils.packFloat(buffer, value);
+            case INT:
+                return EncodingUtils.packInt(buffer, value);
+            case TIMESTAMP:
+                return EncodingUtils.packDate(buffer, value);
+            case UUID:
+                return EncodingUtils.packUUID(buffer, value);
+            case VARCHAR:
+                return EncodingUtils.packUTF84(buffer, value);
+            case VARINT:
+                return EncodingUtils.packVarint(buffer, value);
+            case TIMEUUID:
+                return EncodingUtils.packDate(buffer, value);
+            case INET:
+                return EncodingUtils.packInet(buffer, value);
+            case DATE:
+                return EncodingUtils.packDate(buffer, value);
+            case TIME:
+                return EncodingUtils.packDate(buffer, value);
+            case SMALLINT:
+                return EncodingUtils.packShort(buffer, value);
+            case TINYINT:
+                return EncodingUtils.packByte(buffer, value);
+            case LIST:
+            case MAP:
+            case SET:
+            case UDT:
+            case TUPLE:
+            default:
+                throw new UnsupportedOperationException(String.format("Unsupported type: 0x%04X", value));
         }
-
-        if (0x0030 == type) //UDT
-        {
-            String udtKeyspace = EncodingUtils.unpackUTF84(buffer);
-            String udtName = EncodingUtils.unpackUTF84(buffer);
-            int fieldsCount = buffer.readUnsignedShort();
-            for (int j = 0; j < fieldsCount; j++)
-            {
-                String fieldName = EncodingUtils.unpackUTF84(buffer);
-                int x = buffer.readUnsignedShort();
-            }
-            return null;
-        }
-
-        if (0x0031 == type) // TUPLE
-        {
-            int count = buffer.readUnsignedShort();
-            for (int j = 0; j < count; j++) {
-                int x = buffer.readShort();
-            }
-            return null;
-        }
-
-        throw new UnsupportedOperationException(String.format("Unsupported type: 0x%04X", type));
     }
 
-    public static ByteBuf packList(ByteBuf buffer, Serializable list)
+    @Nonnull
+    public static ByteBuf packDecimal(@Nonnull ByteBuf buffer, Serializable number)
     {
-        throw new UnsupportedOperationException();
+        try
+        {
+            BigDecimal decimal = new BigDecimal(number.toString());
+            byte[] unscaled = decimal.unscaledValue().toByteArray();
+            buffer.writeInt(4 + unscaled.length);
+            buffer.writeInt(decimal.scale());
+            buffer.writeBytes(unscaled);
+            return buffer;
+        }
+        catch (NumberFormatException failure)
+        {
+            throw new ClassCastException();
+        }
     }
 
-    public static <R> List<R> unpack(ByteBuf buffer, Class<R> type, int length)
+    @Nonnull
+    public static ByteBuf packVarint(@Nonnull ByteBuf buffer, Serializable number)
     {
-        return null;
+        try
+        {
+            BigInteger integer = new BigInteger(number.toString());
+            byte[] bytes = integer.toByteArray();
+            buffer.writeInt(bytes.length);
+            buffer.writeBytes(bytes);
+            return buffer;
+        }
+        catch (NumberFormatException failure)
+        {
+            throw new ClassCastException();
+        }
     }
 
+    @Nonnull
     public static ByteBuf packDate(@Nonnull ByteBuf buffer, Serializable date)
     {
         Checks.notNull(buffer, "Buffer");
@@ -162,6 +206,20 @@ public class EncodingUtils {
     }
 
     @Nonnull
+    public static ByteBuf packByte(@Nonnull ByteBuf buffer, @Nonnull Serializable obj)
+    {
+        Checks.notNull(buffer, "Buffer");
+        if (!(obj instanceof ByteBuf))
+        {
+            throw new ClassCastException();
+        }
+
+        byte other = (byte) obj;
+        buffer.writeInt(1);
+        return buffer.writeByte(other);
+    }
+
+    @Nonnull
     public static ByteBuf packShort(@Nonnull ByteBuf buffer, @Nonnull Serializable obj)
     {
         Checks.notNull(buffer, "Buffer");
@@ -201,6 +259,7 @@ public class EncodingUtils {
         return buffer.writeDouble(other);
     }
 
+    @Nonnull
     public static ByteBuf packFloat(@Nonnull ByteBuf buffer, @Nonnull Serializable obj)
     {
         Checks.notNull(buffer, "Buffer");
@@ -209,7 +268,7 @@ public class EncodingUtils {
             throw new ClassCastException();
         }
         float other = (float) obj;
-        buffer.writeInt(FLOAT.length);
+        buffer.writeInt(4);
         return buffer.writeDouble(other);
     }
 
@@ -227,6 +286,13 @@ public class EncodingUtils {
         buffer.writeLong(other.getMostSignificantBits());
         buffer.writeLong(other.getLeastSignificantBits());
         return buffer;
+    }
+
+    @Nonnull
+    public static ByteBuf pack(@Nonnull ByteBuf buffer, Map.Entry<String, ? extends Serializable> entry)
+    {
+        EncodingUtils.packUTF84(buffer, entry.getKey());
+        return pack(buffer, entry.getValue());
     }
 
     @Nullable

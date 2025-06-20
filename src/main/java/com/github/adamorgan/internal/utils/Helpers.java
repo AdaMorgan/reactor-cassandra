@@ -1,5 +1,7 @@
 package com.github.adamorgan.internal.utils;
 
+import java.math.BigDecimal;
+
 public final class Helpers
 {
     public static void setContent(StringBuilder builder, String content)
@@ -23,6 +25,19 @@ public final class Helpers
             t = t.getCause();
         t.initCause(cause);
         return throwable;
+    }
+
+    public static boolean isDecimal(String number)
+    {
+        try
+        {
+            new BigDecimal(number);
+            return true;
+        }
+        catch (NumberFormatException failure)
+        {
+            return false;
+        }
     }
 
     public static int codePointLength(final CharSequence string)
