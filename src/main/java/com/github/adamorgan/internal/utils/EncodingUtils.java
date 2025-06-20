@@ -45,7 +45,7 @@ public class EncodingUtils
                 return EncodingUtils.packDate(buffer, value);
             case UUID:
                 return EncodingUtils.packUUID(buffer, value);
-            case VARCHAR:
+            case TEXT:
                 return EncodingUtils.packUTF84(buffer, value);
             case VARINT:
                 return EncodingUtils.packVarint(buffer, value);

@@ -19,7 +19,7 @@ public enum BinaryType
     INT(0x0009, Integer.class),
     TIMESTAMP(0x000B, OffsetDateTime.class, Long.class),
     UUID(0x000C, UUID.class),
-    VARCHAR(0x000D, String.class),
+    TEXT(0x000D, String.class), // VARCHAR
     VARINT(0x000E, null),
     TIMEUUID(0x000F, UUID.class),
     INET(0x0010, InetAddress.class),

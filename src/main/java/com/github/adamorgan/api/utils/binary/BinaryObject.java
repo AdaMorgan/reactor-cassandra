@@ -21,11 +21,11 @@ public class BinaryObject implements SerializableBinary
     public static final Logger LOG = LibraryLogger.getLog(BinaryObject.class);
 
     private final ByteBuf obj;
-    private final BinaryPath path;
     private final int raw;
     private final int length;
+    public final BinaryArray.Path path;
 
-    public BinaryObject(@Nonnull ByteBuf obj, final BinaryPath path, final int length)
+    public BinaryObject(@Nonnull ByteBuf obj, final BinaryArray.Path path, final int length)
     {
         this.obj = obj;
         this.path = path;
@@ -36,6 +36,12 @@ public class BinaryObject implements SerializableBinary
     public int getRawValue()
     {
         return raw;
+    }
+
+    @Nonnull
+    public BinaryType getType()
+    {
+        return BinaryType.fromValue(path.offset);
     }
 
     @Nullable

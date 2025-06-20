@@ -64,7 +64,9 @@ public final class SessionLoggerExample extends ListenerAdapter
 
         //api.sendRequest(TEST_USE_KEYSPACE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
         api.sendRequest(TEST_QUERY).map(Response::getArray).deadline(1).queue(array -> {
-
+            array.forEach(binaryObject -> {
+                System.out.println(binaryObject.getType());
+            });
         }, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
