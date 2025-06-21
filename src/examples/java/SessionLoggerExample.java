@@ -39,10 +39,6 @@ public final class SessionLoggerExample extends ListenerAdapter
                 .setCompression(Compression.SNAPPY)
                 .setEnableDebug(false)
                 .build();
-
-        api.sendRequest(TEST_QUERY_TYPES).map(Response::getArray).queue(array -> {
-
-        }, Throwable::printStackTrace);
     }
 
     @Override
@@ -63,11 +59,7 @@ public final class SessionLoggerExample extends ListenerAdapter
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
         //api.sendRequest(TEST_USE_KEYSPACE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
-        api.sendRequest(TEST_QUERY).map(Response::getArray).deadline(1).queue(array -> {
-            array.forEach(binaryObject -> {
-                System.out.println(binaryObject.getType());
-            });
-        }, error -> System.out.println(error.getMessage()));
+        api.sendRequest(TEST_QUERY).useTrace(true).map(Response::getTrace).queue(System.out::println, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
         parameters.add(844613816943771649L);

@@ -40,6 +40,13 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
         return this.fields;
     }
 
+    @Nonnull
+    @Override
+    public EnumSet<ObjectCreateAction.Field> getFields()
+    {
+        return ObjectCreateAction.Field.fromBitFields(this.fields);
+    }
+
     @Override
     public int getMaxBufferSize()
     {
@@ -50,13 +57,6 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     public boolean isEmpty()
     {
         return !this.body.isReadable();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<ObjectCreateAction.Field> getFields()
-    {
-        return ObjectCreateAction.Field.fromBitFields(this.fields);
     }
 
     @Nonnull

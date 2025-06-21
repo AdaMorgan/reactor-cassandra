@@ -54,6 +54,7 @@ public enum BinaryType
         return Arrays.stream(values()).filter(type -> type.equals(value)).findFirst().orElseThrow(ClassCastException::new);
     }
 
+    @Nonnull
     public static BinaryType fromValue(int offset)
     {
         return Arrays.stream(values()).filter(type -> type.offset == offset).findFirst().orElseThrow(NullPointerException::new);

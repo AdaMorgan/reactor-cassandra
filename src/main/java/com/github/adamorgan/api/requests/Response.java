@@ -8,6 +8,7 @@ import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.UUID;
 
 public class Response
 {
@@ -15,9 +16,11 @@ public class Response
     protected final ByteBuf body;
     protected final Type type;
 
+    protected final UUID trace;
+
     protected final Exception exception;
 
-    public Response(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse error, ByteBuf body)
+    public Response(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse error, ByteBuf body, UUID trace)
     {
         this.version = version;
         this.flags = flags;
@@ -28,6 +31,8 @@ public class Response
 
         this.type = error == null ? Type.valueOf(body.readInt()) : Type.ERROR;
         this.exception = error != null ? ErrorResponseException.create(error, this) : null;
+
+        this.trace = trace;
     }
 
     public boolean isOk()
@@ -53,6 +58,12 @@ public class Response
     public boolean isWarnings()
     {
         return (flags & 0x08) != 0;
+    }
+
+    @Nullable
+    public UUID getTrace()
+    {
+        return this.trace;
     }
 
     @Nonnull

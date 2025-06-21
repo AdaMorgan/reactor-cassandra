@@ -24,6 +24,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
     protected boolean useCache = true;
+    protected boolean useTrace = false;
     protected long nonce;
 
     public ObjectCreateActionImpl(Library api)
@@ -60,6 +61,14 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
         return this.builder;
     }
 
+    @Nonnull
+    @Override
+    public ObjectAction<Response> useTrace(boolean enable)
+    {
+        this.useTrace = enable;
+        return this;
+    }
+
     @Override
     public int getFieldsRaw()
     {
@@ -71,6 +80,23 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     public Compression getCompression()
     {
         return this.api.getCompression();
+    }
+
+    @Override
+    public int getRawFlags()
+    {
+        int useCompression = !this.getCompression().equals(Compression.NONE) ? 0x01 : 0;
+        int useTrace = this.useTrace ? 0x02 : 0;
+        int usePayload = 0;
+        int useWarnings = 0;
+        return useCompression | useTrace | usePayload | useWarnings;
+    }
+
+    @Nonnull
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return Flags.fromBitField(getRawFlags());
     }
 
     @Nonnull

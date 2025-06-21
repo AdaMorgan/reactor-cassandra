@@ -21,14 +21,12 @@ public class ObjectCallbackData implements ObjectData
     private final short consistency;
     private final int fields, maxBufferSize;
     private final long nonce;
-    private final Compression compression;
 
     public ObjectCallbackData(ObjectCallbackAction action, byte version, int stream)
     {
         this.action = action;
-        this.compression = action.getCompression();
         this.version = version;
-        this.flags = compression.equals(Compression.NONE) ? 0 : 1;
+        this.flags = action.getRawFlags();
         this.stream = stream;
         this.opcode = SocketCode.EXECUTE;
         this.token = action.getToken();
@@ -36,7 +34,7 @@ public class ObjectCallbackData implements ObjectData
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
-        this.body = this.compression.pack(applyBody());
+        this.body = action.getCompression().pack(applyBody());
         this.header = applyHeader();
     }
 

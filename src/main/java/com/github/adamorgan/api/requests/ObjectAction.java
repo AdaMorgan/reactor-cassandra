@@ -1,5 +1,6 @@
 package com.github.adamorgan.api.requests;
 
+import com.github.adamorgan.annotations.UnknownNullability;
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
@@ -29,8 +30,17 @@ public interface ObjectAction<T>
 
     long getDeadline();
 
+    int getRawFlags();
+
+    @Nonnull
+    EnumSet<Flags> getFlags();
+
     @Nonnull
     ObjectData finalizeData();
+
+    @Nonnull
+    @CheckReturnValue
+    ObjectAction<T> useTrace(boolean enable);
 
     default void queue()
     {
@@ -45,12 +55,14 @@ public interface ObjectAction<T>
     void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);
 
     @Blocking
+    @UnknownNullability
     default T complete()
     {
         return complete(true);
     }
 
     @Blocking
+    @UnknownNullability
     T complete(boolean shouldQueue);
 
     @Nonnull

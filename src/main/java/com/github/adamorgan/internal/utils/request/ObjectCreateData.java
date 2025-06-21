@@ -32,7 +32,7 @@ public class ObjectCreateData implements ObjectData
     {
         this.version = version;
         this.compression = action.getCompression();
-        this.flags = compression.equals(Compression.NONE) ? 0 : 1;
+        this.flags = action.getRawFlags();
         this.stream = stream;
         this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);

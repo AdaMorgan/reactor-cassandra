@@ -6,7 +6,6 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCallbackData;
 import com.github.adamorgan.internal.utils.request.ObjectData;
@@ -40,6 +39,13 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
 
     @Nonnull
     @Override
+    public ObjectAction<Response> useTrace(boolean enable)
+    {
+        return this.action.useTrace(enable);
+    }
+
+    @Nonnull
+    @Override
     public ByteBuf getToken()
     {
         return this.token;
@@ -50,6 +56,19 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
     public Compression getCompression()
     {
         return this.action.getCompression();
+    }
+
+    @Override
+    public int getRawFlags()
+    {
+        return this.action.getRawFlags();
+    }
+
+    @Nonnull
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return this.action.getFlags();
     }
 
     @Nonnull

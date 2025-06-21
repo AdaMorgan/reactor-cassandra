@@ -88,6 +88,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
     }
 
+    @Nonnull
     @Override
     public T complete(boolean shouldQueue)
     {

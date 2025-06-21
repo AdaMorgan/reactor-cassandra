@@ -87,6 +87,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return flags;
     }
 
+    @Nonnull
     public EnumSet<BinaryFlags> getFlags()
     {
         return BinaryFlags.fromBitField(flags);
@@ -109,6 +110,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return elements.iterator();
     }
 
+    @Nonnull
     @Override
     public Spliterator<BinaryObject> spliterator()
     {

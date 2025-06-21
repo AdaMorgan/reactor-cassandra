@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -87,8 +88,11 @@ public class Requester
     public void enqueue(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
     {
         WorkTask task = new WorkTask(queue.remove(stream));
+
+        UUID trace = ObjectAction.Flags.fromBitField(flags).contains(ObjectAction.Flags.TRACING) ? new UUID(body.readLong(), body.readLong()) : null;
+
         this.library.release(stream);
-        task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body));
+        task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
         body.release();
 
     }

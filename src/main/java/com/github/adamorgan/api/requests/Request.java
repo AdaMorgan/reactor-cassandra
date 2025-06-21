@@ -9,6 +9,7 @@ import com.github.adamorgan.internal.requests.CallbackContext;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
@@ -44,7 +45,8 @@ public class Request<T>
     }
 
     @Nonnull
-    public ObjectAction<?> getObjectAction()
+    @CheckReturnValue
+    public ObjectAction<T> getObjectAction()
     {
         return objAction;
     }

@@ -5,6 +5,7 @@ import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.internal.utils.request.ObjectData;
 
 import javax.annotation.Nonnull;
+import java.util.EnumSet;
 import java.util.function.Consumer;
 
 public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
@@ -47,6 +48,27 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
                 doFailure(failure, ex);
             }
         }, failure);
+    }
+
+    @Nonnull
+    @Override
+    public ObjectAction<O> useTrace(boolean enable)
+    {
+        this.action.useTrace(enable);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return action.getFlags();
+    }
+
+    @Override
+    public int getRawFlags()
+    {
+        return action.getRawFlags();
     }
 
     @Nonnull
