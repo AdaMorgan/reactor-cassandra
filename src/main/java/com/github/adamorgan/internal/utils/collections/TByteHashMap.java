@@ -14,12 +14,12 @@ import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class TTextByteHashMap<K, R> implements TByteMap<K, R>
+public class TByteHashMap<K, R> implements TByteMap<K, R>
 {
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final Map<? extends K, ? extends R> values;
 
-    public TTextByteHashMap(Map<? extends K, ? extends R> values)
+    public TByteHashMap(Map<? extends K, ? extends R> values)
     {
         this.values = values;
     }

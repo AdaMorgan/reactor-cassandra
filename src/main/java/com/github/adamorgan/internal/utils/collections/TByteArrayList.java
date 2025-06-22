@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public abstract class TByteArrayList<T> implements TByteList<T>
+public class TByteArrayList<T> implements TByteList<T>
 {
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final Deque<T> array;

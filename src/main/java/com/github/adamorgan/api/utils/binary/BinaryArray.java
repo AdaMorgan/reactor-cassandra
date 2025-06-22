@@ -138,7 +138,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return this;
     }
 
-    protected class Path
+    public class Path
     {
         protected final String keyspace, table, name;
         protected final int offset;

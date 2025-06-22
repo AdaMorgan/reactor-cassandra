@@ -19,9 +19,15 @@ import java.util.*;
 public class EncodingUtils
 {
     @Nonnull
-    public static ByteBuf pack(@Nonnull ByteBuf buffer, Serializable value)
+    public static ByteBuf pack(@Nonnull ByteBuf buffer, @Nullable Serializable value)
     {
-        switch (BinaryType.fromValue(value))
+        return pack(buffer, BinaryType.fromValue(value), value);
+    }
+
+    @Nonnull
+    public static ByteBuf pack(@Nonnull ByteBuf buffer, @Nonnull BinaryType type, @Nullable Serializable value)
+    {
+        switch (type)
         {
             case ASCII:
                 return EncodingUtils.packUTF84(buffer, value);
@@ -71,9 +77,20 @@ public class EncodingUtils
         }
     }
 
-    @Nonnull
-    public static ByteBuf packDecimal(@Nonnull ByteBuf buffer, Serializable number)
+    private static ByteBuf packNull(@Nonnull ByteBuf buffer)
     {
+        buffer.writeInt(-1);
+        return buffer;
+    }
+
+    @Nonnull
+    public static ByteBuf packDecimal(@Nonnull ByteBuf buffer, @Nullable Serializable number)
+    {
+        if (number == null)
+        {
+            return packNull(buffer);
+        }
+
         try
         {
             BigDecimal decimal = new BigDecimal(number.toString());
@@ -90,7 +107,7 @@ public class EncodingUtils
     }
 
     @Nonnull
-    public static ByteBuf packVarint(@Nonnull ByteBuf buffer, Serializable number)
+    public static ByteBuf packVarint(@Nonnull ByteBuf buffer, @Nullable Serializable number)
     {
         try
         {
@@ -118,8 +135,13 @@ public class EncodingUtils
         throw new UnsupportedOperationException();
     }
 
-    public static ByteBuf packBytes(@Nonnull ByteBuf buffer, Serializable blob)
+    public static ByteBuf packBytes(@Nonnull ByteBuf buffer, @Nullable Serializable blob)
     {
+        if (blob == null)
+        {
+            return packNull(buffer);
+        }
+
         if (!(blob instanceof byte[]))
         {
             throw new ClassCastException();
@@ -296,9 +318,11 @@ public class EncodingUtils
     }
 
     @Nullable
-    public static OffsetDateTime unpackDate(@Nonnull ByteBuf buffer, int length) {
+    public static OffsetDateTime unpackDate(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         int daysSinceEpoch = buffer.readInt() - Integer.MIN_VALUE;
@@ -307,9 +331,11 @@ public class EncodingUtils
     }
 
     @Nullable
-    public static byte[] unpackBytes(@Nonnull ByteBuf buffer, int length) {
+    public static byte[] unpackBytes(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         byte[] result = new byte[length];
@@ -318,24 +344,31 @@ public class EncodingUtils
     }
 
     @Nullable
-    public static InetAddress unpackInet(@Nonnull ByteBuf buffer, int length) {
+    public static InetAddress unpackInet(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         byte[] addressBytes = new byte[length];
         buffer.readBytes(addressBytes);
-        try {
+        try
+        {
             return InetAddress.getByAddress(addressBytes);
-        } catch (UnknownHostException failException) {
+        }
+        catch (UnknownHostException failException)
+        {
             throw new RuntimeException("It was not possible to unpack", failException);
         }
     }
 
     @Nullable
-    public static String unpackUTF(@Nonnull ByteBuf buffer, int length) {
+    public static String unpackUTF(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
 
@@ -345,63 +378,77 @@ public class EncodingUtils
     }
 
     @Nullable
-    public static Long unpackLong(@Nonnull ByteBuf buffer, int length) {
+    public static Long unpackLong(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readLong();
     }
 
     @Nullable
-    public static Integer unpackInt(@Nonnull ByteBuf buffer, int length) {
+    public static Integer unpackInt(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readInt();
     }
 
     @Nullable
-    public static Short unpackShort(@Nonnull ByteBuf buffer, int length) {
+    public static Short unpackShort(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readShort();
     }
 
     @Nullable
-    public static Boolean unpackBoolean(@Nonnull ByteBuf buffer, int length) {
+    public static Boolean unpackBoolean(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readBoolean();
     }
 
     @Nullable
-    public static Double unpackDouble(@Nonnull ByteBuf buffer, int length) {
+    public static Double unpackDouble(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readDouble();
     }
 
     @Nullable
-    public static Float unpackFloat(@Nonnull ByteBuf buffer, int length) {
+    public static Float unpackFloat(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return buffer.readFloat();
     }
 
     @Nullable
-    public static UUID unpackUUID(@Nonnull ByteBuf buffer, int length) {
+    public static UUID unpackUUID(@Nonnull ByteBuf buffer, int length)
+    {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         return new UUID(buffer.readLong(), buffer.readLong());
@@ -411,7 +458,8 @@ public class EncodingUtils
     public static <V> Set<V> unpackSet(@Nonnull ByteBuf buffer, int length)
     {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         throw new UnsupportedOperationException();
@@ -421,7 +469,8 @@ public class EncodingUtils
     public static <V> List<V> unpackList(@Nonnull ByteBuf buffer, int length)
     {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         throw new UnsupportedOperationException();
@@ -431,9 +480,11 @@ public class EncodingUtils
     public static <K, V> Map<K, V> unpackMap(@Nonnull ByteBuf buffer, int length)
     {
         Checks.notNull(buffer, "Buffer");
-        if (length < 0) {
+        if (length < 0)
+        {
             return null;
         }
         throw new UnsupportedOperationException();
     }
 }
+

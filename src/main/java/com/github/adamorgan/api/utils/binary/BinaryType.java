@@ -1,6 +1,11 @@
 package com.github.adamorgan.api.utils.binary;
 
+import com.github.adamorgan.api.utils.collections.TByteList;
+import com.github.adamorgan.api.utils.collections.TByteMap;
+import com.github.adamorgan.api.utils.collections.TByteSet;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.time.OffsetDateTime;
@@ -27,9 +32,9 @@ public enum BinaryType
     TIME(0x0012, Long.class),
     SMALLINT(0x0013, Short.class),
     TINYINT(0x0014, Byte.class),
-    LIST(0x0020, ArrayList.class),
-    MAP(0x0021, HashMap.class),
-    SET(0x0022, HashSet.class),
+    LIST(0x0020, TByteList.class),
+    MAP(0x0021, TByteMap.class),
+    SET(0x0022, TByteSet.class),
     UDT(0x0030, null),
     TUPLE(0x0031, null);
 
@@ -49,7 +54,7 @@ public enum BinaryType
     }
 
     @Nonnull
-    public static <R extends Serializable> BinaryType fromValue(@Nonnull R value)
+    public static <R extends Serializable> BinaryType fromValue(@Nullable final R value)
     {
         return Arrays.stream(values()).filter(type -> type.equals(value)).findFirst().orElseThrow(ClassCastException::new);
     }
