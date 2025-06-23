@@ -21,7 +21,8 @@ public class EncodingUtils
     @Nonnull
     public static ByteBuf pack(@Nonnull ByteBuf buffer, @Nullable Serializable value)
     {
-        return pack(buffer, BinaryType.fromValue(value), value);
+        BinaryType type = BinaryType.fromValue(value);
+        return pack(buffer, type, value);
     }
 
     @Nonnull
@@ -30,7 +31,7 @@ public class EncodingUtils
         switch (type)
         {
             case ASCII:
-                return EncodingUtils.packUTF84(buffer, value);
+                return EncodingUtils.packUTF88(buffer, value);
             case BIGINT:
                 return EncodingUtils.packLong(buffer, value);
             case BLOB:
@@ -52,7 +53,7 @@ public class EncodingUtils
             case UUID:
                 return EncodingUtils.packUUID(buffer, value);
             case TEXT:
-                return EncodingUtils.packUTF84(buffer, value);
+                return EncodingUtils.packUTF88(buffer, value);
             case VARINT:
                 return EncodingUtils.packVarint(buffer, value);
             case TIMEUUID:
@@ -231,7 +232,7 @@ public class EncodingUtils
     public static ByteBuf packByte(@Nonnull ByteBuf buffer, @Nonnull Serializable obj)
     {
         Checks.notNull(buffer, "Buffer");
-        if (!(obj instanceof ByteBuf))
+        if (!(obj instanceof Byte))
         {
             throw new ClassCastException();
         }
@@ -250,7 +251,6 @@ public class EncodingUtils
             throw new ClassCastException();
         }
         short other = (short) obj;
-        buffer.writeShort(2);
         return buffer.writeShort(other);
     }
 
@@ -291,7 +291,7 @@ public class EncodingUtils
         }
         float other = (float) obj;
         buffer.writeInt(4);
-        return buffer.writeDouble(other);
+        return buffer.writeFloat(other);
     }
 
     @Nonnull

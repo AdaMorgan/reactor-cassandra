@@ -16,7 +16,6 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(body, "Body");
         Helpers.setContent(this.content, content);
-        this.body.clear();
         if (body.readableBytes() > 0)
         {
             this.fields |= ObjectCreateAction.Field.VALUES.getRawValue() | (named ? ObjectCreateAction.Field.VALUE_NAMES.getRawValue() : 0);

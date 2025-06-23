@@ -21,14 +21,8 @@ import java.util.function.Consumer;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system_auth.demo WHERE user_id = :user_id AND username = :username";
-    public static final String TEST_QUERY_WARNING = "SELECT * FROM system_auth.demo WHERE username = :username ALLOW FILTERING";
-    public static final String TEST_QUERY_TYPES = "SELECT * FROM system_traces.all_types";
+    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.clients WHERE connection_stage = :stage ALLOW FILTERING";
     public static final String TEST_QUERY = "SELECT hostname FROM system.clients";
-    public static final String TEST_INSERT_QUERY = "INSERT INTO system_traces.test (id, username) VALUES (1, 'user')";
-    public static final String TEST_USE_KEYSPACE = "USE demo";
-    public static final String TEST_SCHEMA_CHANGE = "CREATE TABLE IF NOT EXISTS my_table (id UUID PRIMARY KEY, name TEXT);";
-    public static final String TEST_DROP_TABLE = "DROP TABLE IF EXISTS demo.my_table";
 
     public static void main(String[] args)
     {
@@ -58,22 +52,29 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-        //api.sendRequest(TEST_USE_KEYSPACE).map(Response::getArray).queue(System.out::println, error -> System.out.println(error.getMessage()));
-        api.sendRequest(TEST_QUERY).useTrace(true).map(Response::getTrace).queue(System.out::println, error -> System.out.println(error.getMessage()));
+//        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(content -> {
+//            content.forEach(binaryObject -> {
+//                System.out.println(binaryObject.getString());
+//            });
+//        }, error -> System.out.println(error.getMessage()));
 
         Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add(844613816943771649L);
-        parameters.add("reganjohn");
+        parameters.add("READY");
 
-        //api.sendRequest(TEST_QUERY_WARNING, "reganjohn").map(array -> array).queue(System.out::println, Throwable::printStackTrace);
-
-        //api.sendRequest(TEST_QUERY_PREPARED, parameters).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(array -> {
+            array.forEach(binaryObject -> {
+                System.out.println(binaryObject.getString());
+            });
+        }, Throwable::printStackTrace);
 
         Map<String, Serializable> map = new HashMap<>();
-        map.put("user_id", 844613816943771649L);
-        map.put("username", "reganjohn");
+        map.put("stage", "READY");
 
-        //api.sendRequest(TEST_QUERY_PREPARED, map).map(RowsResultImpl::new).queue(System.out::println, Throwable::printStackTrace);
+        api.sendRequest(TEST_QUERY_PREPARED, map).map(Response::getArray).queue(array -> {
+            array.forEach(binaryObject -> {
+                System.out.println(binaryObject.getString());
+            });
+        }, Throwable::printStackTrace);
     }
 
     @Override

@@ -2,7 +2,6 @@ package com.github.adamorgan.internal.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
-import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -22,7 +21,7 @@ public class ObjectCallbackData implements ObjectData
     private final int fields, maxBufferSize;
     private final long nonce;
 
-    public ObjectCallbackData(ObjectCallbackAction action, byte version, int stream)
+    public ObjectCallbackData(@Nonnull ObjectCallbackAction action, byte version, int stream)
     {
         this.action = action;
         this.version = version;
@@ -49,10 +48,10 @@ public class ObjectCallbackData implements ObjectData
     @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer().addComponents(true, header, body);
+        return Unpooled.wrappedBuffer(header, body);
     }
 
-    public ByteBuf applyHeader()
+    private ByteBuf applyHeader()
     {
         return Unpooled.directBuffer()
                 .writeByte(this.version)
@@ -60,10 +59,10 @@ public class ObjectCallbackData implements ObjectData
                 .writeShort(this.stream)
                 .writeByte(this.opcode)
                 .writeInt(body.readableBytes())
-                .asByteBuf();
+                .asReadOnly();
     }
 
-    public ByteBuf applyBody()
+    private ByteBuf applyBody()
     {
         return Unpooled.directBuffer()
                 .writeShort(this.token.readableBytes())

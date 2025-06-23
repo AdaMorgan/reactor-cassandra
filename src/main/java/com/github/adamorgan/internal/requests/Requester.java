@@ -72,6 +72,7 @@ public class Requester
         try
         {
             LOG.trace("Executing request {}", ByteBufUtil.prettyHexDump(task.request.getBody()));
+
             context.writeAndFlush(task.getBody().retain()).addListener(result -> {
                 if (!result.isSuccess())
                 {
@@ -93,8 +94,6 @@ public class Requester
 
         this.library.release(stream);
         task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
-        body.release();
-
     }
 
     public class WorkTask implements Work

@@ -9,6 +9,7 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;

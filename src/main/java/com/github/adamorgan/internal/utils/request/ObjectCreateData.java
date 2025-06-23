@@ -3,6 +3,7 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.internal.requests.Requester;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
