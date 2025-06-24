@@ -1,6 +1,5 @@
 package com.github.adamorgan.api.utils.request;
 
-import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 

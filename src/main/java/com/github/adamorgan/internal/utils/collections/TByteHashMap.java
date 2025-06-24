@@ -7,6 +7,7 @@ import com.github.adamorgan.internal.utils.UnlockHook;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -14,12 +15,12 @@ import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class TByteHashMap<K, R> implements TByteMap<K, R>
+public class TByteHashMap<K, R> implements TByteMap<K, R>, Serializable
 {
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    protected final Map<? extends K, ? extends R> values;
+    protected final Map<K, R> values;
 
-    public TByteHashMap(Map<? extends K, ? extends R> values)
+    public TByteHashMap(Map<K, R> values)
     {
         this.values = values;
     }
@@ -43,77 +44,109 @@ public class TByteHashMap<K, R> implements TByteMap<K, R>
     @Override
     public int size()
     {
-        return 0;
+        return this.values.size();
     }
 
     @Override
     public boolean isEmpty()
     {
-        return false;
+        return this.values.isEmpty();
     }
 
     @Override
-    public boolean containsKey(Object key)
+    public boolean containsKey(@Nonnull Object key)
     {
         Checks.notNull(key, "key");
-        return true;
+        try (UnlockHook hook = readLock())
+        {
+            return this.values.containsKey(key);
+        }
     }
 
     @Override
     public boolean containsValue(Object value)
     {
-        return false;
+        Checks.notNull(value, "value");
+        try (UnlockHook hook = readLock())
+        {
+            return this.values.containsValue(value);
+        }
     }
 
     @Override
     public R get(Object key)
     {
-        return null;
+        Checks.notNull(key, "key");
+        try (UnlockHook hook = readLock())
+        {
+            return this.values.get(key);
+        }
     }
 
     @Nullable
     @Override
     public R put(K key, R value)
     {
-        return null;
+        Checks.notNull(key, "key");
+        try (UnlockHook hook = writeLock())
+        {
+            return this.values.put(key, value);
+        }
     }
 
     @Override
     public R remove(Object key)
     {
-        return null;
+        Checks.notNull(key, "key");
+        try (UnlockHook hook = readLock())
+        {
+            return this.values.remove(key);
+        }
     }
 
     @Override
-    public void putAll(@Nonnull Map<? extends K, ? extends R> m)
+    public void putAll(@Nonnull Map<? extends K, ? extends R> map)
     {
-
+        Checks.notNull(map, "map");
+        try (UnlockHook hook = writeLock())
+        {
+            this.values.putAll(map);
+        }
     }
 
     @Override
     public void clear()
     {
-
+        this.values.clear();
     }
 
     @Nonnull
     @Override
     public Set<K> keySet()
     {
-        return Collections.emptySet();
+        try (UnlockHook hook = readLock())
+        {
+            return Collections.unmodifiableSet(this.values.keySet());
+        }
     }
 
     @Nonnull
     @Override
     public Collection<R> values()
     {
-        return Collections.emptyList();
+        try (UnlockHook hook = readLock())
+        {
+            return Collections.unmodifiableCollection(this.values.values());
+        }
     }
 
     @Nonnull
     @Override
     public Set<Entry<K, R>> entrySet()
     {
-        return Collections.emptySet();
+        try (UnlockHook hook = readLock())
+        {
+            return Collections.unmodifiableSet(this.values.entrySet());
+        }
     }
 }

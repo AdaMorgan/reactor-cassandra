@@ -7,12 +7,10 @@ import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -20,7 +18,6 @@ import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class Requester

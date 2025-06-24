@@ -1,21 +1,20 @@
 package com.github.adamorgan.internal.utils.collections;
 
 import com.github.adamorgan.api.utils.MiscUtil;
-import com.github.adamorgan.api.utils.collections.TByteList;
 import com.github.adamorgan.api.utils.collections.TByteSet;
 import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class TByteHashSet<T> implements TByteSet<T>
+public class TByteHashSet<T> implements TByteSet<T>, Serializable
 {
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final Set<T> array;

@@ -14,7 +14,6 @@ import io.netty.channel.EventLoopGroup;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;

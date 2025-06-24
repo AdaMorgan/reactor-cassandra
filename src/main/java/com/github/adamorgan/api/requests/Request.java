@@ -2,8 +2,6 @@ package com.github.adamorgan.api.requests;
 
 import com.github.adamorgan.api.events.ExceptionEvent;
 import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
-import com.github.adamorgan.api.exceptions.ErrorResponse;
-import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.CallbackContext;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;

@@ -6,6 +6,7 @@ import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
@@ -14,7 +15,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class TByteArrayList<T> implements TByteList<T>
+public class TByteArrayList<T> implements TByteList<T>, Serializable
 {
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final Deque<T> array;
@@ -52,7 +53,7 @@ public class TByteArrayList<T> implements TByteList<T>
     @Override
     public Iterator<T> iterator()
     {
-        try (UnlockHook unlock = readLock())
+        try (UnlockHook hook = readLock())
         {
             return array.iterator();
         }

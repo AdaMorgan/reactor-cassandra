@@ -1,15 +1,16 @@
 package com.github.adamorgan.api.utils.binary;
 
-import com.github.adamorgan.api.utils.collections.TByteList;
-import com.github.adamorgan.api.utils.collections.TByteMap;
-import com.github.adamorgan.api.utils.collections.TByteSet;
+import com.github.adamorgan.internal.utils.collections.TByteArrayList;
+import com.github.adamorgan.internal.utils.collections.TByteHashMap;
+import com.github.adamorgan.internal.utils.collections.TByteHashSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.UUID;
 
 public enum BinaryType
 {
@@ -32,9 +33,9 @@ public enum BinaryType
     TIME(0x0012, Long.class),
     SMALLINT(0x0013, Short.class),
     TINYINT(0x0014, Byte.class),
-    LIST(0x0020, TByteList.class),
-    MAP(0x0021, TByteMap.class),
-    SET(0x0022, TByteSet.class),
+    LIST(0x0020, TByteArrayList.class),
+    MAP(0x0021, TByteHashMap.class),
+    SET(0x0022, TByteHashSet.class),
     UDT(0x0030, null),
     TUPLE(0x0031, null);
 
@@ -42,7 +43,7 @@ public enum BinaryType
     private final int offset;
     private final Class<?>[] clazz;
 
-    BinaryType(int offset, Class<?>... clazz)
+    BinaryType(int offset, Class<? extends Serializable>... clazz)
     {
         this.offset = offset;
         this.clazz = clazz;

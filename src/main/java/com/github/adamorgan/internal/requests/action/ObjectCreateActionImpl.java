@@ -7,14 +7,12 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
 import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
 import com.github.adamorgan.internal.utils.request.ObjectCreateData;
 import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;

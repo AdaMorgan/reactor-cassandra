@@ -2,7 +2,6 @@ package com.github.adamorgan.internal.utils.codec;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
-import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.SessionController;
