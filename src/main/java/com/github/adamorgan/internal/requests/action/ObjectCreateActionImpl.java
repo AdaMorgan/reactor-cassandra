@@ -185,7 +185,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCreateData(this, version, stream);
+        return new ObjectCreateData(this, version);
     }
 
     @Override

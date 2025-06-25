@@ -44,8 +44,6 @@ public interface ObjectAction<T>
     @Nonnull
     Library getLibrary();
 
-    int getStreamId();
-
     long getDeadline();
 
     int getRawFlags();

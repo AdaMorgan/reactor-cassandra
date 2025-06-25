@@ -101,12 +101,6 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
         return action.getDeadline();
     }
 
-    @Override
-    public int getStreamId()
-    {
-        return this.action.getStreamId();
-    }
-
     @Nonnull
     @Override
     public Library getLibrary()

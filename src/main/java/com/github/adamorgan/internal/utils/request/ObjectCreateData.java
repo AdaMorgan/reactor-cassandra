@@ -19,22 +19,27 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
+import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
+import java.util.concurrent.TimeUnit;
 
 public class ObjectCreateData implements ObjectData
 {
     public static final int CONTENT_BYTES = Integer.BYTES;
 
+    private final ObjectCreateAction action;
     private final byte version, opcode;
     private final int flags;
-    private final int stream;
+    private final int id;
     private final byte[] content;
     private final Compression compression;
     private final ObjectCreateAction.Consistency consistency;
@@ -44,12 +49,13 @@ public class ObjectCreateData implements ObjectData
     private final ByteBuf header;
     private final ByteBuf body;
 
-    public ObjectCreateData(ObjectCreateAction action, byte version, int stream)
+    public ObjectCreateData(ObjectCreateAction action, byte version)
     {
+        this.action = action;
         this.version = version;
         this.compression = action.getCompression();
         this.flags = action.getRawFlags();
-        this.stream = stream;
+        this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();
         this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
         this.consistency = action.getConsistency();
@@ -58,6 +64,12 @@ public class ObjectCreateData implements ObjectData
         this.nonce = action.getNonce();
         this.body = this.compression.pack(applyBody());
         this.header = applyHeader();
+    }
+
+    @Override
+    public int getId()
+    {
+        return id;
     }
 
     @Nonnull
@@ -71,7 +83,7 @@ public class ObjectCreateData implements ObjectData
     @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer(2).addComponents(true, this.header, this.body);
+        return Unpooled.compositeBuffer(2).addComponents(true, header, body);
     }
 
     public ByteBuf applyHeader()
@@ -79,10 +91,9 @@ public class ObjectCreateData implements ObjectData
         return Unpooled.directBuffer(finalizeLength() + ObjectAction.HEADER_BYTES)
                 .writeByte(version)
                 .writeByte(flags)
-                .writeShort(stream)
+                .writeShort(id)
                 .writeByte(opcode)
-                .writeInt(body.readableBytes())
-                .asByteBuf();
+                .writeInt(body.readableBytes());
     }
 
     public ByteBuf applyBody()
@@ -93,12 +104,20 @@ public class ObjectCreateData implements ObjectData
                 .writeShort(consistency.getCode())
                 .writeByte(fields)
                 .writeInt(maxBufferSize)
-                .writeLong(nonce)
-                .asByteBuf();
+                .writeLong(nonce);
     }
 
     private int finalizeLength()
     {
         return CONTENT_BYTES + body.readableBytes() + (opcode == SocketCode.QUERY ? Short.BYTES : 0) + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
+    }
+
+    @Override
+    public void close()
+    {
+        if (header.refCnt() > 0)
+            header.release();
+        if (body.refCnt() > 0)
+            body.release();
     }
 }

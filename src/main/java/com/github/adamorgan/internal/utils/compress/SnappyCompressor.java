@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
+ */
 
 package com.github.adamorgan.internal.utils.compress;
 
@@ -36,7 +36,7 @@ public class SnappyCompressor extends AbstractCompressor
     {
         super(Compression.SNAPPY);
     }
-    
+
     @Override
     protected ByteBuf packDirect(ByteBuf body, /*ignored*/ boolean prependWithUncompressedLength)
     {
@@ -77,8 +77,7 @@ public class SnappyCompressor extends AbstractCompressor
 
         // Allocate a heap buffer from the ByteBufAllocator as we may use a PooledByteBufAllocator and
         // so can eliminate the overhead of allocate a new byte[].
-        ByteBuf output = body.alloc()
-                .heapBuffer(maxCompressedLength);
+        ByteBuf output = body.alloc().heapBuffer(maxCompressedLength);
         try
         {
             // Calculate the correct offset.
@@ -127,6 +126,7 @@ public class SnappyCompressor extends AbstractCompressor
             ByteBuffer out = outputNioBuffer(output);
 
             int size = Snappy.uncompress(in, out);
+
             // Set the writer index so the amount of written bytes is reflected
             output.writerIndex(output.writerIndex() + size);
             return output;

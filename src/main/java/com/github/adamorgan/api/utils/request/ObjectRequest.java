@@ -20,6 +20,7 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.util.EnumSet;
 
 public interface ObjectRequest<T extends ObjectRequest<T>>

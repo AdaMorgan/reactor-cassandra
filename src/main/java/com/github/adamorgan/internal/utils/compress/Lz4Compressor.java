@@ -128,8 +128,7 @@ public class Lz4Compressor extends AbstractCompressor
         ByteBuffer in = inputNioBuffer(input);
         // Increase reader index.
         input.readerIndex(input.writerIndex());
-        ByteBuf output = input.alloc()
-                .directBuffer(length);
+        ByteBuf output = input.alloc().directBuffer(length);
         try
         {
             ByteBuffer out = outputNioBuffer(output);

@@ -28,6 +28,7 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
@@ -86,7 +87,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
         onDispatch(version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
     }
 
-    private void onDispatch(byte version, byte flags, short stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
+    private void onDispatch(byte version, byte flags, int stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
     {
         switch (opcode)
         {
@@ -128,7 +129,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
     }
 
     @Nonnull
-    private SessionController.SessionConnectNode sendStartup(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    private SessionController.SessionConnectNode sendStartup(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
         return new SocketClient.ConnectNode(this.library, () ->
         {
@@ -153,7 +154,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
                 EncodingUtils.packUTF84(body, entry.getKey());
                 EncodingUtils.packUTF84(body, entry.getValue());
             }
-
+            
             return Unpooled.directBuffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)
@@ -166,7 +167,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
     }
 
     @Nonnull
-    private SessionController.SessionConnectNode verifyToken(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    private SessionController.SessionConnectNode verifyToken(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
         return new SocketClient.ConnectNode(this.library, () ->
         {
@@ -183,11 +184,11 @@ public final class MessageDecoder extends ByteToMessageDecoder
     }
 
     @Nonnull
-    private SessionController.SessionConnectNode registry(byte version, byte flags, short stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    private SessionController.SessionConnectNode registry(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
         return new SocketClient.ConnectNode(this.library, () ->
         {
-            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::directBuffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
+            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::buffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
 
             return Unpooled.directBuffer()
                     .writeByte(version)

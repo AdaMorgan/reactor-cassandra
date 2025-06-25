@@ -36,7 +36,7 @@ public class Response
 
     protected final Exception exception;
 
-    public Response(byte version, byte flags, short stream, byte opcode, int length, ErrorResponse error, ByteBuf body, UUID trace)
+    public Response(byte version, byte flags, int stream, byte opcode, int length, ErrorResponse error, ByteBuf body, UUID trace)
     {
         this.version = version;
         this.flags = flags;

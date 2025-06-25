@@ -137,7 +137,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCallbackData(this, version, stream);
+        return new ObjectCallbackData(this, version);
     }
 
     @Override

@@ -22,11 +22,16 @@ import io.netty.buffer.ByteBuf;
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
 
-public interface ObjectData
+public interface ObjectData extends AutoCloseable
 {
+    int getId();
+
     @Nonnull
     EnumSet<ObjectCreateAction.Field> getFields();
 
     @Nonnull
     ByteBuf applyData();
+
+    @Override
+    void close();
 }

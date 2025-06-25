@@ -22,18 +22,13 @@ import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.LibraryImpl;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -68,29 +63,24 @@ public final class SessionLoggerExample extends ListenerAdapter
     {
         LibraryImpl api = (LibraryImpl) event.getLibrary();
 
-//        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(content -> {
-//            content.forEach(binaryObject -> {
-//                System.out.println(binaryObject.getString());
+        //        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(content -> {
+        //            content.forEach(binaryObject -> {
+        //                System.out.println(binaryObject.getString());
+        //            });
+        //        }, error -> System.out.println(error.getMessage()));
+
+//        Collection<Serializable> parameters = new ArrayList<>();
+//        parameters.add("READY");
+//
+//        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(array ->
+//        {
+//            array.forEach(binaryObject ->
+//            {
 //            });
-//        }, error -> System.out.println(error.getMessage()));
+//        }, Throwable::printStackTrace);
 
-        Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add("READY");
 
-        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(array -> {
-            array.forEach(binaryObject -> {
-                System.out.println(binaryObject.getString());
-            });
-        }, Throwable::printStackTrace);
-
-        Map<String, Serializable> map = new HashMap<>();
-        map.put("stage", "READY");
-
-        api.sendRequest(TEST_QUERY_PREPARED, map).map(Response::getArray).queue(array -> {
-            array.forEach(binaryObject -> {
-                System.out.println(binaryObject.getString());
-            });
-        }, Throwable::printStackTrace);
+        testResourceLeakDetector(api);
     }
 
     @Override
@@ -101,25 +91,34 @@ public final class SessionLoggerExample extends ListenerAdapter
 
     public void testResourceLeakDetector(LibraryImpl api)
     {
-        Collection<Serializable> parameters = new ArrayList<>();
-        parameters.add(844613816943771649L);
-        parameters.add("reganjohn");
-
         long startTime = System.currentTimeMillis();
-        AtomicInteger counter = new AtomicInteger();
-        final int count = 25000;
+        final int count = 30000;
 
-        Consumer<BinaryArray> result = (rowsResult) -> {
-            counter.incrementAndGet();
-            if (counter.get() == count)
-            {
-                System.out.println(System.currentTimeMillis() - startTime);
-            }
-        };
+        Map<Integer, Response> responseMap = new HashMap<>();
 
         for (int i = 0; i < count; i++)
         {
-            api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(result, Throwable::printStackTrace);
+            try
+            {
+                Map<String, Serializable> map = new HashMap<>();
+                map.put("stage", "READY");
+
+                int finalI = i;
+
+                api.sendRequest(TEST_QUERY).queue(response -> {
+                    responseMap.put(finalI, response);
+                    if (responseMap.size() == count)
+                    {
+                        long duration = System.currentTimeMillis() - startTime;
+                        System.out.println("Total time: " + duration + " ms");
+                        System.out.println("RPS: " + (count * 1000.0 / duration));
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+                System.out.println(e.getMessage());
+            }
         }
     }
 }

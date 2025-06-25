@@ -24,6 +24,7 @@ import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
+import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 
@@ -43,8 +44,6 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final int stream;
-
     protected final byte version;
 
     protected final BiFunction<Request<T>, Response, T> handler;
@@ -56,7 +55,6 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         this.api = api;
         this.version = api.getVersion();
         this.handler = handler;
-        this.stream = api.acquire();
     }
 
     public ObjectActionImpl(LibraryImpl api)
@@ -69,12 +67,6 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     public Library getLibrary()
     {
         return this.api;
-    }
-
-    @Override
-    public int getStreamId()
-    {
-        return this.stream;
     }
 
     public static Consumer<? super Throwable> getDefaultFailure()
@@ -90,21 +82,23 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ByteBuf body = this.finalizeData().applyData();
-
-        if (success == null)
+        try (ObjectData objData = finalizeData())
         {
-            success = DEFAULT_SUCCESS;
-        }
-        if (failure == null)
-        {
-            failure = DEFAULT_FAILURE;
-        }
+            ByteBuf body = objData.applyData();
 
-        api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
+            if (success == null)
+            {
+                success = DEFAULT_SUCCESS;
+            }
+            if (failure == null)
+            {
+                failure = DEFAULT_FAILURE;
+            }
+
+            api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
+        }
     }
 
-    @Nonnull
     @Override
     public T complete(boolean shouldQueue)
     {

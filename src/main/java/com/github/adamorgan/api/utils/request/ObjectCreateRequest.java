@@ -21,6 +21,7 @@ import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -37,7 +38,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     default <R extends Serializable> T setContent(@Nonnull String content, @Nonnull Collection<? extends R> args)
     {
         Checks.notNull(content, "content");
-        ByteBuf body = args.stream().collect(Collector.of(Unpooled::buffer, EncodingUtils::pack, ByteBuf::writeBytes));
+        ByteBuf body = args.stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
         return setContent(content, body, args.size(), false);
     }
 
@@ -45,8 +46,15 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     default <R extends Serializable> T setContent(@Nonnull String content, @Nonnull Map<String, ? extends R> args)
     {
         Checks.notNull(content, "content");
-        ByteBuf body = args.entrySet().stream().collect(Collector.of(Unpooled::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
-        return setContent(content, body, args.size(), true);
+        ByteBuf body = null;
+        try {
+            body = args.entrySet().stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
+            return setContent(content, body, args.size(), true);
+        } finally {
+            if (body != null) {
+                body.release();
+            }
+        }
     }
 
     @Nonnull

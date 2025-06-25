@@ -21,6 +21,8 @@ import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.buffer.UnpooledDirectByteBuf;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -34,7 +36,7 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected int maxBufferSize = 5000;
     protected long nonce;
 
-    protected final ByteBuf body = Unpooled.directBuffer();
+    protected final ByteBuf body = UnpooledByteBufAllocator.DEFAULT.directBuffer(maxBufferSize);
 
     @Nonnull
     @Override

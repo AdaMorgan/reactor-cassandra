@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import java.net.SocketAddress;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -65,8 +64,6 @@ public class LibraryImpl implements Library
 
     protected final Thread shutdownHook;
 
-    protected final ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(32768, false);
-
     protected final Requester requester;
     protected final ThreadingConfig threadConfig;
     protected final EventManagerProxy eventManager;
@@ -82,11 +79,6 @@ public class LibraryImpl implements Library
         this.client = new SocketClient(this, address, compression, sessionConfig);
         this.requester = new Requester(this);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
-
-        for (int i = 1; i <= 32768; i++)
-        {
-            this.queue.add(i);
-        }
     }
 
     public SocketClient getClient()
@@ -216,17 +208,6 @@ public class LibraryImpl implements Library
         return sessionConfig.getMaxBufferSize();
     }
 
-    //TODO-Failure: Make an implementation in which ObjectAction will wait for its turn
-    public int acquire()
-    {
-        return this.queue.poll();
-    }
-
-    public void release(int id)
-    {
-        this.queue.offer(id);
-    }
-
     public void setStatus(Status status)
     {
         StatusChangeEvent event = MiscUtil.locked(statusLock, () ->
@@ -259,6 +240,7 @@ public class LibraryImpl implements Library
     @Override
     public synchronized void shutdownNow()
     {
+        this.requester.stop(true, this::shutdownRequester);
         shutdown();
         threadConfig.shutdownNow();
     }
@@ -276,5 +258,10 @@ public class LibraryImpl implements Library
         setStatus(Status.SHUTTING_DOWN);
 
         this.client.shutdown();
+    }
+
+    public void shutdownRequester()
+    {
+
     }
 }

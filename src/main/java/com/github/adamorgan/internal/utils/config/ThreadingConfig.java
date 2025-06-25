@@ -45,7 +45,7 @@ public class ThreadingConfig
 
     public void setCallbackPool(@Nullable ExecutorService executor, boolean shutdown)
     {
-        this.callbackPool = executor == null ? new MultiThreadIoEventLoopGroup(200, handler) : new MultiThreadIoEventLoopGroup(executor, handler);
+        this.callbackPool = executor == null ? new MultiThreadIoEventLoopGroup(handler) : new MultiThreadIoEventLoopGroup(executor, handler);
         this.shutdownCallbackPool = shutdown;
     }
 

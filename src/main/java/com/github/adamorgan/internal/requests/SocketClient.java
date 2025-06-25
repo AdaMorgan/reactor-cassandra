@@ -30,7 +30,9 @@ import com.github.adamorgan.internal.utils.codec.MessageEncoder;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollSocketChannel;
@@ -273,7 +275,10 @@ public class SocketClient
         {
             this.api = client.library;
             this.callback = callback;
-            this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE).handler(new SocketHandler());
+            this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE)
+                    .option(ChannelOption.SO_KEEPALIVE, true)
+                    .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
+                    .handler(new SocketHandler());
         }
 
         @Nonnull
