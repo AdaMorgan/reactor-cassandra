@@ -12,24 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
+ */
 
 package com.github.adamorgan.internal.utils.request;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
-import com.github.adamorgan.internal.requests.action.ObjectCallbackActionImpl;
-import com.github.adamorgan.internal.utils.UnlockHook;
-import io.netty.buffer.*;
+import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
 
-public class ObjectCallbackData implements ObjectData
+public class ObjectCacheData implements ObjectData
 {
-    private final ObjectCallbackActionImpl action;
+    private final ObjectCreateActionImpl action;
     private final byte version, opcode;
     private final int flags;
     private final int id;
@@ -38,15 +37,14 @@ public class ObjectCallbackData implements ObjectData
     private final int fields, maxBufferSize;
     private final long nonce;
 
-    public ObjectCallbackData(@Nonnull ObjectCallbackAction action)
+    public ObjectCacheData(ObjectCreateAction action)
     {
-        this.action = (ObjectCallbackActionImpl) action;
+        this.action = (ObjectCreateActionImpl) action;
         this.version = this.action.version;
         this.flags = action.getRawFlags();
         this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();
         this.opcode = SocketCode.EXECUTE;
-        //this.token = action.useCache() ? action.getLibrary().getObjectCache().cache(action.hashCode(), action.getToken()) : action.getToken();
-        this.token = action.getToken();
+        this.token = action.getLibrary().getObjectCache().get(action.hashCode());
         this.consistency = action.getConsistency().getCode();
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();

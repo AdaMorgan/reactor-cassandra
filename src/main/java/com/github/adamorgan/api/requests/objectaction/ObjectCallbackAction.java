@@ -31,4 +31,6 @@ public interface ObjectCallbackAction extends ObjectAction<Response>, ObjectRequ
 
     @Nonnull
     Compression getCompression();
+
+    boolean useCache();
 }

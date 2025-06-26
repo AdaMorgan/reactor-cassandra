@@ -26,6 +26,6 @@ public final class MessageEncoder extends MessageToByteEncoder<ByteBuf>
     @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf msg, ByteBuf out) throws Exception
     {
-        out.writeBytes(msg);
+        out.writeBytes(msg.retain());
     }
 }

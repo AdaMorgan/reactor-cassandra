@@ -44,7 +44,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected final LibraryImpl api;
 
-    protected final byte version;
+    public final byte version;
 
     protected final BiFunction<Request<T>, Response, T> handler;
 
@@ -82,21 +82,18 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        try (ObjectData objData = finalizeData())
+        ByteBuf body = finalizeData().applyData();
+
+        if (success == null)
         {
-            ByteBuf body = objData.applyData();
-
-            if (success == null)
-            {
-                success = DEFAULT_SUCCESS;
-            }
-            if (failure == null)
-            {
-                failure = DEFAULT_FAILURE;
-            }
-
-            api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
+            success = DEFAULT_SUCCESS;
         }
+        if (failure == null)
+        {
+            failure = DEFAULT_FAILURE;
+        }
+
+        api.getRequester().request(new Request<>(this, body, success, failure, getDeadline()));
     }
 
     @Override

@@ -24,19 +24,17 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
-import java.util.concurrent.TimeUnit;
 
 public class ObjectCreateData implements ObjectData
 {
     public static final int CONTENT_BYTES = Integer.BYTES;
 
-    private final ObjectCreateAction action;
+    private final ObjectCreateActionImpl action;
     private final byte version, opcode;
     private final int flags;
     private final int id;
@@ -49,10 +47,10 @@ public class ObjectCreateData implements ObjectData
     private final ByteBuf header;
     private final ByteBuf body;
 
-    public ObjectCreateData(ObjectCreateAction action, byte version)
+    public ObjectCreateData(ObjectCreateAction action)
     {
-        this.action = action;
-        this.version = version;
+        this.action = (ObjectCreateActionImpl) action;
+        this.version = this.action.version;
         this.compression = action.getCompression();
         this.flags = action.getRawFlags();
         this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();

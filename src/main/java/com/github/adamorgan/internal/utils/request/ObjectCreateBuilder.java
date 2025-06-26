@@ -21,6 +21,9 @@ import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.Helpers;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 
 import javax.annotation.Nonnull;
 
@@ -32,11 +35,12 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     {
         Checks.notNull(body, "Body");
         Helpers.setContent(this.content, content);
+
         if (body.readableBytes() > 0)
         {
             this.fields |= ObjectCreateAction.Field.VALUES.getRawValue() | (named ? ObjectCreateAction.Field.VALUE_NAMES.getRawValue() : 0);
             this.body.writeShort(size);
-            this.body.writeBytes(body.retain());
+            this.body.writeBytes(body);
         }
         body.release();
         return this;

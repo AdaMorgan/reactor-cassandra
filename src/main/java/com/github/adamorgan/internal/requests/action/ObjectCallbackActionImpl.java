@@ -120,6 +120,12 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
         return this.action.getFields();
     }
 
+    @Override
+    public boolean useCache()
+    {
+        return this.action.useCache;
+    }
+
     @Nonnull
     @Override
     public ByteBuf getBody()
@@ -137,7 +143,7 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCallbackData(this, version);
+        return new ObjectCallbackData(this);
     }
 
     @Override
@@ -155,5 +161,11 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
             return false;
         ObjectCallbackAction other = (ObjectCallbackAction) obj;
         return Objects.equals(this, other);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return this.action.hashCode();
     }
 }

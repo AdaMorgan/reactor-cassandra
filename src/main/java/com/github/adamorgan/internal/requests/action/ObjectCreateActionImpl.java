@@ -24,10 +24,8 @@ import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.request.ObjectCreateBuilder;
-import com.github.adamorgan.internal.utils.request.ObjectCreateBuilderMixin;
-import com.github.adamorgan.internal.utils.request.ObjectCreateData;
-import com.github.adamorgan.internal.utils.request.ObjectData;
+import com.github.adamorgan.internal.utils.UnlockHook;
+import com.github.adamorgan.internal.utils.request.*;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
@@ -185,7 +183,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCreateData(this, version);
+        return new ObjectCreateData(this);
     }
 
     @Override

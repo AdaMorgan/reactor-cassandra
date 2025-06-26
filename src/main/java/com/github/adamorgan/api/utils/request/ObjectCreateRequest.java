@@ -38,6 +38,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     default <R extends Serializable> T setContent(@Nonnull String content, @Nonnull Collection<? extends R> args)
     {
         Checks.notNull(content, "content");
+        Checks.notNull(args, "args");
         ByteBuf body = args.stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
         return setContent(content, body, args.size(), false);
     }
@@ -46,15 +47,9 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     default <R extends Serializable> T setContent(@Nonnull String content, @Nonnull Map<String, ? extends R> args)
     {
         Checks.notNull(content, "content");
-        ByteBuf body = null;
-        try {
-            body = args.entrySet().stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
-            return setContent(content, body, args.size(), true);
-        } finally {
-            if (body != null) {
-                body.release();
-            }
-        }
+        Checks.notNull(args, "args");
+        ByteBuf body = args.entrySet().stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
+        return setContent(content, body, args.size(), true);
     }
 
     @Nonnull

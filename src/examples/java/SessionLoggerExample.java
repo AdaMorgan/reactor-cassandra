@@ -23,12 +23,14 @@ import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.utils.UnlockHook;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -92,33 +94,26 @@ public final class SessionLoggerExample extends ListenerAdapter
     public void testResourceLeakDetector(LibraryImpl api)
     {
         long startTime = System.currentTimeMillis();
-        final int count = 30000;
+        final int count = 10000;
 
         Map<Integer, Response> responseMap = new HashMap<>();
 
+        Map<String, Serializable> map = new HashMap<>();
+        map.put("stage", "READY");
+
         for (int i = 0; i < count; i++)
         {
-            try
-            {
-                Map<String, Serializable> map = new HashMap<>();
-                map.put("stage", "READY");
+            int finalI = i;
 
-                int finalI = i;
-
-                api.sendRequest(TEST_QUERY).queue(response -> {
-                    responseMap.put(finalI, response);
-                    if (responseMap.size() == count)
-                    {
-                        long duration = System.currentTimeMillis() - startTime;
-                        System.out.println("Total time: " + duration + " ms");
-                        System.out.println("RPS: " + (count * 1000.0 / duration));
-                    }
-                });
-            }
-            catch (Exception e)
-            {
-                System.out.println(e.getMessage());
-            }
+            api.sendRequest(TEST_QUERY_PREPARED, map).queue(response -> {
+                responseMap.put(finalI, response);
+                if (responseMap.size() == count)
+                {
+                    long duration = System.currentTimeMillis() - startTime;
+                    System.out.println("Total time: " + duration + " ms");
+                    System.out.println("RPS: " + (count * 1000.0 / duration));
+                }
+            });
         }
     }
 }

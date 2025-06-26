@@ -25,27 +25,18 @@ import com.github.adamorgan.api.requests.Work;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
-import com.github.adamorgan.internal.utils.Helpers;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.UnlockHook;
-import gnu.trove.list.TIntList;
-import gnu.trove.list.array.TIntArrayList;
-import gnu.trove.map.TIntObjectMap;
-import gnu.trove.map.hash.TIntObjectHashMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.internal.ObjectUtil;
-import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.BitSet;
-import java.util.LinkedList;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -61,8 +52,8 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     protected final LibraryImpl library;
 
-    protected final LinkedBlockingQueue<Integer> hitRateLimit = new LinkedBlockingQueue<>(MAX - 1);
-    protected final TIntObjectMap<WorkTask> queue = new TIntObjectHashMap<>(MAX);
+    protected final LinkedBlockingQueue<Integer> hitRateLimit = new LinkedBlockingQueue<>(MAX);
+    protected final Map<Integer, WorkTask> queue = new ConcurrentHashMap<>(MAX);
     protected final LinkedBlockingQueue<WorkTask> rateLimitQueue = new LinkedBlockingQueue<>();
 
     public Requester(LibraryImpl library)
@@ -103,7 +94,14 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
         ObjectAction<?> objectAction = task.request.getObjectAction();
         final int id = task.getBody().getShort(2);
 
-        queue.put(id, task);
+        try
+        {
+            queue.put(id, task);
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException(e.getMessage() + ": " + queue.size());
+        }
 
         try
         {
@@ -113,7 +111,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
             {
                 if (!result.isSuccess())
                 {
-                    queue.remove(id);
+                    result.cause().printStackTrace();
                 }
             }).await(objectAction.getDeadline(), TimeUnit.MILLISECONDS);
         }
@@ -126,6 +124,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     public void enqueue(byte version, byte flags, int stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
     {
         UUID trace = ObjectAction.Flags.fromBitField(flags).contains(ObjectAction.Flags.TRACING) ? new UUID(body.readLong(), body.readLong()) : null;
+
         queue.remove(stream).handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
 
         body.release();

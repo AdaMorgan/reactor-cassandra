@@ -26,6 +26,7 @@ import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 import org.apache.commons.lang3.ArrayUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -42,6 +43,7 @@ public class AbstractCacheViewImpl<T> extends ReadWriteLockCache<T> implements C
         this.emptyArray = ArrayUtils.newInstance(type, 0);
     }
 
+    @Nonnull
     public TIntObjectMap<T> getMap()
     {
         if (!lock.writeLock().isHeldByCurrentThread())
@@ -49,6 +51,7 @@ public class AbstractCacheViewImpl<T> extends ReadWriteLockCache<T> implements C
         return elements;
     }
 
+    @Nullable
     public T get(int hashCode)
     {
         try (UnlockHook hook = readLock())
@@ -57,6 +60,7 @@ public class AbstractCacheViewImpl<T> extends ReadWriteLockCache<T> implements C
         }
     }
 
+    @Nullable
     public T remove(int hashCode)
     {
         try (UnlockHook hook = writeLock())
@@ -65,11 +69,22 @@ public class AbstractCacheViewImpl<T> extends ReadWriteLockCache<T> implements C
         }
     }
 
+    @Nonnull
     public TIntHashSet keySet()
     {
         try (UnlockHook hook = readLock())
         {
             return new TIntHashSet(elements.keySet());
+        }
+    }
+
+    @Nonnull
+    public T cache(int token, @Nonnull T element)
+    {
+        try (UnlockHook hook = writeLock())
+        {
+            this.elements.put(token, element);
+            return element;
         }
     }
 
