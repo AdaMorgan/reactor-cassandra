@@ -79,7 +79,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
 
     public void request(@Nonnull WorkTask request)
     {
-        if (getContext() != null && remainingCapacity() > 0)
+        if (getContext() != null && request.getBody().getShort(2) != 0)
         {
             execute(getContext(), request);
         }
@@ -89,19 +89,18 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
         }
     }
 
-    private void execute(@Nonnull ChannelHandlerContext context, @Nonnull WorkTask task)
+    private void execute(@Nonnull ChannelHandlerContext context, WorkTask task)
+    {
+        this.execute(context, task, task.getBody().getShort(2));
+    }
+
+    private void execute(@Nonnull ChannelHandlerContext context, @Nonnull WorkTask task, int id)
     {
         ObjectAction<?> objectAction = task.request.getObjectAction();
-        final int id = task.getBody().getShort(2);
 
-        try
-        {
-            queue.put(id, task);
-        }
-        catch (Exception e)
-        {
-            throw new RuntimeException(e.getMessage() + ": " + queue.size());
-        }
+        task.getBody().setShort(2, id);
+
+        queue.put(id, task);
 
         try
         {
@@ -121,19 +120,27 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
         }
     }
 
-    public void enqueue(byte version, byte flags, int stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
+    public void enqueue(ChannelHandlerContext context, byte version, byte flags, int stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
     {
         UUID trace = ObjectAction.Flags.fromBitField(flags).contains(ObjectAction.Flags.TRACING) ? new UUID(body.readLong(), body.readLong()) : null;
 
-        queue.remove(stream).handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
+        WorkTask task = queue.remove(stream);
+
+        if (task != null) {
+            task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
+        } else {
+            LOG.warn("Received response for unknown stream id {}", stream);
+        }
 
         body.release();
 
-        this.offer(stream);
-
         if (!this.rateLimitQueue.isEmpty())
         {
-            this.rateLimitQueue.poll();
+            execute(context, this.rateLimitQueue.poll(), stream);
+        }
+        else
+        {
+            this.offer(stream);
         }
     }
 

@@ -142,9 +142,7 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
         @Nonnull
         public static EnumSet<Field> fromBitFields(int bitfield)
         {
-            Set<Field> set = Arrays.stream(Field.values())
-                    .filter(e -> (e.raw & bitfield) > 0)
-                    .collect(Collectors.toSet());
+            Set<Field> set = Arrays.stream(Field.values()).filter(e -> (e.raw & bitfield) > 0).collect(Collectors.toSet());
             return set.isEmpty() ? EnumSet.noneOf(Field.class) : EnumSet.copyOf(set);
         }
 

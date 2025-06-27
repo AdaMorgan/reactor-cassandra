@@ -97,13 +97,4 @@ public class ObjectCacheData implements ObjectData
                 .writeInt(this.maxBufferSize)
                 .writeLong(this.nonce);
     }
-
-    @Override
-    public void close()
-    {
-        if (header.refCnt() > 0)
-            header.release();
-        if (body.refCnt() > 0)
-            body.release();
-    }
 }

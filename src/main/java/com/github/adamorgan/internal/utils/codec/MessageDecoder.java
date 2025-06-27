@@ -84,10 +84,10 @@ public final class MessageDecoder extends ByteToMessageDecoder
 
         boolean isCompressed = (flags & 0x01) != 0;
 
-        onDispatch(version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
+        onDispatch(context, version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
     }
 
-    private void onDispatch(byte version, byte flags, int stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
+    private void onDispatch(ChannelHandlerContext context, byte version, byte flags, int stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
     {
         switch (opcode)
         {
@@ -118,7 +118,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
             case SocketCode.ERROR:
             case SocketCode.RESULT:
             {
-                this.requester.enqueue(version, flags, stream, opcode, length, opcode == SocketCode.ERROR ? ErrorResponse.from(body) : null, body);
+                this.requester.enqueue(context, version, flags, stream, opcode, length, opcode == SocketCode.ERROR ? ErrorResponse.from(body) : null, body);
                 break;
             }
             default:
@@ -155,7 +155,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
                 EncodingUtils.packUTF84(body, entry.getValue());
             }
             
-            return Unpooled.directBuffer()
+            return Unpooled.buffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)
@@ -172,7 +172,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
         return new SocketClient.ConnectNode(this.library, () ->
         {
             byte[] token = this.library.getToken();
-            return Unpooled.directBuffer()
+            return Unpooled.buffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)
@@ -190,7 +190,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
         {
             ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::buffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
 
-            return Unpooled.directBuffer()
+            return Unpooled.buffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)
                     .writeShort(stream)

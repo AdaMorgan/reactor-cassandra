@@ -18,11 +18,35 @@ package com.github.adamorgan.internal.utils.cache;
 
 import com.github.adamorgan.api.utils.cache.ObjectCacheView;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.List;
 
 public class ObjectCacheViewImpl extends AbstractCacheViewImpl<ByteBuf> implements ObjectCacheView
 {
     public ObjectCacheViewImpl(Class<ByteBuf> type)
     {
         super(type);
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf cache(int token, @Nonnull ByteBuf element)
+    {
+        ByteBuf readOnly = element.retainedDuplicate().asReadOnly();
+        super.cache(token, readOnly);
+        return element;
+    }
+
+    @Nullable
+    @Override
+    public ByteBuf get(int hashCode)
+    {
+        ByteBuf buffer = super.get(hashCode);
+        if (buffer == null)
+            return null;
+        return buffer.duplicate().asReadOnly();
     }
 }

@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
+ */
 
 package com.github.adamorgan.internal.utils.request;
 
@@ -24,6 +24,7 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -45,7 +46,7 @@ public class ObjectCreateData implements ObjectData
     private final int maxBufferSize;
     private final long nonce;
     private final ByteBuf header;
-    private final ByteBuf body;
+    private final ByteBuf body, rawBody;
 
     public ObjectCreateData(ObjectCreateAction action)
     {
@@ -60,7 +61,9 @@ public class ObjectCreateData implements ObjectData
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
-        this.body = this.compression.pack(applyBody());
+
+        this.rawBody = applyBody();
+        this.body = action.getCompression().pack(rawBody);
         this.header = applyHeader();
     }
 
@@ -81,7 +84,7 @@ public class ObjectCreateData implements ObjectData
     @Override
     public ByteBuf applyData()
     {
-        return Unpooled.compositeBuffer(2).addComponents(true, header, body);
+        return Unpooled.compositeBuffer().addComponents(true, header, body);
     }
 
     public ByteBuf applyHeader()
@@ -108,14 +111,5 @@ public class ObjectCreateData implements ObjectData
     private int finalizeLength()
     {
         return CONTENT_BYTES + body.readableBytes() + (opcode == SocketCode.QUERY ? Short.BYTES : 0) + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
-    }
-
-    @Override
-    public void close()
-    {
-        if (header.refCnt() > 0)
-            header.release();
-        if (body.refCnt() > 0)
-            body.release();
     }
 }

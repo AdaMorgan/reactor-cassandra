@@ -39,7 +39,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     {
         Checks.notNull(content, "content");
         Checks.notNull(args, "args");
-        ByteBuf body = args.stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
+        ByteBuf body = args.stream().collect(Collector.of(Unpooled::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
         return setContent(content, body, args.size(), false);
     }
 
@@ -48,7 +48,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     {
         Checks.notNull(content, "content");
         Checks.notNull(args, "args");
-        ByteBuf body = args.entrySet().stream().collect(Collector.of(UnpooledByteBufAllocator.DEFAULT::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
+        ByteBuf body = args.entrySet().stream().collect(Collector.of(Unpooled::directBuffer, EncodingUtils::pack, ByteBuf::writeBytes));
         return setContent(content, body, args.size(), true);
     }
 

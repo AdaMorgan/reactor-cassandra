@@ -89,6 +89,13 @@ public class SocketClient
 
     public class SocketHandler extends ChannelInitializer<SocketChannel>
     {
+        private final LibraryImpl api;
+
+        public SocketHandler(LibraryImpl api)
+        {
+            this.api = api;
+        }
+
         @Override
         public void channelActive(@Nonnull ChannelHandlerContext context)
         {
@@ -99,6 +106,7 @@ public class SocketClient
         @Override
         public void channelInactive(@Nonnull ChannelHandlerContext context)
         {
+            this.api.getRequester().stop(true, this.api::shutdownRequester);
             library.setStatus(Library.Status.DISCONNECTED);
             library.handleEvent(new SessionDisconnectEvent(library, OffsetDateTime.now()));
             reconnect(reconnectTimeoutS);
@@ -159,7 +167,7 @@ public class SocketClient
         LOG.debug("Sending Identify node...");
         return new ConnectNode(this.library, () ->
         {
-            return Unpooled.directBuffer()
+            return Unpooled.buffer()
                     .writeByte(this.library.getVersion())
                     .writeByte(DEFAULT_FLAG)
                     .writeShort(DEFAULT_STREAM_ID)
@@ -278,7 +286,7 @@ public class SocketClient
             this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
-                    .handler(new SocketHandler());
+                    .handler(new SocketHandler(api));
         }
 
         @Nonnull

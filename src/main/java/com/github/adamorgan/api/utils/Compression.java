@@ -53,16 +53,12 @@ public enum Compression
     @Nonnull
     public ByteBuf pack(ByteBuf body)
     {
-        ByteBuf pack = compressor.pack(body);
-        body.release();
-        return pack;
+        return compressor.pack(body);
     }
 
     @Nonnull
     public ByteBuf unpack(ByteBuf body)
     {
-        ByteBuf unpack = compressor.unpack(body);
-        body.release();
-        return unpack;
+        return compressor.unpack(body);
     }
 }

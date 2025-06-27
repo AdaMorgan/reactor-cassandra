@@ -60,12 +60,12 @@ public interface ObjectAction<T>
 
     default void queue()
     {
-        this.queue(null);
+        queue(null);
     }
 
     default void queue(@Nullable Consumer<? super T> success)
     {
-        this.queue(success, null);
+        queue(success, null);
     }
 
     void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure);

@@ -20,9 +20,11 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.EnumSet;
 
-public interface ObjectData extends AutoCloseable
+public interface ObjectData
 {
     int getId();
 
@@ -31,7 +33,4 @@ public interface ObjectData extends AutoCloseable
 
     @Nonnull
     ByteBuf applyData();
-
-    @Override
-    void close();
 }

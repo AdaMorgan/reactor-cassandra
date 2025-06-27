@@ -76,8 +76,8 @@ public class LibraryImpl implements Library
         this.sessionConfig = sessionConfig;
         this.shardInfo = shardInfo;
         this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
-        this.client = new SocketClient(this, address, compression, sessionConfig);
         this.requester = new Requester(this);
+        this.client = new SocketClient(this, address, compression, sessionConfig);
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
     }
 

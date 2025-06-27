@@ -23,14 +23,12 @@ import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.UnlockHook;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 public final class SessionLoggerExample extends ListenerAdapter
 {
@@ -105,7 +103,7 @@ public final class SessionLoggerExample extends ListenerAdapter
         {
             int finalI = i;
 
-            api.sendRequest(TEST_QUERY_PREPARED, map).queue(response -> {
+            api.sendRequest(TEST_QUERY_PREPARED, map).useCache(false).queue(response -> {
                 responseMap.put(finalI, response);
                 if (responseMap.size() == count)
                 {

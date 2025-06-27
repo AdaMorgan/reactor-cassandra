@@ -18,6 +18,7 @@ package com.github.adamorgan.api.requests.objectaction;
 
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Response;
+import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
 import com.github.adamorgan.internal.utils.Checks;
@@ -29,9 +30,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public interface ObjectCreateAction extends ObjectAction<Response>, ObjectCreateRequest<ObjectCreateAction>
+public interface ObjectCreateAction extends ObjectAction<Response>, ObjectCreateRequest<ObjectCreateAction>, CacheObjectAction<Response>
 {
     @Nonnull
     Compression getCompression();
-
 }

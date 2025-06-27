@@ -20,7 +20,6 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -29,7 +28,6 @@ import io.netty.handler.codec.http.*;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,7 +65,7 @@ public class HttpServerExample extends ListenerAdapter
                         protected void initChannel(SocketChannel channel)
                         {
                             channel.pipeline().addLast(new HttpServerCodec())
-                                    .addLast(new SimpleChannelHadnler(api));
+                                    .addLast(new SimpleChannelHandler(api));
                         }
                     });
 
@@ -82,10 +80,10 @@ public class HttpServerExample extends ListenerAdapter
         }
     }
 
-    public static void request(LibraryImpl api)
+    public static void request(ChannelHandlerContext context, LibraryImpl api)
     {
         long startTime = System.currentTimeMillis();
-        final int count = 30000;
+        final int count = 10000;
 
         Map<Integer, Response> responseMap = new HashMap<>();
 
@@ -102,17 +100,18 @@ public class HttpServerExample extends ListenerAdapter
                 {
                     long duration = System.currentTimeMillis() - startTime;
                     System.out.println("Total time: " + duration + " ms");
-                    System.out.println("RPS: " + (count * 1000.0 / duration));
+                    System.out.println("RPS: " + (int) (count * 1000.0 / duration));
+                    context.close();
                 }
             });
         }
     }
 
-    public static class SimpleChannelHadnler extends SimpleChannelInboundHandler<FullHttpRequest>
+    public static class SimpleChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest>
     {
         private final LibraryImpl api;
 
-        public SimpleChannelHadnler(LibraryImpl api)
+        public SimpleChannelHandler(LibraryImpl api)
         {
             this.api = api;
         }
@@ -120,15 +119,7 @@ public class HttpServerExample extends ListenerAdapter
         @Override
         protected void channelRead0(ChannelHandlerContext context, FullHttpRequest request) throws Exception
         {
-            request(api);
-
-            String content = "Test";
-            FullHttpResponse httpResponse = new DefaultFullHttpResponse(
-                    HttpVersion.HTTP_1_1,
-                    HttpResponseStatus.OK,
-                    Unpooled.copiedBuffer(content, StandardCharsets.UTF_8)
-            );
-            context.writeAndFlush(httpResponse);
+            request(context, api);
         }
 
         @Override

@@ -183,7 +183,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCreateData(this);
+        return this.api.getObjectCache().containsKey(hashCode()) ? new ObjectCacheData(this) : new ObjectCreateData(this);
     }
 
     @Override

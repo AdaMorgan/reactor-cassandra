@@ -82,7 +82,8 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ByteBuf body = finalizeData().applyData();
+        ObjectData objectData = finalizeData();
+        ByteBuf body = objectData.applyData();
 
         if (success == null)
         {

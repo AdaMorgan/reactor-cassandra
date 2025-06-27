@@ -23,6 +23,7 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCallbackActionImpl;
 import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.*;
+import io.netty.util.ReferenceCountUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -33,7 +34,7 @@ public class ObjectCallbackData implements ObjectData
     private final byte version, opcode;
     private final int flags;
     private final int id;
-    private final ByteBuf token, header, body;
+    private final ByteBuf token, header, body, rawBody;
     private final short consistency;
     private final int fields, maxBufferSize;
     private final long nonce;
@@ -45,14 +46,14 @@ public class ObjectCallbackData implements ObjectData
         this.flags = action.getRawFlags();
         this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();
         this.opcode = SocketCode.EXECUTE;
-        //this.token = action.useCache() ? action.getLibrary().getObjectCache().cache(action.hashCode(), action.getToken()) : action.getToken();
-        this.token = action.getToken();
+        this.token = action.useCache() ? action.getLibrary().getObjectCache().cache(action.hashCode(), action.getToken()) : action.getToken();
         this.consistency = action.getConsistency().getCode();
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
         this.nonce = action.getNonce();
 
-        this.body = action.getCompression().pack(applyBody());
+        this.rawBody = applyBody();
+        this.body = action.getCompression().pack(rawBody);
         this.header = applyHeader();
     }
 
@@ -98,14 +99,5 @@ public class ObjectCallbackData implements ObjectData
                 .writeBytes(action.getBody())
                 .writeInt(this.maxBufferSize)
                 .writeLong(this.nonce);
-    }
-
-    @Override
-    public void close()
-    {
-        if (header.refCnt() > 0)
-            header.release();
-        if (body.refCnt() > 0)
-            body.release();
     }
 }
