@@ -22,6 +22,7 @@ import com.github.adamorgan.api.events.session.ReadyEvent;
 import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
 import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
@@ -32,7 +33,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollSocketChannel;
@@ -44,12 +44,16 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketAddress;
 import java.time.OffsetDateTime;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -67,34 +71,35 @@ public class SocketClient
     private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
     private final StartingNode connectNode;
-    private final LibraryImpl library;
+    private final LibraryImpl api;
     private final Bootstrap client;
     private final EventLoopGroup executor;
     private final SessionController controller;
+
+    protected final ReentrantLock reconnectLock = new ReentrantLock();
+    protected final Condition reconnectCondvar = reconnectLock.newCondition();
+
+    protected boolean shouldReconnect;
+    protected boolean connected = false;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
     private final Compression compression;
 
-    public SocketClient(LibraryImpl library, SocketAddress address, Compression compression, SessionConfig config)
+    public SocketClient(LibraryImpl api, SocketAddress address, Compression compression, SessionConfig config)
     {
-        this.library = library;
+        this.api = api;
         this.client = config.getClient();
         this.address = address;
         this.compression = compression;
-        this.executor = library.getCallbackPool();
-        this.controller = library.getSessionController();
+        this.shouldReconnect = api.isAutoReconnect();
+        this.executor = api.getCallbackPool();
+        this.controller = api.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
     public class SocketHandler extends ChannelInitializer<SocketChannel>
     {
-        private final LibraryImpl api;
-
-        public SocketHandler(LibraryImpl api)
-        {
-            this.api = api;
-        }
 
         @Override
         public void channelActive(@Nonnull ChannelHandlerContext context)
@@ -106,22 +111,20 @@ public class SocketClient
         @Override
         public void channelInactive(@Nonnull ChannelHandlerContext context)
         {
-            this.api.getRequester().stop(true, this.api::shutdownRequester);
-            library.setStatus(Library.Status.DISCONNECTED);
-            library.handleEvent(new SessionDisconnectEvent(library, OffsetDateTime.now()));
-            reconnect(reconnectTimeoutS);
+            connected = false;
+            handleDisconnect();
         }
 
         @Override
         protected void initChannel(@Nonnull SocketChannel channel)
         {
-            if (library.isDebug())
+            if (SocketClient.this.api.isDebug())
             {
                 channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             }
 
             channel.pipeline().addLast(new MessageEncoder());
-            channel.pipeline().addLast(new MessageDecoder(library));
+            channel.pipeline().addLast(new MessageDecoder(SocketClient.this.api));
             channel.pipeline().addLast(new ChannelInboundHandlerAdapter()
             {
                 @Override
@@ -147,13 +150,22 @@ public class SocketClient
 
     public synchronized void shutdown()
     {
-        this.library.setStatus(Library.Status.SHUTDOWN);
-        this.library.handleEvent(new ShutdownEvent(this.library, OffsetDateTime.now()));
-
-        this.executor.shutdownGracefully().addListener(future -> {
-            if (this.connectNode != null)
-                this.controller.removeSession(this.connectNode);
+        boolean callOnShutdown = MiscUtil.locked(reconnectLock, () ->
+        {
+            if (connectNode != null)
+                api.getSessionController().removeSession(connectNode);
+            boolean wasConnected = connected;
+            reconnectCondvar.signalAll();
+            return !wasConnected;
         });
+
+        if (callOnShutdown)
+            onShutdown();
+    }
+
+    protected void onShutdown()
+    {
+        api.shutdownInternals(new ShutdownEvent(api, OffsetDateTime.now()));
     }
 
     @Nullable
@@ -165,10 +177,10 @@ public class SocketClient
     private synchronized SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
         LOG.debug("Sending Identify node...");
-        return new ConnectNode(this.library, () ->
+        return new ConnectNode(this.api, () ->
         {
             return Unpooled.buffer()
-                    .writeByte(this.library.getVersion())
+                    .writeByte(this.api.getVersion())
                     .writeByte(DEFAULT_FLAG)
                     .writeShort(DEFAULT_STREAM_ID)
                     .writeByte(SocketCode.OPTIONS)
@@ -177,23 +189,22 @@ public class SocketClient
         }, callback);
     }
 
-    public synchronized void connect()
+    public synchronized void connect() throws IOException
     {
-        if (this.library.getStatus() != Library.Status.ATTEMPTING_TO_RECONNECT)
+        if (this.api.getStatus() != Library.Status.ATTEMPTING_TO_RECONNECT)
         {
-            this.library.setStatus(Library.Status.CONNECTING_TO_SOCKET);
+            this.api.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
 
-        ChannelFuture future = connectNode.connect(address);
+        ChannelFuture connect = connectNode.connect(address).awaitUninterruptibly();
 
-        future.awaitUninterruptibly();
-
-        if (future.isSuccess())
+        if (connect.isSuccess())
         {
+            connected = true;
             return;
         }
 
-        Throwable failure = future.cause();
+        Throwable failure = connect.cause();
 
         if (failure instanceof ConnectTimeoutException)
         {
@@ -203,49 +214,91 @@ public class SocketClient
 
         if (failure instanceof ConnectException)
         {
-            if (this.library.getStatus() == Library.Status.CONNECTING_TO_SOCKET)
+            if (this.api.getStatus() == Library.Status.CONNECTING_TO_SOCKET)
             {
                 LOG.error("Cannot create a socket connection");
-                this.library.shutdown();
+                this.api.shutdown();
                 return;
             }
-
-            throw new RuntimeException(failure);
+            else
+            {
+                throw (IOException) failure.getCause();
+            }
         }
 
         LOG.error("There was an error in the Socket connection", failure);
-        this.library.handleEvent(new ExceptionEvent(this.library, failure, true));
+        this.api.handleEvent(new ExceptionEvent(this.api, failure, true));
     }
 
-    public final void reconnect(int reconnectTimeS)
+    public final void reconnect()
     {
-        reconnectTimeoutS = reconnectTimeS == 0 ? 2 : Math.min(reconnectTimeS << 1, this.library.getMaxReconnectDelay());
+        LOG.debug("Attempting to reconnect in {}s", reconnectTimeoutS);
 
-        LOG.debug("Reconnect attempt in {}s", reconnectTimeoutS);
+        boolean isShutdown = MiscUtil.locked(reconnectLock, () -> {
+            while (shouldReconnect)
+            {
+                api.setStatus(Library.Status.WAITING_TO_RECONNECT);
 
-        this.library.setStatus(Library.Status.WAITING_TO_RECONNECT);
+                int delay = reconnectTimeoutS;
+                // Exponential backoff, reset on session creation (ready/resume)
+                reconnectTimeoutS = reconnectTimeoutS == 0 ? 2 : Math.min(reconnectTimeoutS << 1, api.getMaxReconnectDelay());
 
-        this.executor.schedule(() ->
+                try
+                {
+                    // On shutdown, this condvar is notified and we stop reconnecting
+                    reconnectCondvar.await(delay, TimeUnit.SECONDS);
+                    if (!shouldReconnect)
+                        break;
+
+                    api.setStatus(Library.Status.ATTEMPTING_TO_RECONNECT);
+                    LOG.debug("Attempting to reconnect!");
+                    connect();
+                    break;
+                }
+                catch (RejectedExecutionException | InterruptedException failure)
+                {
+                    return true;
+                }
+                catch (IOException failure)
+                {
+                    LOG.debug("Encountered I/O error", failure);
+                }
+                catch (RuntimeException failure)
+                {
+                    LOG.debug("Reconnect failed with exception", failure);
+                    LOG.warn("Reconnect failed! Next attempt in {}s", reconnectTimeoutS);
+                }
+            }
+            return !shouldReconnect;
+        });
+
+        if (isShutdown)
         {
-            try
-            {
-                this.library.setStatus(Library.Status.ATTEMPTING_TO_RECONNECT);
-                LOG.debug("Attempting to reconnect!");
-                this.connect();
-            }
-            catch (RuntimeException failure)
-            {
-                LOG.warn("Reconnect failed! Next attempt in {}s", reconnectTimeoutS);
-                reconnect(reconnectTimeS);
-            }
-        }, reconnectTimeoutS, TimeUnit.SECONDS);
+            LOG.debug("Reconnect cancelled due to shutdown.");
+            shutdown();
+        }
+    }
+
+    private void handleDisconnect()
+    {
+        api.setStatus(Library.Status.DISCONNECTED);
+        this.api.getObjectCache().clear();
+        if (!shouldReconnect || executor.isShutdown())
+        {
+            onShutdown();
+        }
+        else
+        {
+            api.handleEvent(new SessionDisconnectEvent(this.api, OffsetDateTime.now()));
+            reconnect();
+        }
     }
 
     public final void ready()
     {
         this.reconnectTimeoutS = 0;
         LibraryImpl.LOG.info("Finished Loading!");
-        this.library.handleEvent(new ReadyEvent(this.library));
+        this.api.handleEvent(new ReadyEvent(this.api));
     }
 
     public static class ConnectNode implements SessionController.SessionConnectNode
@@ -281,12 +334,12 @@ public class SocketClient
 
         public StartingNode(SocketClient client, Consumer<StartingNode> callback)
         {
-            this.api = client.library;
+            this.api = client.api;
             this.callback = callback;
             this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
-                    .handler(new SocketHandler(api));
+                    .handler(new SocketHandler());
         }
 
         @Nonnull

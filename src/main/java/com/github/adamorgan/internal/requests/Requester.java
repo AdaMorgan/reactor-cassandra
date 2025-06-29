@@ -26,7 +26,6 @@ import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.LibraryLogger;
-import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
@@ -35,12 +34,8 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQueue<Integer>
 {
@@ -49,16 +44,20 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     public static final int MIN = 1;
     public static final int MAX = 32768;
 
-    protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    protected final LibraryImpl library;
+    private final CompletableFuture<?> shutdownHandle = new CompletableFuture<>();
+
+    private boolean isStopped, isShutdown;
+
+    protected final ReentrantLock lock = new ReentrantLock();
+    protected final LibraryImpl api;
 
     protected final LinkedBlockingQueue<Integer> hitRateLimit = new LinkedBlockingQueue<>(MAX);
     protected final Map<Integer, WorkTask> queue = new ConcurrentHashMap<>(MAX);
     protected final LinkedBlockingQueue<WorkTask> rateLimitQueue = new LinkedBlockingQueue<>();
 
-    public Requester(LibraryImpl library)
+    public Requester(LibraryImpl api)
     {
-        this.library = library;
+        this.api = api;
 
         for (int i = 1; i < MAX; i++)
         {
@@ -69,7 +68,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     @Nullable
     public ChannelHandlerContext getContext()
     {
-        return this.library.getClient().getContext();
+        return this.api.getClient().getContext();
     }
 
     public <R> void request(@Nonnull Request<R> request)
@@ -149,21 +148,17 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     {
         Checks.notNull(id, "id");
         Checks.inRange(id, 0, MAX, "id");
-        try (UnlockHook hook = writeLock())
-        {
-            return this.hitRateLimit.offer(id);
-        }
+        return MiscUtil.locked(lock, () -> this.hitRateLimit.offer(id));
     }
 
     @Nonnull
     @Override
     public Integer poll()
     {
-        try (UnlockHook hook = writeLock())
-        {
+        return MiscUtil.locked(lock, () -> {
             Integer poll = this.hitRateLimit.poll();
             return poll != null ? poll : 0;
-        }
+        });
     }
 
     @Override
@@ -187,33 +182,39 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     @Override
     public void clear()
     {
-        try (UnlockHook hook = writeLock())
-        {
-            this.queue.clear();
-        }
+        MiscUtil.locked(lock, this.queue::clear);
     }
 
     public void stop(boolean shutdown, Runnable callback)
     {
+        MiscUtil.locked(lock, () -> {
+            boolean doShutdown = shutdown;
+            if (!isStopped)
+            {
+                isStopped = true;
+                shutdownHandle.thenRun(callback);
+                if (!doShutdown)
+                {
+                    int count = this.rateLimitQueue.size() + this.queue.size();
+
+                    if (count > 0)
+                    {
+                        LOG.info("Waiting for {} requests to finish.", count);
+                    }
+                    doShutdown = count == 0;
+                }
+            }
+
+            if (doShutdown && !isShutdown)
+                shutdown();
+        });
+    }
+
+    private void shutdown()
+    {
+        isShutdown = true;
         this.clear();
-    }
-
-    private UnlockHook writeLock()
-    {
-        if (lock.getReadHoldCount() > 0)
-        {
-            throw new IllegalStateException("Unable to acquire write-lock while holding read-lock!");
-        }
-        Lock writeLock = lock.writeLock();
-        MiscUtil.tryLock(writeLock);
-        return new UnlockHook(writeLock);
-    }
-
-    private UnlockHook readLock()
-    {
-        ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
-        MiscUtil.tryLock(readLock);
-        return new UnlockHook(readLock);
+        shutdownHandle.complete(null);
     }
 
     public class WorkTask implements Work

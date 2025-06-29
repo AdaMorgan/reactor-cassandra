@@ -33,7 +33,7 @@ import java.util.Map;
 
 public class HttpServerExample extends ListenerAdapter
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.clients WHERE connection_stage = :stage ALLOW FILTERING";
+    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED'";
 
     public static void main(String[] args) throws Exception
     {
@@ -83,7 +83,7 @@ public class HttpServerExample extends ListenerAdapter
     public static void request(ChannelHandlerContext context, LibraryImpl api)
     {
         long startTime = System.currentTimeMillis();
-        final int count = 10000;
+        final int count = 1;
 
         Map<Integer, Response> responseMap = new HashMap<>();
 
@@ -94,14 +94,14 @@ public class HttpServerExample extends ListenerAdapter
         {
             int finalI = i;
 
-            api.sendRequest(TEST_QUERY_PREPARED, map).queue(response -> {
+            api.sendRequest(TEST_QUERY_PREPARED, map).useTrace(true).queue(response -> {
                 responseMap.put(finalI, response);
                 if (responseMap.size() == count)
                 {
+                    context.close();
                     long duration = System.currentTimeMillis() - startTime;
                     System.out.println("Total time: " + duration + " ms");
-                    System.out.println("RPS: " + (int) (count * 1000.0 / duration));
-                    context.close();
+                    System.out.println("RPS: " + (count * 1000.0 / duration));
                 }
             });
         }

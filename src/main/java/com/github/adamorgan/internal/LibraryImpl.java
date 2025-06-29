@@ -20,6 +20,7 @@ import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.GenericEvent;
 import com.github.adamorgan.api.events.StatusChangeEvent;
+import com.github.adamorgan.api.events.session.ShutdownEvent;
 import com.github.adamorgan.api.hooks.IEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.utils.Compression;
@@ -39,8 +40,11 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 import java.net.SocketAddress;
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -55,6 +59,8 @@ public class LibraryImpl implements Library
     protected final AtomicReference<Status> status = new AtomicReference<>(Status.INITIALIZING);
     protected final ReentrantLock statusLock = new ReentrantLock();
     protected final Condition statusCondition = statusLock.newCondition();
+    protected final AtomicBoolean requesterShutdown = new AtomicBoolean(false);
+    protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
 
     protected final AtomicInteger responseTotal = new AtomicInteger(0);
 
@@ -234,7 +240,11 @@ public class LibraryImpl implements Library
         if (shutdownHook != null)
             Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-        this.client.connect();
+        try
+        {
+            this.client.connect();
+        }
+        catch (IOException ignored) {}
     }
 
     @Override
@@ -252,16 +262,48 @@ public class LibraryImpl implements Library
         if (status == Status.SHUTDOWN || status == Status.SHUTTING_DOWN)
             return;
 
+        setStatus(Status.SHUTTING_DOWN);
+
+        SocketClient client = getClient();
+        if (client != null)
+        {
+            client.shutdown();
+        }
+        else
+        {
+            shutdownInternals(new ShutdownEvent(this, OffsetDateTime.now()));
+        }
+    }
+
+    public void shutdownInternals(ShutdownEvent event)
+    {
+        if (getStatus() == Status.SHUTDOWN)
+            return;
+
+        requester.stop(false, this::shutdownRequester);
+
         if (shutdownHook != null)
             Runtime.getRuntime().removeShutdownHook(shutdownHook);
 
-        setStatus(Status.SHUTTING_DOWN);
+        threadConfig.shutdown();
 
-        this.client.shutdown();
+        boolean signal = MiscUtil.locked(statusLock, () -> shutdownEvent.getAndSet(event) == null && requesterShutdown.get());
+
+        if (signal)
+            signalShutdown();
     }
 
     public void shutdownRequester()
     {
+        boolean signal = MiscUtil.locked(statusLock, () -> !requesterShutdown.getAndSet(true) && shutdownEvent.get() != null);
 
+        if (signal)
+            signalShutdown();
+    }
+
+    private void signalShutdown()
+    {
+        setStatus(Status.SHUTDOWN);
+        handleEvent(shutdownEvent.get());
     }
 }

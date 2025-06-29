@@ -64,7 +64,7 @@ public class ThreadingConfig
     {
         if (shutdownCallbackPool)
             callbackPool.shutdownGracefully();
-        if (shutdownEventPool)
+        if (shutdownEventPool && eventPool != null)
             eventPool.shutdownNow();
     }
 
@@ -72,7 +72,7 @@ public class ThreadingConfig
     {
         if (shutdownCallbackPool)
             callbackPool.shutdownGracefully();
-        if (shutdownEventPool)
+        if (shutdownEventPool || eventPool != null)
             eventPool.shutdownNow();
     }
 

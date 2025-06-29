@@ -92,7 +92,7 @@ public final class SessionLoggerExample extends ListenerAdapter
     public void testResourceLeakDetector(LibraryImpl api)
     {
         long startTime = System.currentTimeMillis();
-        final int count = 10000;
+        final int count = 1;
 
         Map<Integer, Response> responseMap = new HashMap<>();
 
@@ -103,7 +103,7 @@ public final class SessionLoggerExample extends ListenerAdapter
         {
             int finalI = i;
 
-            api.sendRequest(TEST_QUERY_PREPARED, map).useCache(false).queue(response -> {
+            api.sendRequest(TEST_QUERY_PREPARED, map).useTrace(true).queue(response -> {
                 responseMap.put(finalI, response);
                 if (responseMap.size() == count)
                 {
