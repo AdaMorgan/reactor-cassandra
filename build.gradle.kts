@@ -15,6 +15,8 @@
  */
 
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
     signing
@@ -95,14 +97,6 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<Test> {
-    javaLauncher.set(
-        javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(11))
-        }
-    )
-}
-
 fun isNonStable(version: String): Boolean {
     val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
     val regex = "^[0-9,.v-]+(-r)?$".toRegex()
@@ -141,17 +135,17 @@ tasks.withType<JavaCompile> {
 
 val build by tasks.getting(Task::class) {
     dependsOn(jar)
+    jar.mustRunAfter(tasks.clean)
 }
 
 val test by tasks.getting(Test::class) {
     useJUnitPlatform()
-    failFast = true
+    failFast = false
 }
 
-val rebuild by tasks.creating(Task::class) {
-    group = "build"
+val updateTestSnapshots by tasks.registering(Test::class) {
+    useJUnitPlatform()
+    failFast = false
 
-    dependsOn(build)
-    dependsOn(tasks.clean)
-    build.mustRunAfter(tasks.clean)
+    systemProperty("updateSnapshots", "true")
 }

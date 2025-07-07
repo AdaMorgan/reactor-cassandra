@@ -72,7 +72,7 @@ public class LibraryBuilder
     protected int maxReconnectDelay = 900;
     protected Compression compression = Compression.NONE;
 
-    private LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
+    protected LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
         this.address = address;
         this.username = username == null ? StringUtils.EMPTY : username;

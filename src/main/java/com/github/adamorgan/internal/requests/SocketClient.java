@@ -68,13 +68,13 @@ public class SocketClient
 
     public static final Class<? extends SocketChannel> CHANNEL_TYPE = Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class;
 
-    private final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
+    protected final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
-    private final StartingNode connectNode;
-    private final LibraryImpl api;
-    private final Bootstrap client;
-    private final EventLoopGroup executor;
-    private final SessionController controller;
+    protected final LibraryImpl api;
+    protected final StartingNode connectNode;
+    protected final Bootstrap client;
+    protected final EventLoopGroup executor;
+    protected final SessionController controller;
 
     protected final ReentrantLock reconnectLock = new ReentrantLock();
     protected final Condition reconnectCondvar = reconnectLock.newCondition();
