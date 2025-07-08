@@ -81,9 +81,6 @@ dependencies {
         addAll(configurations["compileOnly"].allDependencies)
     }
 
-    testImplementation(libs.junit)
-    testImplementation(libs.commons.lang3)
-
     testImplementation(libs.bundles.junit)
     testImplementation(libs.reflections)
     testImplementation(libs.mockito)
@@ -91,10 +88,6 @@ dependencies {
     testImplementation(libs.commons.lang3)
     testImplementation(libs.logback.classic)
     testImplementation(libs.archunit)
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 fun isNonStable(version: String): Boolean {
@@ -115,6 +108,14 @@ tasks.withType<DependencyUpdatesTask> {
 
 val jar by tasks.getting(Jar::class) {
     archiveBaseName.set(project.name)
+    manifest.attributes(
+        "Implementation-Version" to project.version,
+        "Automatic-Module-Name" to "com.github.adamorgan")
+}
+
+val shadowJar by tasks.getting(ShadowJar::class) {
+    archiveClassifier.set("withDependencies")
+    exclude("*.pom")
 }
 
 tasks.withType<JavaCompile> {

@@ -99,10 +99,10 @@ public interface ScheduledEvent
         }
 
         /**
-         * Used to retrieve a Status based on a Discord id offset.
+         * Used to retrieve a Status based on a CQL Native Protocol id offset.
          *
          * @param  offset
-         *         The Discord id offset representing the requested Status.
+         *         The CQL Native Protocol id offset representing the requested Status.
          *
          * @return The Status related to the provided offset, or {@link #UNKNOWN Status.UNKNOWN} if the offset is not recognized.
          */

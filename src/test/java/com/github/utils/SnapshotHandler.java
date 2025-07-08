@@ -1,4 +1,4 @@
-package com.github.util;
+package com.github.utils;
 
 import com.github.TestHelper;
 import org.assertj.core.api.iterable.ThrowingExtractor;

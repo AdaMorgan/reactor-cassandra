@@ -1,7 +1,7 @@
 package com.github;
 
 import com.github.assertions.logging.LoggingAssertions;
-import com.github.util.SnapshotHandler;
+import com.github.utils.SnapshotHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 

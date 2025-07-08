@@ -125,11 +125,10 @@ public interface Library
         /**
          * The total amount of shards based on the value provided during {@link Library Library} instance creation using
          * {@link LibraryBuilder#useSharding(int, int)}.
-         * <br>This <b>does not</b> query Discord to determine the total number of shards.
          * <br>This <b>does not</b> represent the amount of logged in shards.
-         * <br>It strictly represents the integer value provided to discord
-         * representing the total amount of shards that the developer indicated that it was going to use when
-         * initially starting {@link Library Library}.
+         * <br>It strictly represents the integer value representing the total amount
+         * of shards that the developer indicated that
+         * it was going to use when initially starting {@link Library Library}.
          *
          * @return The total of shards based on the total provided by the developer during {@link Library Library} initialization.
          */

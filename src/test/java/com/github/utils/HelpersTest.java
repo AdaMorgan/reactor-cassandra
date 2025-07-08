@@ -1,4 +1,4 @@
-package com.github.util;
+package com.github.utils;
 
 import com.github.adamorgan.internal.utils.Helpers;
 import org.junit.jupiter.api.Test;

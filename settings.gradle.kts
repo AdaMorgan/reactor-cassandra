@@ -1,4 +1,5 @@
 rootProject.name = "reactor-cassandra"
+rootProject.name = "reactor-cassandra"
 
 dependencyResolutionManagement {
     versionCatalogs {

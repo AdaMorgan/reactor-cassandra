@@ -1,6 +1,6 @@
 package com.github.assertions.logging;
 
-import com.github.util.SnapshotHandler;
+import com.github.utils.SnapshotHandler;
 import org.jetbrains.annotations.Contract;
 
 import java.util.List;
