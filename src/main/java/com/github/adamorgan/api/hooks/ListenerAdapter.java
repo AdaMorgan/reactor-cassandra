@@ -18,10 +18,7 @@ package com.github.adamorgan.api.hooks;
 
 import com.github.adamorgan.api.events.*;
 import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
-import com.github.adamorgan.api.events.session.GenericSessionEvent;
-import com.github.adamorgan.api.events.session.ReadyEvent;
-import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
-import com.github.adamorgan.api.events.session.ShutdownEvent;
+import com.github.adamorgan.api.events.session.*;
 import com.github.adamorgan.internal.utils.ClassWalker;
 
 import javax.annotation.Nonnull;
@@ -42,7 +39,10 @@ public class ListenerAdapter implements EventListener
     public void onStatusChange(@Nonnull StatusChangeEvent event) {}
 
     public void onReady(@Nonnull ReadyEvent event) {}
+    public void onSessionInvalidate(@Nonnull SessionInvalidateEvent event) {}
     public void onSessionDisconnect(@Nonnull SessionDisconnectEvent event) {}
+    public void onSessionResume(@Nonnull SessionResumeEvent event) {}
+    public void onSessionRecreate(@Nonnull SessionRecreateEvent event) {}
     public void onShutdown(@Nonnull ShutdownEvent event) {}
 
     public void onBinaryRequest(@Nonnull BinaryRequestEvent event) {}

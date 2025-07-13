@@ -18,9 +18,7 @@ package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.events.ExceptionEvent;
-import com.github.adamorgan.api.events.session.ReadyEvent;
-import com.github.adamorgan.api.events.session.SessionDisconnectEvent;
-import com.github.adamorgan.api.events.session.ShutdownEvent;
+import com.github.adamorgan.api.events.session.*;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
@@ -64,7 +62,7 @@ public class SocketClient
     public static final byte DEFAULT_FLAG = 0x00;
     public static final int DEFAULT_STREAM_ID = 0x00;
 
-    private int reconnectTimeoutS = 0;
+    private int reconnectTimeoutS = 2;
 
     public static final Class<? extends SocketChannel> CHANNEL_TYPE = Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class;
 
@@ -79,8 +77,13 @@ public class SocketClient
     protected final ReentrantLock reconnectLock = new ReentrantLock();
     protected final Condition reconnectCondvar = reconnectLock.newCondition();
 
+    protected boolean initiating;
+
     protected boolean shouldReconnect;
     protected boolean connected = false;
+
+    protected boolean firstInit = true;
+    protected boolean processingReady = true;
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
@@ -195,6 +198,7 @@ public class SocketClient
         {
             this.api.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
+        initiating = true;
 
         ChannelFuture connect = connectNode.connect(address).awaitUninterruptibly();
 
@@ -261,7 +265,8 @@ public class SocketClient
                 }
                 catch (IOException failure)
                 {
-                    LOG.debug("Encountered I/O error", failure);
+                    LOG.debug("Encountered I/O error");
+                    reconnect();
                 }
                 catch (RuntimeException failure)
                 {
@@ -294,11 +299,35 @@ public class SocketClient
         }
     }
 
+    public boolean isReady()
+    {
+        return !initiating;
+    }
+
     public final void ready()
     {
-        this.reconnectTimeoutS = 0;
-        LibraryImpl.LOG.info("Finished Loading!");
-        this.api.handleEvent(new ReadyEvent(this.api));
+        if (initiating)
+        {
+            initiating = false;
+            processingReady = false;
+            if (firstInit)
+            {
+                firstInit = false;
+                LibraryImpl.LOG.info("Finished Loading!");
+                api.handleEvent(new ReadyEvent(api));
+            }
+            else
+            {
+                LibraryImpl.LOG.info("Finished (Re)Loading!");
+                api.handleEvent(new SessionRecreateEvent(api));
+            }
+        }
+        else
+        {
+            LibraryImpl.LOG.debug("Successfully resumed Session!");
+            api.handleEvent(new SessionResumeEvent(api));
+        }
+        api.setStatus(Library.Status.CONNECTED);
     }
 
     public static class ConnectNode implements SessionController.SessionConnectNode

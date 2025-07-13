@@ -55,63 +55,18 @@ public final class SessionLoggerExample extends ListenerAdapter
     @Override
     public void onException(@Nonnull ExceptionEvent event)
     {
-
+        LibraryImpl.LOG.error(event.getMessage());
     }
 
     @Override
     public void onReady(@Nonnull ReadyEvent event)
     {
-        LibraryImpl api = (LibraryImpl) event.getLibrary();
-
-        //        api.sendRequest(TEST_QUERY).map(Response::getArray).queue(content -> {
-        //            content.forEach(binaryObject -> {
-        //                System.out.println(binaryObject.getString());
-        //            });
-        //        }, error -> System.out.println(error.getMessage()));
-
-//        Collection<Serializable> parameters = new ArrayList<>();
-//        parameters.add("READY");
-//
-//        api.sendRequest(TEST_QUERY_PREPARED, parameters).map(Response::getArray).queue(array ->
-//        {
-//            array.forEach(binaryObject ->
-//            {
-//            });
-//        }, Throwable::printStackTrace);
-
-
-        testResourceLeakDetector(api);
+        //LibraryImpl.LOG.info("Finished Loading!");
     }
 
     @Override
     public void onShutdown(@Nonnull ShutdownEvent event)
     {
         LibraryImpl.LOG.info("Shutting down...");
-    }
-
-    public void testResourceLeakDetector(LibraryImpl api)
-    {
-        long startTime = System.currentTimeMillis();
-        final int count = 1;
-
-        Map<Integer, Response> responseMap = new HashMap<>();
-
-        Map<String, Serializable> map = new HashMap<>();
-        map.put("stage", "READY");
-
-        for (int i = 0; i < count; i++)
-        {
-            int finalI = i;
-
-            api.sendRequest(TEST_QUERY_PREPARED, map).useTrace(true).queue(response -> {
-                responseMap.put(finalI, response);
-                if (responseMap.size() == count)
-                {
-                    long duration = System.currentTimeMillis() - startTime;
-                    System.out.println("Total time: " + duration + " ms");
-                    System.out.println("RPS: " + (count * 1000.0 / duration));
-                }
-            });
-        }
     }
 }

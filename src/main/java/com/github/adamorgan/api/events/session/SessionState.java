@@ -16,10 +16,52 @@
 
 package com.github.adamorgan.api.events.session;
 
+/**
+ * State of a Socket session.
+ *
+ * @see GenericSessionEvent
+ */
 public enum SessionState
 {
+    /**
+     * The session is fully loaded.
+     *
+     * @see ReadyEvent
+     */
     READY,
 
+    /**
+     * The session cache has been invalidated.
+     *
+     * @see SessionInvalidateEvent
+     */
+    INVALIDATED,
+
+    /**
+     * The session has disconnected, possibly to resume.
+     *
+     * @see SessionDisconnectEvent
+     */
     DISCONNECTED,
-    SHUTDOWN
+
+    /**
+     * The session has resumed successfully after disconnecting.
+     *
+     * @see SessionResumeEvent
+     */
+    RESUMED,
+
+    /**
+     * The session has been recreated after being {@link #INVALIDATED invalidated}.
+     *
+     * @see SessionRecreateEvent
+     */
+    RECREATED,
+
+    /**
+     * The session has been closed and will not be reconnected.
+     *
+     * @see ShutdownEvent
+     */
+    SHUTDOWN,
 }
