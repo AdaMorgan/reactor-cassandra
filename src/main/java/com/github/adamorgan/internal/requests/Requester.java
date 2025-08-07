@@ -18,6 +18,7 @@ package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.exceptions.ErrorResponse;
+import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
@@ -59,7 +60,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
     {
         this.api = api;
 
-        for (int i = 1; i < MAX; i++)
+        for (int i = MIN; i < MAX; i++)
         {
             this.hitRateLimit.add(i);
         }
@@ -73,33 +74,23 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
 
     public <R> void request(@Nonnull Request<R> request)
     {
-        request(new WorkTask(request));
-    }
+        WorkTask task = new WorkTask(request);
 
-    public void request(@Nonnull WorkTask request)
-    {
         if (getContext() != null && request.getBody().getShort(2) != 0)
         {
-            execute(getContext(), request);
+            execute(getContext(), task);
         }
         else
         {
-            this.rateLimitQueue.add(request);
+            this.rateLimitQueue.add(task);
         }
     }
 
-    private void execute(@Nonnull ChannelHandlerContext context, WorkTask task)
-    {
-        this.execute(context, task, task.getBody().getShort(2));
-    }
-
-    private void execute(@Nonnull ChannelHandlerContext context, @Nonnull WorkTask task, int id)
+    private void execute(@Nonnull ChannelHandlerContext context, @Nonnull WorkTask task)
     {
         ObjectAction<?> objectAction = task.request.getObjectAction();
 
-        task.getBody().setShort(2, id);
-
-        queue.put(id, task);
+        queue.put((int) task.getBody().getShort(2), task);
 
         try
         {
@@ -135,7 +126,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
 
         if (!this.rateLimitQueue.isEmpty())
         {
-            execute(context, this.rateLimitQueue.poll(), stream);
+            execute(context, this.rateLimitQueue.poll());
         }
         else
         {

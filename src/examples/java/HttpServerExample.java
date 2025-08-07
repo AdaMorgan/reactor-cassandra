@@ -19,12 +19,8 @@ import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.*;
+import com.github.adamorgan.internal.requests.Requester;
+import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
@@ -33,99 +29,40 @@ import java.util.Map;
 
 public class HttpServerExample extends ListenerAdapter
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED'";
+    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED' ALLOW FILTERING";
 
-    public static void main(String[] args) throws Exception
+    public static void main(String[] args)
     {
         InetSocketAddress address = InetSocketAddress.createUnresolved("127.0.0.1", 9042);
 
         LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
                 .addEventListeners(new HttpServerExample())
-                .setCompression(Compression.SNAPPY)
                 .setEnableDebug(false)
                 .build();
 
-        server(api);
+        request(api);
     }
 
-
-    public static void server(LibraryImpl api) throws InterruptedException
-    {
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
-
-        try
-        {
-            ServerBootstrap bootstrap = new ServerBootstrap()
-                    .group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .childHandler(new ChannelInitializer<SocketChannel>()
-                    {
-                        @Override
-                        protected void initChannel(SocketChannel channel)
-                        {
-                            channel.pipeline().addLast(new HttpServerCodec())
-                                    .addLast(new SimpleChannelHandler(api));
-                        }
-                    });
-
-            ChannelFuture future = bootstrap.bind(8080).sync();
-            System.out.println("Server started on port 8080");
-            future.channel().closeFuture().sync();
-        }
-        finally
-        {
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
-        }
-    }
-
-    public static void request(ChannelHandlerContext context, LibraryImpl api)
+    public static void request(LibraryImpl api)
     {
         long startTime = System.currentTimeMillis();
-        final int count = 1;
+        final int count = 1000;
 
         Map<Integer, Response> responseMap = new HashMap<>();
-
-        Map<String, Serializable> map = new HashMap<>();
-        map.put("stage", "READY");
 
         for (int i = 0; i < count; i++)
         {
             int finalI = i;
 
-            api.sendRequest(TEST_QUERY_PREPARED, map).useTrace(true).queue(response -> {
+            api.sendRequest(TEST_QUERY_PREPARED).queue(response -> {
                 responseMap.put(finalI, response);
                 if (responseMap.size() == count)
                 {
-                    context.close();
                     long duration = System.currentTimeMillis() - startTime;
                     System.out.println("Total time: " + duration + " ms");
-                    System.out.println("RPS: " + (count * 1000.0 / duration));
+                    System.out.println("RPS: " + Math.round(count * 1000.0 / duration));
                 }
             });
-        }
-    }
-
-    public static class SimpleChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest>
-    {
-        private final LibraryImpl api;
-
-        public SimpleChannelHandler(LibraryImpl api)
-        {
-            this.api = api;
-        }
-
-        @Override
-        protected void channelRead0(ChannelHandlerContext context, FullHttpRequest request) throws Exception
-        {
-            request(context, api);
-        }
-
-        @Override
-        public boolean isSharable()
-        {
-            return true;
         }
     }
 }

@@ -23,6 +23,7 @@ import com.github.adamorgan.api.requests.ObjectFuture;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.requests.Requester;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;

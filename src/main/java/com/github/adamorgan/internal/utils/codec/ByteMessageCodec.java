@@ -28,9 +28,8 @@ import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.ByteToMessageCodec;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;
@@ -39,18 +38,24 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public final class MessageDecoder extends ByteToMessageDecoder
+public class ByteMessageCodec extends ByteToMessageCodec<ByteBuf>
 {
-    private final LibraryImpl library;
+    protected final LibraryImpl api;
 
-    private final Requester requester;
-    private final Compression compression;
+    protected final Requester requester;
+    protected final Compression compression;
 
-    public MessageDecoder(LibraryImpl library)
+    public ByteMessageCodec(LibraryImpl api, Compression compression)
     {
-        this.library = library;
-        this.requester = this.library.getRequester();
-        this.compression = library.getCompression();
+        this.api = api;
+        this.requester = this.api.getRequester();
+        this.compression = compression;
+    }
+
+    @Override
+    protected void encode(ChannelHandlerContext ctx, ByteBuf msg, ByteBuf out)
+    {
+        out.writeBytes(msg.retain());
     }
 
     @Override
@@ -93,26 +98,26 @@ public final class MessageDecoder extends ByteToMessageDecoder
         {
             case SocketCode.SUPPORTED:
             {
-                library.setStatus(Library.Status.IDENTIFYING_SESSION);
+                api.setStatus(Library.Status.IDENTIFYING_SESSION);
                 sendStartup(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTHENTICATE:
             {
-                this.library.setStatus(Library.Status.LOGGING_IN);
+                this.api.setStatus(Library.Status.LOGGING_IN);
                 verifyToken(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.AUTH_SUCCESS:
             {
-                this.library.setStatus(Library.Status.LOGIN_CONFIRMATION);
+                this.api.setStatus(Library.Status.LOGIN_CONFIRMATION);
                 registry(version, flags, stream, opcode, length, callback);
                 break;
             }
             case SocketCode.READY:
             {
-                this.library.setStatus(Library.Status.CONNECTED);
-                this.library.getClient().ready();
+                this.api.setStatus(Library.Status.CONNECTED);
+                this.api.getClient().ready();
                 break;
             }
             case SocketCode.ERROR:
@@ -131,7 +136,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
     @Nonnull
     private SessionController.SessionConnectNode sendStartup(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
-        return new SocketClient.ConnectNode(this.library, () ->
+        return new SocketClient.ConnectNode(this.api, () ->
         {
             Map<String, String> map = new HashMap<>();
 
@@ -140,9 +145,9 @@ public final class MessageDecoder extends ByteToMessageDecoder
             map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
             map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
 
-            if (!this.library.getCompression().equals(Compression.NONE))
+            if (!this.api.getCompression().equals(Compression.NONE))
             {
-                map.put("COMPRESSION", this.library.getCompression().toString());
+                map.put("COMPRESSION", this.api.getCompression().toString());
             }
 
             ByteBuf body = Unpooled.buffer();
@@ -169,9 +174,9 @@ public final class MessageDecoder extends ByteToMessageDecoder
     @Nonnull
     private SessionController.SessionConnectNode verifyToken(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
-        return new SocketClient.ConnectNode(this.library, () ->
+        return new SocketClient.ConnectNode(this.api, () ->
         {
-            byte[] token = this.library.getToken();
+            byte[] token = this.api.getToken();
             return Unpooled.buffer()
                     .writeByte(version)
                     .writeByte(SocketClient.DEFAULT_FLAG)
@@ -186,7 +191,7 @@ public final class MessageDecoder extends ByteToMessageDecoder
     @Nonnull
     private SessionController.SessionConnectNode registry(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
     {
-        return new SocketClient.ConnectNode(this.library, () ->
+        return new SocketClient.ConnectNode(this.api, () ->
         {
             ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::buffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
 

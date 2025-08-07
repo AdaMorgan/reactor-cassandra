@@ -39,9 +39,13 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     protected boolean useTrace = false;
     protected long nonce;
 
+    protected final int flags;
+
     public ObjectCreateActionImpl(Library api)
     {
         super((LibraryImpl) api);
+
+        this.flags = (this.getCompression().equals(Compression.NONE) ? 0 : 0x01) | (this.useTrace ? 0x02 : 0);
     }
 
     @Override
@@ -97,11 +101,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public int getRawFlags()
     {
-        int useCompression = !this.getCompression().equals(Compression.NONE) ? 0x01 : 0;
-        int useTrace = this.useTrace ? 0x02 : 0;
-        int usePayload = 0;
-        int useWarnings = 0;
-        return useCompression | useTrace | usePayload | useWarnings;
+        return flags;
     }
 
     @Nonnull

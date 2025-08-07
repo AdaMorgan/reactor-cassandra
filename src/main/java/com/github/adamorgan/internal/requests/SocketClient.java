@@ -24,20 +24,14 @@ import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
-import com.github.adamorgan.internal.utils.codec.MessageDecoder;
-import com.github.adamorgan.internal.utils.codec.MessageEncoder;
+import com.github.adamorgan.internal.utils.codec.ByteMessageCodec;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
+import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -55,7 +49,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class SocketClient
+public class SocketClient extends ByteMessageCodec
 {
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
@@ -64,11 +58,8 @@ public class SocketClient
 
     private int reconnectTimeoutS = 2;
 
-    public static final Class<? extends SocketChannel> CHANNEL_TYPE = Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class;
-
     protected final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
 
-    protected final LibraryImpl api;
     protected final StartingNode connectNode;
     protected final Bootstrap client;
     protected final EventLoopGroup executor;
@@ -87,62 +78,30 @@ public class SocketClient
 
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
-    private final Compression compression;
 
     public SocketClient(LibraryImpl api, SocketAddress address, Compression compression, SessionConfig config)
     {
-        this.api = api;
+        super(api, compression);
         this.client = config.getClient();
         this.address = address;
-        this.compression = compression;
         this.shouldReconnect = api.isAutoReconnect();
         this.executor = api.getCallbackPool();
         this.controller = api.getSessionController();
         this.connectNode = new StartingNode(this, controller::appendSession);
     }
 
-    public class SocketHandler extends ChannelInitializer<SocketChannel>
+    @Override
+    public void channelActive(ChannelHandlerContext context)
     {
+        this.context.set(context);
+        sendIdentify(context, context::writeAndFlush);
+    }
 
-        @Override
-        public void channelActive(@Nonnull ChannelHandlerContext context)
-        {
-            SocketClient.this.context.set(context);
-            sendIdentify(context, context::writeAndFlush);
-        }
-
-        @Override
-        public void channelInactive(@Nonnull ChannelHandlerContext context)
-        {
-            connected = false;
-            handleDisconnect();
-        }
-
-        @Override
-        protected void initChannel(@Nonnull SocketChannel channel)
-        {
-            if (SocketClient.this.api.isDebug())
-            {
-                channel.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
-            }
-
-            channel.pipeline().addLast(new MessageEncoder());
-            channel.pipeline().addLast(new MessageDecoder(SocketClient.this.api));
-            channel.pipeline().addLast(new ChannelInboundHandlerAdapter()
-            {
-                @Override
-                public void channelActive(@Nonnull ChannelHandlerContext ctx)
-                {
-                    SocketHandler.this.channelActive(ctx);
-                }
-
-                @Override
-                public void channelInactive(@Nonnull ChannelHandlerContext ctx)
-                {
-                    SocketHandler.this.channelInactive(ctx);
-                }
-            });
-        }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx)
+    {
+        connected = false;
+        handleDisconnect();
     }
 
     @Nonnull
@@ -365,10 +324,11 @@ public class SocketClient
         {
             this.api = client.api;
             this.callback = callback;
-            this.connectNode = SocketClient.this.client.group(executor).channel(CHANNEL_TYPE)
+            this.connectNode = SocketClient.this.client.group(executor)
+                    .channel(ThreadingConfig.SOCKET_CHANNEL)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
-                    .handler(new SocketHandler());
+                    .handler(client);
         }
 
         @Nonnull
