@@ -16,30 +16,27 @@
 
 package com.github.adamorgan.internal.utils.config;
 
+import com.github.adamorgan.internal.LibraryImpl;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollIoHandler;
-import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.kqueue.KQueue;
 import io.netty.channel.kqueue.KQueueIoHandler;
-import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.nio.NioIoHandler;
-import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.channel.uring.IoUring;
 import io.netty.channel.uring.IoUringIoHandler;
-import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.channel.uring.IoUringSocketChannel;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Predicate;
 
 public class ThreadingConfig
@@ -61,15 +58,14 @@ public class ThreadingConfig
     public static final Class<? extends SocketChannel> SOCKET_CHANNEL = HAS_FLAG.test(IO_URING) ? IoUringSocketChannel.class : HAS_FLAG.test(EPOLL) ? EpollSocketChannel.class : HAS_FLAG.test(KQUEUE) ? KQueueSocketChannel.class : NioSocketChannel.class;;
     public static final IoHandlerFactory IO_HANDLER = HAS_FLAG.test(IO_URING) ? IoUringIoHandler.newFactory() : HAS_FLAG.test(EPOLL) ? EpollIoHandler.newFactory() : HAS_FLAG.test(KQUEUE) ? KQueueIoHandler.newFactory() : NioIoHandler.newFactory();
 
-
     public ThreadingConfig()
     {
-        this.shutdownCallbackPool = false;
+        this.shutdownCallbackPool = true;
     }
 
-    public void setCallbackPool(@Nullable ExecutorService executor, boolean shutdown)
+    public void setCallbackPool(@Nullable ThreadFactory factory, boolean shutdown)
     {
-        this.callbackPool = executor == null ? new MultiThreadIoEventLoopGroup(IO_HANDLER) : new MultiThreadIoEventLoopGroup(executor, IO_HANDLER);
+        this.callbackPool = new MultiThreadIoEventLoopGroup(factory == null ? LibraryImpl.DEFAULT_THREAD_FACTORY : factory, IO_HANDLER);
         this.shutdownCallbackPool = shutdown;
     }
 
@@ -79,13 +75,10 @@ public class ThreadingConfig
         this.shutdownEventPool = shutdown;
     }
 
-    public boolean isAvailable()
-    {
-        return Epoll.isAvailable();
-    }
-
     public void shutdown()
     {
+        System.out.println(shutdownCallbackPool);
+
         if (shutdownCallbackPool)
             callbackPool.shutdownGracefully();
         if (shutdownEventPool && eventPool != null)
@@ -96,7 +89,7 @@ public class ThreadingConfig
     {
         if (shutdownCallbackPool)
             callbackPool.shutdownGracefully();
-        if (shutdownEventPool || eventPool != null)
+        if (shutdownEventPool && eventPool != null)
             eventPool.shutdownNow();
     }
 

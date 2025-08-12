@@ -17,22 +17,29 @@
 import com.github.adamorgan.api.LibraryBuilder;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
-import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.requests.Requester;
-import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
+import io.netty.util.ResourceLeakDetector;
 
-import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 
 public class HttpServerExample extends ListenerAdapter
 {
-    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED' ALLOW FILTERING";
 
-    public static void main(String[] args)
+    public static final String TEST_QUERY = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED' ALLOW FILTERING";
+    public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = ? ALLOW FILTERING";
+
+    public static void main(String[] args) throws InterruptedException
     {
+        request();
+    }
+
+    public static void request() throws InterruptedException
+    {
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
+
         InetSocketAddress address = InetSocketAddress.createUnresolved("127.0.0.1", 9042);
 
         LibraryImpl api = LibraryBuilder.createLight(address, "cassandra", "cassandra")
@@ -40,29 +47,36 @@ public class HttpServerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
-        request(api);
-    }
 
-    public static void request(LibraryImpl api)
-    {
+        int count = 20_000;
+        ConcurrentMap<Integer, Response> responseMap = new ConcurrentHashMap<>();
+        CountDownLatch latch = new CountDownLatch(count);
+
         long startTime = System.currentTimeMillis();
-        final int count = 1000;
-
-        Map<Integer, Response> responseMap = new HashMap<>();
 
         for (int i = 0; i < count; i++)
         {
-            int finalI = i;
-
-            api.sendRequest(TEST_QUERY_PREPARED).queue(response -> {
-                responseMap.put(finalI, response);
-                if (responseMap.size() == count)
+            final int finalI = i;
+            try
+            {
+                api.sendRequest(TEST_QUERY).queue(response ->
                 {
-                    long duration = System.currentTimeMillis() - startTime;
-                    System.out.println("Total time: " + duration + " ms");
-                    System.out.println("RPS: " + Math.round(count * 1000.0 / duration));
-                }
-            });
+                    responseMap.put(finalI, response);
+                    latch.countDown();
+                });
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
         }
+
+        latch.await();
+
+        long duration = System.currentTimeMillis() - startTime;
+        System.out.println("Total time: " + duration + " ms");
+        System.out.println("RPS: " + Math.round(count * 1000.0 / duration));
+
+        api.shutdown();
     }
 }

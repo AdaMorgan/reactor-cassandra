@@ -47,6 +47,9 @@ public class EncodingUtils
     @Nonnull
     public static ByteBuf pack(@Nonnull ByteBuf buffer, @Nonnull BinaryType type, @Nullable Serializable value)
     {
+        Checks.notNull(type, "type");
+        Checks.notNull(value, "value");
+
         switch (type)
         {
             case ASCII:

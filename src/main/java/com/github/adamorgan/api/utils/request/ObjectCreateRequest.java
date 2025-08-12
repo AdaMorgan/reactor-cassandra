@@ -21,7 +21,6 @@ import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -56,7 +55,7 @@ public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends O
     T setContent(@Nonnull String content, @Nonnull ByteBuf args, int size, boolean named);
 
     @Nonnull
-    T setNonce(long timestamp);
+    T setTimestamp(long timestamp);
 
     @Nonnull
     T setConsistency(ObjectCreateAction.Consistency consistency);

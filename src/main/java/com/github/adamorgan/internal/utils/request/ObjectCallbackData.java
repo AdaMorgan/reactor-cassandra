@@ -16,14 +16,12 @@
 
 package com.github.adamorgan.internal.utils.request;
 
+import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
-import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCallbackActionImpl;
-import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.*;
-import io.netty.util.ReferenceCountUtil;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -33,34 +31,26 @@ public class ObjectCallbackData implements ObjectData
     private final ObjectCallbackActionImpl action;
     private final byte version, opcode;
     private final int flags;
-    private final int id;
     private final ByteBuf token, header, body, rawBody;
     private final short consistency;
     private final int fields, maxBufferSize;
-    private final long nonce;
+    private final long timestamp;
 
     public ObjectCallbackData(@Nonnull ObjectCallbackAction action)
     {
         this.action = (ObjectCallbackActionImpl) action;
         this.version = this.action.version;
         this.flags = action.getRawFlags();
-        this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();
         this.opcode = SocketCode.EXECUTE;
         this.token = action.useCache() ? action.getLibrary().getObjectCache().cache(action.hashCode(), action.getToken()) : action.getToken();
         this.consistency = action.getConsistency().getCode();
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
-        this.nonce = action.getNonce();
+        this.timestamp = action.getTimestamp();
 
         this.rawBody = applyBody();
         this.body = action.getCompression().pack(rawBody);
         this.header = applyHeader();
-    }
-
-    @Override
-    public int getId()
-    {
-        return id;
     }
 
     @Nonnull
@@ -71,19 +61,12 @@ public class ObjectCallbackData implements ObjectData
     }
 
     @Nonnull
-    @Override
-    public ByteBuf applyData()
-    {
-        return Unpooled.compositeBuffer(2).addComponents(true, header, body);
-    }
-
-    @Nonnull
     private ByteBuf applyHeader()
     {
         return Unpooled.directBuffer()
                 .writeByte(this.version)
                 .writeByte(this.flags)
-                .writeShort(this.id)
+                .writeShort(0)
                 .writeByte(this.opcode)
                 .writeInt(body.readableBytes());
     }
@@ -98,6 +81,13 @@ public class ObjectCallbackData implements ObjectData
                 .writeByte(this.fields)
                 .writeBytes(action.getBody())
                 .writeInt(this.maxBufferSize)
-                .writeLong(this.nonce);
+                .writeLong(this.timestamp);
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf applyData()
+    {
+        return Unpooled.compositeBuffer(2).addComponents(true, header, body);
     }
 }

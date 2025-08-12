@@ -16,7 +16,6 @@
 
 package com.github.adamorgan.api.exceptions;
 
-import com.github.adamorgan.api.requests.Response;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
@@ -25,15 +24,13 @@ import java.nio.charset.StandardCharsets;
 public class ErrorResponseException extends RuntimeException
 {
     private final ErrorResponse errorResponse;
-    private final ByteBuf response;
     private final int code;
     private final String meaning;
 
-    public ErrorResponseException(ErrorResponse errorResponse, ByteBuf response, int code, String meaning)
+    public ErrorResponseException(ErrorResponse errorResponse, int code, String meaning)
     {
         super(meaning);
         this.errorResponse = errorResponse;
-        this.response = response;
         this.code = code;
         this.meaning = meaning;
     }
@@ -62,16 +59,10 @@ public class ErrorResponseException extends RuntimeException
     }
 
     @Nonnull
-    public static ErrorResponseException create(ErrorResponse errorResponse, Response response)
-    {
-        return create(errorResponse, response.getBody());
-    }
-
-    @Nonnull
-    public static ErrorResponseException create(ErrorResponse errorResponse, ByteBuf response)
+    public static ErrorResponseException create(@Nonnull ErrorResponse errorResponse, @Nonnull ByteBuf response)
     {
         int length = response.readUnsignedShort();
         String meaning = response.readCharSequence(length, StandardCharsets.UTF_8).toString();
-        return new ErrorResponseException(errorResponse, response, errorResponse.getCode(), meaning);
+        return new ErrorResponseException(errorResponse, errorResponse.getCode(), meaning);
     }
 }

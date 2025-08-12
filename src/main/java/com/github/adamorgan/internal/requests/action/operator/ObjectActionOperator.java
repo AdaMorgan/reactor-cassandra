@@ -18,7 +18,7 @@ package com.github.adamorgan.internal.requests.action.operator;
 
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.ObjectAction;
-import com.github.adamorgan.internal.utils.request.ObjectData;
+import com.github.adamorgan.api.utils.request.ObjectData;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;

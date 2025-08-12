@@ -25,8 +25,9 @@ import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.Requester;
 import com.github.adamorgan.internal.utils.LibraryLogger;
-import com.github.adamorgan.internal.utils.request.ObjectData;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -44,6 +45,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     private static final Consumer<? super Throwable> DEFAULT_FAILURE = t -> LOG.error("ObjectAction queue returned failure: [{}] {}", t.getClass().getSimpleName(), t.getMessage());
 
     protected final LibraryImpl api;
+    protected final Requester requester;
 
     public final byte version;
 
@@ -51,9 +53,10 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
 
     protected long deadline;
 
-    public ObjectActionImpl(LibraryImpl api, BiFunction<Request<T>, Response, T> handler)
+    public ObjectActionImpl(@Nonnull LibraryImpl api, BiFunction<Request<T>, Response, T> handler)
     {
         this.api = api;
+        this.requester = api.getRequester();
         this.version = api.getVersion();
         this.handler = handler;
     }

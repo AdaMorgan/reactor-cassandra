@@ -17,6 +17,7 @@
 package com.github.adamorgan.api.utils;
 
 import com.github.adamorgan.annotations.UnknownNullability;
+import com.github.adamorgan.api.requests.RequestManager;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -28,6 +29,17 @@ import java.util.function.Supplier;
  */
 public class MiscUtil
 {
+    public static int getShardForGuild(RequestManager.Work task)
+    {
+        return getShardForGuild(task.hashCode());
+    }
+
+    public static int getShardForGuild(int hash)
+    {
+        hash = (hash ^ (hash >>> 16)) * 0x5BD1E995;
+        return (int) (((hash & 0x7FFFFFFFL) * ((1 << 15) - 1)) >>> 31);
+    }
+
     @UnknownNullability
     public static <E> E locked(ReentrantLock lock, Supplier<E> task)
     {

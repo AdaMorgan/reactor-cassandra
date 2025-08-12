@@ -22,6 +22,7 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.CallbackContext;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -127,6 +128,11 @@ public class Request<T>
         }
     }
 
+    public boolean shouldQueue()
+    {
+        return true;
+    }
+
     public void onCancelled()
     {
         onFailure(new CancellationException("RestAction has been cancelled"));
@@ -137,13 +143,22 @@ public class Request<T>
         this.onFailure(new TimeoutException("ObjectAction has timed out"));
     }
 
+    private boolean isTimeout()
+    {
+        return deadline > 0 && deadline < System.currentTimeMillis();
+    }
+
     public boolean isSkipped()
     {
-        if (isCancelled())
+        if (isTimeout())
         {
-            onCancelled();
+            onTimeout();
+            return true;
         }
-        return isCancelled();
+        boolean skip = isCancelled();
+        if (skip)
+            onCancelled();
+        return skip;
     }
 
     public boolean isCancelled()
@@ -156,5 +171,11 @@ public class Request<T>
         ObjectActionImpl.LOG.trace("Handling response for request with content {}", "");
         this.objAction.handleResponse(this, response);
         api.handleEvent(new BinaryRequestEvent(this, response));
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return body.hashCode();
     }
 }

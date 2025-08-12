@@ -17,168 +17,144 @@
 package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
-import com.github.adamorgan.api.exceptions.ErrorResponse;
-import com.github.adamorgan.api.hooks.ListenerAdapter;
-import com.github.adamorgan.api.requests.ObjectAction;
-import com.github.adamorgan.api.requests.Request;
-import com.github.adamorgan.api.requests.Response;
-import com.github.adamorgan.api.requests.Work;
+import com.github.adamorgan.api.requests.*;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.LibraryLogger;
+import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.collection.IntObjectHashMap;
+import io.netty.util.collection.IntObjectMap;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQueue<Integer>
+public class Requester implements RequestManager
 {
     public static final Logger LOG = LibraryLogger.getLog(Requester.class);
 
-    public static final int MIN = 1;
-    public static final int MAX = 32768;
+    private final LibraryImpl api;
 
-    private final CompletableFuture<?> shutdownHandle = new CompletableFuture<>();
+    private final CompletableFuture<Void> shutdownHandle = new CompletableFuture<>();
 
     private boolean isStopped, isShutdown;
 
-    protected final ReentrantLock lock = new ReentrantLock();
-    protected final LibraryImpl api;
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-    protected final LinkedBlockingQueue<Integer> hitRateLimit = new LinkedBlockingQueue<>(MAX);
-    protected final Map<Integer, WorkTask> queue = new ConcurrentHashMap<>(MAX);
-    protected final LinkedBlockingQueue<WorkTask> rateLimitQueue = new LinkedBlockingQueue<>();
+    private final Map<Integer, Requester.WorkTask> hitRateLimit = new ConcurrentHashMap<>();
 
-    public Requester(LibraryImpl api)
+    private final IntObjectMap<Bucket> buckets = new IntObjectHashMap<>();
+    private final Map<Bucket, Future<?>> rateLimitQueue = new HashMap<>();
+
+    private final SocketClient client;
+
+    private final Future<?> cleanupWorker;
+
+    public Requester(@Nonnull LibraryImpl api)
     {
         this.api = api;
-
-        for (int i = MIN; i < MAX; i++)
-        {
-            this.hitRateLimit.add(i);
-        }
+        this.client = api.getClient();
+        this.cleanupWorker = new CompletableFuture<>();
     }
 
-    @Nullable
-    public ChannelHandlerContext getContext()
+    @Nonnull
+    public LibraryImpl getLibrary()
     {
-        return this.api.getClient().getContext();
+        return api;
     }
 
     public <R> void request(@Nonnull Request<R> request)
     {
-        WorkTask task = new WorkTask(request);
+        if (isStopped || isShutdown)
+            request.onFailure(new RejectedExecutionException("The Requester has been stopped! No new requests can be requested!"));
 
-        if (getContext() != null && request.getBody().getShort(2) != 0)
+        if (request.shouldQueue())
+            enqueue(new WorkTask(request));
+    }
+
+    @Override
+    public void enqueue(@Nonnull WorkTask task)
+    {
+        try (UnlockHook hook = writeLock())
         {
-            execute(getContext(), task);
-        }
-        else
-        {
-            this.rateLimitQueue.add(task);
+            Bucket bucket = getBucket(task);
+            bucket.enqueue(task);
+            runBucket(bucket);
         }
     }
 
-    private void execute(@Nonnull ChannelHandlerContext context, @Nonnull WorkTask task)
+    public void execute(WorkTask task)
     {
-        ObjectAction<?> objectAction = task.request.getObjectAction();
-
-        queue.put((int) task.getBody().getShort(2), task);
-
+        ChannelHandlerContext context = client.context;
         try
         {
-            LOG.trace("Executing request {}", ByteBufUtil.prettyHexDump(task.request.getBody()));
+            if (context == null)
+                throw new IOException("Socket couldn't be created or access failed");
+        }
+        catch (IOException e)
+        {
+            LOG.error("I/O error while executing request: {}", e.getMessage());
+            task.handleResponse(context, e);
+        }
+        catch (Exception e)
+        {
+            LOG.error("Unexpected error while executing request", e);
+            task.handleResponse(context, e);
+        }
+    }
 
-            context.writeAndFlush(task.getBody().retain()).addListener(result ->
+    public void handleResponse(@Nonnull ChannelHandlerContext context, byte flags, int stream, byte opcode, int length, Exception failure, ByteBuf body)
+    {
+        try
+        {
+            long rawData = ((long) flags << 56) | ((long) stream << 40) | ((long) opcode << 32) | length;
+
+            Bucket bucket = buckets.get(stream);
+
+            WorkTask mainTask = hitRateLimit.remove(stream);
+            if (mainTask == null)
             {
-                if (!result.isSuccess())
+                LOG.warn("Late or unknown response: bucketId={}, requests.size={}, hitRateLimit={}", stream, bucket.requests.size(), hitRateLimit.size());
+                return;
+            }
+
+            ByteBuf retainedBody = body.retain();
+
+            mainTask.handleResponse(context, rawData, failure, retainedBody.duplicate());
+
+            Iterator<WorkTask> it = bucket.requests.iterator();
+            while (it.hasNext())
+            {
+                WorkTask req = it.next();
+                if (mainTask.equals(req))
                 {
-                    result.cause().printStackTrace();
+                    it.remove();
+                    req.handleResponse(context, rawData, failure, retainedBody.duplicate());
                 }
-            }).await(objectAction.getDeadline(), TimeUnit.MILLISECONDS);
+            }
+
+            retainedBody.release();
+
+            bucket.run = false;
+            bucket.backoff();
         }
-        catch (InterruptedException timeout)
+        finally
         {
-            task.request.onTimeout();
+            body.release();
         }
     }
 
-    public void enqueue(ChannelHandlerContext context, byte version, byte flags, int stream, byte opcode, int length, ErrorResponse failure, ByteBuf body)
+    public void stop(boolean shutdown, @Nonnull Runnable callback)
     {
-        UUID trace = ObjectAction.Flags.fromBitField(flags).contains(ObjectAction.Flags.TRACING) ? new UUID(body.readLong(), body.readLong()) : null;
-
-        WorkTask task = queue.remove(stream);
-
-        if (task != null) {
-            task.handleResponse(new Response(version, flags, stream, opcode, length, failure, body, trace));
-        } else {
-            LOG.warn("Received response for unknown stream id {}", stream);
-        }
-
-        body.release();
-
-        if (!this.rateLimitQueue.isEmpty())
+        try (UnlockHook hook = readLock())
         {
-            execute(context, this.rateLimitQueue.poll());
-        }
-        else
-        {
-            this.offer(stream);
-        }
-    }
-
-    @Override
-    public boolean offer(@Nonnull Integer id)
-    {
-        Checks.notNull(id, "id");
-        Checks.inRange(id, 0, MAX, "id");
-        return MiscUtil.locked(lock, () -> this.hitRateLimit.offer(id));
-    }
-
-    @Nonnull
-    @Override
-    public Integer poll()
-    {
-        return MiscUtil.locked(lock, () -> {
-            Integer poll = this.hitRateLimit.poll();
-            return poll != null ? poll : 0;
-        });
-    }
-
-    @Override
-    public int size()
-    {
-        return this.queue.size();
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return this.queue.isEmpty();
-    }
-
-    @Override
-    public int remainingCapacity()
-    {
-        return MAX - size();
-    }
-
-    @Override
-    public void clear()
-    {
-        MiscUtil.locked(lock, this.queue::clear);
-    }
-
-    public void stop(boolean shutdown, Runnable callback)
-    {
-        MiscUtil.locked(lock, () -> {
             boolean doShutdown = shutdown;
             if (!isStopped)
             {
@@ -186,7 +162,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
                 shutdownHandle.thenRun(callback);
                 if (!doShutdown)
                 {
-                    int count = this.rateLimitQueue.size() + this.queue.size();
+                    int count = buckets.size();
 
                     if (count > 0)
                     {
@@ -195,23 +171,209 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
                     doShutdown = count == 0;
                 }
             }
-
             if (doShutdown && !isShutdown)
                 shutdown();
-        });
+        }
+    }
+
+    @Override
+    public boolean isStopped()
+    {
+        return isStopped;
+    }
+
+    public UnlockHook writeLock()
+    {
+        if (lock.getReadHoldCount() > 0)
+            throw new IllegalStateException("Unable to acquire write-lock while holding read-lock!");
+        Lock writeLock = lock.writeLock();
+        MiscUtil.tryLock(writeLock);
+        return new UnlockHook(writeLock);
+    }
+
+    public UnlockHook readLock()
+    {
+        ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
+        MiscUtil.tryLock(readLock);
+        return new UnlockHook(readLock);
     }
 
     private void shutdown()
     {
         isShutdown = true;
-        this.clear();
+        cleanupWorker.cancel(false);
+        cleanup();
         shutdownHandle.complete(null);
     }
 
-    public class WorkTask implements Work
+    private Bucket getBucket(@Nonnull Work request)
     {
-        private final Request<?> request;
+        try (UnlockHook hook = readLock())
+        {
+            int bucketId = MiscUtil.getShardForGuild(request);
+            return this.buckets.computeIfAbsent(bucketId, Bucket::new);
+        }
+    }
 
+    private void runBucket(Bucket bucket)
+    {
+        try (UnlockHook hook = readLock())
+        {
+            if (isShutdown)
+                return;
+
+            // Schedule a new bucket worker if no worker is running
+            bucket.run();
+        }
+    }
+
+    private void cleanup()
+    {
+        // This will remove buckets that are no longer needed every 30 seconds to avoid memory leakage
+        // We will keep the hashes in memory since they are very limited (by the amount of possible routes)
+        try (UnlockHook hook = readLock())
+        {
+            int size = buckets.size();
+            Iterator<Map.Entry<Integer, Bucket>> entries = buckets.entrySet().iterator();
+
+            while (entries.hasNext())
+            {
+                Map.Entry<Integer, Bucket> entry = entries.next();
+                Bucket bucket = entry.getValue();
+                if (isShutdown)
+                    bucket.requests.forEach(Work::cancel); // Cancel all requests
+                bucket.requests.removeIf(Work::isSkipped); // Remove cancelled requests
+
+                // Check if the bucket is empty
+                if (bucket.requests.isEmpty() && !rateLimitQueue.containsKey(bucket))
+                {
+                    // Remove empty buckets when the rate limiter is stopped
+                    if (isStopped)
+                        entries.remove();
+                }
+            }
+
+            // LOG how many buckets were removed
+            size -= buckets.size();
+            if (size > 0)
+                LOG.debug("Removed {} expired buckets", size);
+            else if (isStopped && !isShutdown)
+                shutdown();
+        }
+    }
+
+    @Override
+    public int cancelRequests()
+    {
+        try (UnlockHook hook = readLock())
+        {
+            int cancelled = (int) buckets.values()
+                    .stream()
+                    .map(Bucket::getRequests)
+                    .flatMap(Collection::stream)
+                    .filter(request -> !request.isPriority() && !request.isCancelled())
+                    .peek(Work::cancel)
+                    .count();
+
+            if (cancelled == 1)
+                LOG.warn("Cancelled 1 request!");
+            else if (cancelled > 1)
+                LOG.warn("Cancelled {} requests!", cancelled);
+            return cancelled;
+        }
+    }
+
+    private class Bucket implements Runnable
+    {
+        protected final int bucketId;
+        protected final Deque<WorkTask> requests = new ConcurrentLinkedDeque<>();
+
+        public Bucket(int bucketId)
+        {
+            this.bucketId = bucketId;
+        }
+
+        public void enqueue(@Nonnull WorkTask request)
+        {
+            request.request.getBody().setShort(2, bucketId);
+            requests.addLast(request);
+        }
+
+        public void retry(@Nonnull WorkTask request)
+        {
+            if (!moveRequest(request))
+                requests.addFirst(request);
+        }
+
+        protected void backoff()
+        {
+            // Schedule backoff if requests are not done
+            try (UnlockHook hook = readLock())
+            {
+                if (!requests.isEmpty())
+                    runBucket(this);
+                else if (isStopped)
+                    buckets.remove(bucketId);
+                else
+                    rateLimitQueue.remove(this);
+                if (isStopped && buckets.isEmpty())
+                    shutdown();
+            }
+        }
+
+        @Nonnull
+        public Queue<WorkTask> getRequests()
+        {
+            return requests;
+        }
+
+        protected boolean moveRequest(@Nonnull WorkTask request)
+        {
+            try (UnlockHook hook = writeLock())
+            {
+                Bucket bucket = getBucket(request);
+                if (bucket != this)
+                {
+                    bucket.enqueue(request);
+                    runBucket(bucket);
+                }
+                return bucket != this;
+            }
+        }
+
+        public boolean run;
+
+        @Override
+        public void run()
+        {
+            try (UnlockHook hook = readLock())
+            {
+                if (run || requests.isEmpty())
+                    return;
+
+                run = true;
+
+                WorkTask task = requests.removeFirst();
+                hitRateLimit.put(bucketId, task);
+                ByteBuf body = task.request.getBody();
+                client.context.writeAndFlush(body.retain());
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (obj == this)
+                return true;
+            if (!(obj instanceof Bucket))
+                return false;
+            return this.bucketId == ((Bucket) obj).bucketId;
+        }
+    }
+
+    public class WorkTask implements RequestManager.Work
+    {
+        protected final Request<?> request;
         private boolean done;
 
         public WorkTask(@Nonnull Request<?> request)
@@ -229,14 +391,7 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
         @Override
         public void execute()
         {
-            Requester.this.request(request);
-        }
-
-        @Nonnull
-        @Override
-        public ByteBuf getBody()
-        {
-            return request.getBody();
+            Requester.this.execute(this);
         }
 
         @Override
@@ -252,6 +407,12 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
         }
 
         @Override
+        public boolean isPriority()
+        {
+            return false;
+        }
+
+        @Override
         public boolean isCancelled()
         {
             return request.isCancelled();
@@ -263,10 +424,34 @@ public class Requester extends LinkedBlockingQueue<Integer> implements BlockingQ
             request.cancel();
         }
 
-        public void handleResponse(Response response)
+        public void handleResponse(@Nonnull ChannelHandlerContext context, long rawData, Exception exception, ByteBuf body)
         {
             done = true;
-            request.handleResponse(response);
+            request.handleResponse(new Response(context, rawData, exception, body));
+        }
+
+        public void handleResponse(@Nonnull ChannelHandlerContext context, Exception exception)
+        {
+            done = true;
+            request.handleResponse(new Response(context, 0, exception, Unpooled.EMPTY_BUFFER));
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return request.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof WorkTask))
+                return false;
+            if (obj == this)
+                return true;
+
+            WorkTask other = (WorkTask) obj;
+            return hashCode() == other.hashCode();
         }
     }
 }

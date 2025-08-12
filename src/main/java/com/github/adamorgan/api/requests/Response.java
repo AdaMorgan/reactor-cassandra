@@ -16,11 +16,11 @@
 
 package com.github.adamorgan.api.requests;
 
-import com.github.adamorgan.api.exceptions.ErrorResponse;
-import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.utils.binary.BinaryArray;
 import com.github.adamorgan.internal.requests.SocketCode;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.ChannelHandlerContext;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,27 +28,24 @@ import java.util.UUID;
 
 public class Response
 {
-    protected final int version, flags, stream, opcode, length;
+    protected final long rawData;
     protected final ByteBuf body;
     protected final Type type;
 
     protected final UUID trace;
 
-    protected final Exception exception;
+    protected Exception exception;
 
-    public Response(byte version, byte flags, int stream, byte opcode, int length, ErrorResponse error, ByteBuf body, UUID trace)
+    public Response(@Nonnull ChannelHandlerContext context, long rawData, @Nullable Exception exception, @Nonnull ByteBuf body)
     {
-        this.version = version;
-        this.flags = flags;
-        this.stream = stream;
-        this.opcode = opcode;
-        this.length = length;
+        this.rawData = rawData;
         this.body = body;
 
-        this.type = error == null ? Type.valueOf(body.readInt()) : Type.ERROR;
-        this.exception = error != null ? ErrorResponseException.create(error, this) : null;
+        this.trace = ObjectAction.Flags.fromBitField((byte) (rawData >>> 56)).contains(ObjectAction.Flags.TRACING) ? new UUID(body.readLong(), body.readLong()) : null;
 
-        this.trace = trace;
+        this.type = body.readableBytes() > 0 ? Type.valueOf(body.readInt()) : Type.ERROR;
+
+        this.exception = exception;
     }
 
     public boolean isOk()
@@ -58,7 +55,7 @@ public class Response
 
     public boolean isError()
     {
-        return this.opcode == SocketCode.ERROR;
+        return ((rawData >>> 32) & 0xFF) == SocketCode.ERROR;
     }
 
     public boolean isEmpty()
@@ -68,12 +65,12 @@ public class Response
 
     public boolean isTrace()
     {
-        return (flags & 0x02) != 0;
+        return ((rawData >>> 56) & 0x02) != 0;
     }
 
     public boolean isWarnings()
     {
-        return (flags & 0x08) != 0;
+        return ((rawData >>> 56) & 0x08) != 0;
     }
 
     @Nullable

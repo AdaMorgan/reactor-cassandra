@@ -17,21 +17,24 @@
 package com.github.adamorgan.internal.requests;
 
 import com.github.adamorgan.api.Library;
+import com.github.adamorgan.api.LibraryInfo;
 import com.github.adamorgan.api.events.ExceptionEvent;
 import com.github.adamorgan.api.events.session.*;
+import com.github.adamorgan.api.exceptions.ErrorResponse;
+import com.github.adamorgan.api.exceptions.ErrorResponseException;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.SessionController;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.utils.EncodingUtils;
 import com.github.adamorgan.internal.utils.LibraryLogger;
-import com.github.adamorgan.internal.utils.codec.ByteMessageCodec;
-import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.handler.codec.ByteToMessageCodec;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -40,28 +43,33 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketAddress;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
-public class SocketClient extends ByteMessageCodec
+public class SocketClient extends ByteToMessageCodec<ByteBuf>
 {
     public static final Logger LOG = LibraryLogger.getLog(SocketClient.class);
 
     public static final byte DEFAULT_FLAG = 0x00;
     public static final int DEFAULT_STREAM_ID = 0x00;
 
+    private final LibraryImpl api;
+    private final Compression compression;
+
     private int reconnectTimeoutS = 2;
 
-    protected final AtomicReference<ChannelHandlerContext> context = new AtomicReference<>();
+    public ChannelHandlerContext context;
 
     protected final StartingNode connectNode;
-    protected final Bootstrap client;
     protected final EventLoopGroup executor;
     protected final SessionController controller;
 
@@ -70,6 +78,7 @@ public class SocketClient extends ByteMessageCodec
 
     protected boolean initiating;
 
+    protected volatile boolean shutdown = false;
     protected boolean shouldReconnect;
     protected boolean connected = false;
 
@@ -79,10 +88,10 @@ public class SocketClient extends ByteMessageCodec
     private static final ThreadLocal<ByteBuf> CURRENT_EVENT = new ThreadLocal<>();
     private final SocketAddress address;
 
-    public SocketClient(LibraryImpl api, SocketAddress address, Compression compression, SessionConfig config)
+    public SocketClient(@Nonnull LibraryImpl api, SocketAddress address, Compression compression)
     {
-        super(api, compression);
-        this.client = config.getClient();
+        this.api = api;
+        this.compression = compression;
         this.address = address;
         this.shouldReconnect = api.isAutoReconnect();
         this.executor = api.getCallbackPool();
@@ -93,15 +102,176 @@ public class SocketClient extends ByteMessageCodec
     @Override
     public void channelActive(ChannelHandlerContext context)
     {
-        this.context.set(context);
+        this.context = context;
         sendIdentify(context, context::writeAndFlush);
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx)
+    public void channelInactive(ChannelHandlerContext context)
     {
         connected = false;
         handleDisconnect();
+    }
+
+    @Override
+    protected void encode(ChannelHandlerContext context, ByteBuf message, ByteBuf out) throws Exception
+    {
+        out.writeBytes(message.retain());
+    }
+
+    @Override
+    protected void decode(ChannelHandlerContext context, ByteBuf input, List<Object> out)
+    {
+        input.markReaderIndex();
+
+        if (input.readableBytes() < 9)
+        {
+            input.resetReaderIndex();
+            return;
+        }
+
+        byte versionHeader = input.readByte();
+
+        byte version = (byte) ((256 + versionHeader) & 0x7F);
+        boolean isResponse = ((256 + versionHeader) & 0x80) != 0;
+
+        byte flags = input.readByte();
+        short stream = input.readShort();
+        byte opcode = input.readByte();
+        int length = input.readInt();
+
+        if (input.readableBytes() < length)
+        {
+            input.resetReaderIndex();
+            return;
+        }
+
+        ByteBuf body = input.readRetainedSlice(length).asReadOnly();
+
+        boolean isCompressed = (flags & 0x01) != 0;
+
+        onDispatch(context, version, flags, stream, opcode, length, isCompressed ? this.compression.unpack(body) : body, context::writeAndFlush);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext context, Throwable failure) throws Exception
+    {
+        failure.printStackTrace();
+    }
+
+    private void onDispatch(ChannelHandlerContext context, byte version, byte flags, int stream, byte opcode, int length, ByteBuf body, Consumer<? super ByteBuf> callback)
+    {
+        switch (opcode)
+        {
+            case SocketCode.SUPPORTED:
+            {
+                api.setStatus(Library.Status.IDENTIFYING_SESSION);
+                sendStartup(version, flags, stream, opcode, length, callback);
+                break;
+            }
+            case SocketCode.AUTHENTICATE:
+            {
+                this.api.setStatus(Library.Status.LOGGING_IN);
+                verifyToken(version, flags, stream, opcode, length, callback);
+                break;
+            }
+            case SocketCode.AUTH_SUCCESS:
+            {
+                this.api.setStatus(Library.Status.LOGIN_CONFIRMATION);
+                registry(version, flags, stream, opcode, length, callback);
+                break;
+            }
+            case SocketCode.READY:
+            {
+                this.api.setStatus(Library.Status.CONNECTED);
+                this.api.getClient().ready();
+                break;
+            }
+            case SocketCode.ERROR:
+                ErrorResponse errorResponse = ErrorResponse.from(body);
+                ErrorResponseException exception = ErrorResponseException.create(errorResponse, body);
+                this.api.getRequester().handleResponse(context, flags, stream, opcode, length, exception, body);
+                break;
+            case SocketCode.RESULT:
+            {
+                this.api.getRequester().handleResponse(context, flags, stream, opcode, length, null, body);
+                break;
+            }
+            default:
+            {
+                throw new UnsupportedOperationException("Unsupported opcode: " + opcode);
+            }
+        }
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode sendStartup(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.api, () ->
+        {
+            Map<String, String> map = new HashMap<>();
+
+            map.put("CQL_VERSION", LibraryInfo.CQL_VERSION);
+            map.put("DRIVER_VERSION", LibraryInfo.DRIVER_VERSION);
+            map.put("DRIVER_NAME", LibraryInfo.DRIVER_NAME);
+            map.put("THROW_ON_OVERLOAD", LibraryInfo.THROW_ON_OVERLOAD);
+
+            if (!this.api.getCompression().equals(Compression.NONE))
+            {
+                map.put("COMPRESSION", this.api.getCompression().toString());
+            }
+
+            ByteBuf body = Unpooled.buffer();
+
+            body.writeShort(map.size());
+
+            for (Map.Entry<String, String> entry : map.entrySet())
+            {
+                EncodingUtils.packUTF84(body, entry.getKey());
+                EncodingUtils.packUTF84(body, entry.getValue());
+            }
+
+            return Unpooled.buffer().writeByte(version)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.STARTUP)
+                    .writeInt(body.readableBytes())
+                    .writeBytes(body)
+                    .asByteBuf();
+        }, callback);
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode verifyToken(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.api, () ->
+        {
+            byte[] token = this.api.getToken();
+            return Unpooled.buffer().writeByte(version)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.AUTH_RESPONSE)
+                    .writeInt(token.length)
+                    .writeBytes(token)
+                    .asByteBuf();
+        }, callback);
+    }
+
+    @Nonnull
+    private SessionController.SessionConnectNode registry(byte version, byte flags, int stream, byte opcode, int length, Consumer<? super ByteBuf> callback)
+    {
+        return new SocketClient.ConnectNode(this.api, () ->
+        {
+            ByteBuf body = Stream.of("SCHEMA_CHANGE", "TOPOLOGY_CHANGE", "STATUS_CHANGE").collect(Unpooled::buffer, EncodingUtils::packUTF88, ByteBuf::writeBytes);
+
+            return Unpooled.buffer().writeByte(version)
+                    .writeByte(SocketClient.DEFAULT_FLAG)
+                    .writeShort(stream)
+                    .writeByte(SocketCode.REGISTER)
+                    .writeInt(body.readableBytes())
+                    .writeBytes(body)
+                    .asByteBuf();
+        }, callback);
     }
 
     @Nonnull
@@ -112,8 +282,12 @@ public class SocketClient extends ByteMessageCodec
 
     public synchronized void shutdown()
     {
-        boolean callOnShutdown = MiscUtil.locked(reconnectLock, () ->
+       boolean callOnShutdown = MiscUtil.locked(reconnectLock, () ->
         {
+            if (shutdown)
+                return false;
+            shutdown = true;
+            shouldReconnect = false;
             if (connectNode != null)
                 api.getSessionController().removeSession(connectNode);
             boolean wasConnected = connected;
@@ -122,7 +296,9 @@ public class SocketClient extends ByteMessageCodec
         });
 
         if (callOnShutdown)
+        {
             onShutdown();
+        }
     }
 
     protected void onShutdown()
@@ -133,22 +309,19 @@ public class SocketClient extends ByteMessageCodec
     @Nullable
     public ChannelHandlerContext getContext()
     {
-        return this.context.get();
+        return this.context;
     }
 
     private synchronized SessionController.SessionConnectNode sendIdentify(ChannelHandlerContext context, Consumer<? super ByteBuf> callback)
     {
         LOG.debug("Sending Identify node...");
-        return new ConnectNode(this.api, () ->
-        {
-            return Unpooled.buffer()
-                    .writeByte(this.api.getVersion())
-                    .writeByte(DEFAULT_FLAG)
-                    .writeShort(DEFAULT_STREAM_ID)
-                    .writeByte(SocketCode.OPTIONS)
-                    .writeInt(0)
-                    .asByteBuf();
-        }, callback);
+        return new ConnectNode(this.api, () -> Unpooled.buffer()
+                .writeByte(this.api.getVersion())
+                .writeByte(DEFAULT_FLAG)
+                .writeShort(DEFAULT_STREAM_ID)
+                .writeByte(SocketCode.OPTIONS)
+                .writeInt(0)
+                .asByteBuf(), callback);
     }
 
     public synchronized void connect() throws IOException
@@ -157,9 +330,12 @@ public class SocketClient extends ByteMessageCodec
         {
             this.api.setStatus(Library.Status.CONNECTING_TO_SOCKET);
         }
+
         initiating = true;
 
         ChannelFuture connect = connectNode.connect(address).awaitUninterruptibly();
+
+        ChannelHandlerContext context;
 
         if (connect.isSuccess())
         {
@@ -197,7 +373,8 @@ public class SocketClient extends ByteMessageCodec
     {
         LOG.debug("Attempting to reconnect in {}s", reconnectTimeoutS);
 
-        boolean isShutdown = MiscUtil.locked(reconnectLock, () -> {
+        boolean isShutdown = MiscUtil.locked(reconnectLock, () ->
+        {
             while (shouldReconnect)
             {
                 api.setStatus(Library.Status.WAITING_TO_RECONNECT);
@@ -211,7 +388,9 @@ public class SocketClient extends ByteMessageCodec
                     // On shutdown, this condvar is notified and we stop reconnecting
                     reconnectCondvar.await(delay, TimeUnit.SECONDS);
                     if (!shouldReconnect)
+                    {
                         break;
+                    }
 
                     api.setStatus(Library.Status.ATTEMPTING_TO_RECONNECT);
                     LOG.debug("Attempting to reconnect!");
@@ -245,6 +424,7 @@ public class SocketClient extends ByteMessageCodec
 
     private void handleDisconnect()
     {
+        connected = false;
         api.setStatus(Library.Status.DISCONNECTED);
         this.api.getObjectCache().clear();
         if (!shouldReconnect || executor.isShutdown())
@@ -320,16 +500,18 @@ public class SocketClient extends ByteMessageCodec
         private final Bootstrap connectNode;
         private final Consumer<StartingNode> callback;
 
-        public StartingNode(SocketClient client, Consumer<StartingNode> callback)
+        public StartingNode(@Nonnull SocketClient client, Consumer<StartingNode> callback)
         {
             this.api = client.api;
             this.callback = callback;
-            this.connectNode = SocketClient.this.client.group(executor)
+            this.connectNode = new Bootstrap().group(executor)
                     .channel(ThreadingConfig.SOCKET_CHANNEL)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
-                    .handler(client);
+                    .handler(client)
+                    .validate();
         }
+
 
         @Nonnull
         @Override
@@ -339,11 +521,9 @@ public class SocketClient extends ByteMessageCodec
         }
 
         @Nonnull
-        public ChannelFuture connect(SocketAddress inetSocketAddress)
+        public ChannelFuture connect(SocketAddress address)
         {
-            return this.connectNode.connect(inetSocketAddress).addListener(future -> {
-                this.callback.accept(this);
-            });
+            return this.connectNode.connect(address).addListener(future -> this.callback.accept(this));
         }
     }
 }

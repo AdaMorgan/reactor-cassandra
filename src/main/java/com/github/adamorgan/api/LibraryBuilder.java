@@ -29,7 +29,6 @@ import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.config.SessionConfig;
 import com.github.adamorgan.internal.utils.config.ThreadingConfig;
-import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -44,6 +43,7 @@ import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 public class LibraryBuilder
 {
@@ -57,12 +57,10 @@ public class LibraryBuilder
 
     protected Library.ShardInfo shardInfo;
 
-    protected ExecutorService callbackPool = null;
-    protected boolean shutdownCallbackPool = true;
+    protected ThreadFactory threadFactory = null;
+
     protected ExecutorService eventPool = null;
     protected boolean shutdownEventPool = true;
-
-    protected final Bootstrap client = new Bootstrap();
 
     protected final EnumSet<ConfigFlag> flags = ConfigFlag.DEFAULT;
 
@@ -71,6 +69,7 @@ public class LibraryBuilder
     protected int maxBufferSize = 1 << 6; // 64 KB
     protected int maxReconnectDelay = 900;
     protected Compression compression = Compression.NONE;
+    protected boolean shutdownCallbackPool;
 
     protected LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
@@ -174,17 +173,17 @@ public class LibraryBuilder
     }
 
     @Nonnull
-    public LibraryBuilder setCallbackPool(@Nullable ExecutorService executor, boolean automaticShutdown)
+    public LibraryBuilder setCallbackPool(@Nullable ThreadFactory threadFactory, boolean automaticShutdown)
     {
-        this.callbackPool = executor;
+        this.threadFactory = threadFactory;
         this.shutdownCallbackPool = automaticShutdown;
         return this;
     }
 
     @Nonnull
-    public LibraryBuilder setCallbackPool(@Nullable ExecutorService executor)
+    public LibraryBuilder setCallbackPool(@Nullable ThreadFactory threadFactory)
     {
-        return this.setCallbackPool(executor, executor == null);
+        return this.setCallbackPool(threadFactory, threadFactory == null);
     }
 
     @Nonnull
@@ -293,11 +292,11 @@ public class LibraryBuilder
 
         ThreadingConfig config = new ThreadingConfig();
 
-        config.setCallbackPool(callbackPool, shutdownCallbackPool);
+        config.setCallbackPool(threadFactory, shutdownCallbackPool);
         config.setEventPool(eventPool, shutdownEventPool);
 
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
-        SessionConfig sessionConfig = new SessionConfig(controller, client, maxBufferSize, maxReconnectDelay, flags);
+        SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay, flags);
 
         LibraryImpl library = new LibraryImpl(token, address, compression, shardInfo, config, sessionConfig, eventManager);
 

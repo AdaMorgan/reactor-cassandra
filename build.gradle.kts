@@ -80,7 +80,7 @@ dependencies {
         addAll(configurations["implementation"].allDependencies)
         addAll(configurations["compileOnly"].allDependencies)
     }
-
+    
     testImplementation(libs.bundles.junit)
     testImplementation(libs.reflections)
     testImplementation(libs.mockito)

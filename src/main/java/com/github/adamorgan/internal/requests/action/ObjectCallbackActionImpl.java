@@ -24,12 +24,11 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.request.ObjectCallbackData;
-import com.github.adamorgan.internal.utils.request.ObjectData;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
-import java.util.Objects;
 
 public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> implements ObjectCallbackAction
 {
@@ -95,9 +94,9 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
     }
 
     @Override
-    public long getNonce()
+    public long getTimestamp()
     {
-        return this.action.getNonce();
+        return this.action.getTimestamp();
     }
 
     @Nonnull
@@ -150,22 +149,5 @@ public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> i
     public boolean isEmpty()
     {
         return this.action.isEmpty();
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this)
-            return true;
-        if (!(obj instanceof ObjectCallbackAction))
-            return false;
-        ObjectCallbackAction other = (ObjectCallbackAction) obj;
-        return Objects.equals(this, other);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return this.action.hashCode();
     }
 }

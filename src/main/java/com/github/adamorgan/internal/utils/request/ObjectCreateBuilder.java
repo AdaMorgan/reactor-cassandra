@@ -18,12 +18,10 @@ package com.github.adamorgan.internal.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
+import com.github.adamorgan.api.utils.request.ObjectRequest;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.Helpers;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-import io.netty.util.ReferenceCountUtil;
 
 import javax.annotation.Nonnull;
 
@@ -73,10 +71,11 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
     }
 
     @Nonnull
-    public ObjectCreateBuilder setNonce(long timestamp)
+    public ObjectCreateBuilder setTimestamp(long timestamp)
     {
-        Checks.notNegative(timestamp, "Nonce");
-        this.nonce = timestamp;
+        Checks.notNegative(timestamp, "Timestamp");
+        this.fields |= Field.DEFAULT_TIMESTAMP.getRawValue();
+        this.timestamp = timestamp;
         return this;
     }
 }

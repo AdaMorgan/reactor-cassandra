@@ -31,7 +31,7 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected ObjectCreateAction.Consistency consistency = ObjectCreateAction.Consistency.ONE;
     protected Compression compression = Compression.NONE;
     protected int maxBufferSize = 5000;
-    protected long nonce;
+    protected long timestamp = 0;
 
     protected final ByteBuf body = UnpooledByteBufAllocator.DEFAULT.directBuffer(maxBufferSize);
 
@@ -82,8 +82,8 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     }
 
     @Override
-    public long getNonce()
+    public long getTimestamp()
     {
-        return nonce;
+        return timestamp;
     }
 }

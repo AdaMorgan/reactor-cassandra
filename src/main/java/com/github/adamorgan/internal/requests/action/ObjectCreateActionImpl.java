@@ -24,28 +24,25 @@ import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.UnlockHook;
+import com.github.adamorgan.internal.utils.request.ObjectCacheData;
+import com.github.adamorgan.internal.utils.request.ObjectCreateData;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.internal.utils.request.*;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
-import java.util.Objects;
 
 public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<Response>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
     protected boolean useCache = true;
     protected boolean useTrace = false;
-    protected long nonce;
-
-    protected final int flags;
+    protected long timestamp;
 
     public ObjectCreateActionImpl(Library api)
     {
         super((LibraryImpl) api);
-
-        this.flags = (this.getCompression().equals(Compression.NONE) ? 0 : 0x01) | (this.useTrace ? 0x02 : 0);
     }
 
     @Override
@@ -101,7 +98,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public int getRawFlags()
     {
-        return flags;
+        return (this.getCompression().equals(Compression.NONE) ? 0 : 0x01) | (this.useTrace ? 0x02 : 0);
     }
 
     @Nonnull
@@ -133,16 +130,16 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     }
 
     @Override
-    public long getNonce()
+    public long getTimestamp()
     {
-        return nonce != 0 ? nonce : System.currentTimeMillis();
+        return timestamp;
     }
 
     @Nonnull
     @Override
-    public ObjectCreateAction setNonce(long timestamp)
+    public ObjectCreateAction setTimestamp(long timestamp)
     {
-        getBuilder().setNonce(timestamp);
+        getBuilder().setTimestamp(timestamp);
         return this;
     }
 
@@ -196,22 +193,5 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     public boolean isEmpty()
     {
         return this.builder.isEmpty();
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this)
-            return true;
-        if (!(obj instanceof ObjectCreateAction))
-            return false;
-        ObjectCreateAction other = (ObjectCreateAction) obj;
-        return Objects.equals(this, other);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return getContent().hashCode();
     }
 }

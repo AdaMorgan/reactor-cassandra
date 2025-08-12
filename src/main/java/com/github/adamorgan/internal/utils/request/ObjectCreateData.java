@@ -16,15 +16,14 @@
 
 package com.github.adamorgan.internal.utils.request;
 
+import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -38,13 +37,12 @@ public class ObjectCreateData implements ObjectData
     private final ObjectCreateActionImpl action;
     private final byte version, opcode;
     private final int flags;
-    private final int id;
     private final byte[] content;
     private final Compression compression;
     private final ObjectCreateAction.Consistency consistency;
     private final int fields;
     private final int maxBufferSize;
-    private final long nonce;
+    private final long timestamp;
     private final ByteBuf header;
     private final ByteBuf body, rawBody;
 
@@ -54,23 +52,16 @@ public class ObjectCreateData implements ObjectData
         this.version = this.action.version;
         this.compression = action.getCompression();
         this.flags = action.getRawFlags();
-        this.id = ((LibraryImpl) action.getLibrary()).getRequester().poll();
         this.opcode = action.isEmpty() ? SocketCode.QUERY : SocketCode.PREPARE;
         this.content = StringUtils.getBytes(action.getContent(), StandardCharsets.UTF_8);
         this.consistency = action.getConsistency();
         this.fields = action.getFieldsRaw();
         this.maxBufferSize = action.getMaxBufferSize();
-        this.nonce = action.getNonce();
+        this.timestamp = action.getTimestamp();
 
         this.rawBody = applyBody();
         this.body = action.getCompression().pack(rawBody);
         this.header = applyHeader();
-    }
-
-    @Override
-    public int getId()
-    {
-        return id;
     }
 
     @Nonnull
@@ -80,19 +71,12 @@ public class ObjectCreateData implements ObjectData
         return ObjectCreateAction.Field.fromBitFields(fields);
     }
 
-    @Nonnull
-    @Override
-    public ByteBuf applyData()
-    {
-        return Unpooled.compositeBuffer().addComponents(true, header, body);
-    }
-
     public ByteBuf applyHeader()
     {
         return Unpooled.directBuffer(finalizeLength() + ObjectAction.HEADER_BYTES)
                 .writeByte(version)
                 .writeByte(flags)
-                .writeShort(id)
+                .writeShort(0)
                 .writeByte(opcode)
                 .writeInt(body.readableBytes());
     }
@@ -105,11 +89,39 @@ public class ObjectCreateData implements ObjectData
                 .writeShort(consistency.getCode())
                 .writeByte(fields)
                 .writeInt(maxBufferSize)
-                .writeLong(nonce);
+                .writeLong(timestamp);
     }
 
     private int finalizeLength()
     {
         return CONTENT_BYTES + body.readableBytes() + (opcode == SocketCode.QUERY ? Short.BYTES : 0) + ObjectCreateAction.Field.BYTES + ObjectCreateAction.Field.getCapacity(fields);
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf applyData()
+    {
+        return Unpooled.compositeBuffer().addComponents(true, header, body);
+    }
+
+    class Builder
+    {
+        private int id;
+
+        public Builder(int id, Compression compression, int fields, int bufferSize, long timestamp)
+        {
+
+        }
+
+        public Builder setId(int id)
+        {
+            this.id = id;
+            return this;
+        }
+
+        public ObjectCacheData build()
+        {
+            return new ObjectCacheData(action);
+        }
     }
 }

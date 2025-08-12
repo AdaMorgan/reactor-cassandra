@@ -47,7 +47,7 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
     @Nonnull
     Consistency getConsistency();
 
-    long getNonce();
+    long getTimestamp();
 
     /**
      * Is a flags whose bits define the options for {@link ObjectCreateAction ObjectCreateAction}.
@@ -59,7 +59,7 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
         PAGE_SIZE(2, Integer.BYTES, true),
         PAGING_STATE(3, Byte.BYTES),
         SERIAL_CONSISTENCY(4, Short.BYTES, true),
-        DEFAULT_TIMESTAMP(5, Long.BYTES, true),
+        DEFAULT_TIMESTAMP(5, Long.BYTES),
         VALUE_NAMES(6, Byte.BYTES);
 
         /**
@@ -76,7 +76,7 @@ public interface ObjectRequest<T extends ObjectRequest<T>>
          *     <li>DEFAULT_TIMESTAMP</li>
          * </ul>
          */
-        public static final int DEFAULT = ALL_FIELDS & ~getRaw(VALUES, SKIP_METADATA, PAGING_STATE, VALUE_NAMES, SERIAL_CONSISTENCY);
+        public static final int DEFAULT = ALL_FIELDS & ~getRaw(VALUES, SKIP_METADATA, PAGING_STATE, DEFAULT_TIMESTAMP, VALUE_NAMES);
 
         /**
          * The number of bytes used to represent a {@link Field Field} value in two's

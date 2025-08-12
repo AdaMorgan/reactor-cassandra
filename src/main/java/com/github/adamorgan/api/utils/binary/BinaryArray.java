@@ -133,11 +133,13 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
         return Spliterators.spliterator(iterator(), length(), Spliterator.IMMUTABLE | Spliterator.NONNULL);
     }
 
+    @Override
     public int hashCode()
     {
         return elements.hashCode();
     }
 
+    @Override
     public void forEach(Consumer<? super BinaryObject> action)
     {
         elements.forEach(action);
@@ -149,6 +151,7 @@ public class BinaryArray implements Iterable<BinaryObject>, SerializableArray
     }
 
     @Nonnull
+    @Override
     public BinaryArray toBinaryArray()
     {
         return this;

@@ -22,7 +22,7 @@ import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.requests.action.operator.MapObjectAction;
 import com.github.adamorgan.internal.utils.Checks;
-import com.github.adamorgan.internal.utils.request.ObjectData;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import org.jetbrains.annotations.Blocking;
 
 import javax.annotation.CheckReturnValue;

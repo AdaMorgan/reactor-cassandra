@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,6 +54,12 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LibraryImpl implements Library
 {
     public static final Logger LOG = LibraryLogger.getLog(Library.class);
+    public static final ThreadFactory DEFAULT_THREAD_FACTORY = r ->
+    {
+        final Thread t = new Thread(r, "LibraryImpl");
+        t.setPriority(Thread.NORM_PRIORITY + 1);
+        return t;
+    };
 
     protected final ObjectCacheViewImpl objCache = new ObjectCacheViewImpl(ByteBuf.class);
 
@@ -81,9 +88,9 @@ public class LibraryImpl implements Library
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
         this.shardInfo = shardInfo;
-        this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
+        this.client = new SocketClient(this, address, compression);
         this.requester = new Requester(this);
-        this.client = new SocketClient(this, address, compression, sessionConfig);
+        this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
     }
 
@@ -206,9 +213,9 @@ public class LibraryImpl implements Library
 
     public Requester getRequester()
     {
-        return this.requester;
+        return requester;
     }
-
+    
     public int getMaxBufferSize()
     {
         return sessionConfig.getMaxBufferSize();
@@ -233,6 +240,11 @@ public class LibraryImpl implements Library
     public byte getVersion()
     {
         return LibraryInfo.PROTOCOL_VERSION;
+    }
+
+    public String getIdentifierString()
+    {
+        return shardInfo != null ? "Library " + shardInfo.getShardString() : "Library";
     }
 
     public synchronized void connect()

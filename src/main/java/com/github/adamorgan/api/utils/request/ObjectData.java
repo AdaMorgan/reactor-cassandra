@@ -14,20 +14,16 @@
  * limitations under the License.
  */ 
 
-package com.github.adamorgan.internal.utils.request;
+package com.github.adamorgan.api.utils.request;
 
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.EnumSet;
 
 public interface ObjectData
 {
-    int getId();
-
     @Nonnull
     EnumSet<ObjectCreateAction.Field> getFields();
 
