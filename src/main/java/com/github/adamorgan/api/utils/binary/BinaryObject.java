@@ -262,6 +262,13 @@ public class BinaryObject implements SerializableBinary
         return this;
     }
 
+    @Nonnull
+    @Override
+    public ByteBuf asByteBuf()
+    {
+        return obj;
+    }
+
     @Override
     public String toString()
     {

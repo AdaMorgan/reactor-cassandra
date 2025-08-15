@@ -16,6 +16,9 @@
 
 package com.github.adamorgan.api.utils;
 
+import com.github.adamorgan.api.utils.binary.BinaryObject;
+import com.github.adamorgan.api.utils.binary.BinaryType;
+import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.compress.Compressor;
 import com.github.adamorgan.internal.utils.compress.Lz4Compressor;
 import com.github.adamorgan.internal.utils.compress.NoopCompressor;
@@ -51,8 +54,9 @@ public enum Compression
     }
 
     @Nonnull
-    public ByteBuf pack(ByteBuf body)
+    public ByteBuf pack(@Nonnull ByteBuf body)
     {
+        Checks.notNull(body, "Binary Object");
         return compressor.pack(body);
     }
 

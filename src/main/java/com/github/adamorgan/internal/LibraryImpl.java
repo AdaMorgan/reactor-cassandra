@@ -40,11 +40,12 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.net.SocketAddress;
 import java.time.OffsetDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -72,8 +73,10 @@ public class LibraryImpl implements Library
     protected final AtomicInteger responseTotal = new AtomicInteger(0);
 
     protected final byte[] token;
-    protected final ShardInfo shardInfo;
+    protected ShardInfo shardInfo;
     protected final SessionConfig sessionConfig;
+
+    protected long gatewayPing = -1;
 
     protected final Thread shutdownHook;
 
@@ -82,16 +85,21 @@ public class LibraryImpl implements Library
     protected final EventManagerProxy eventManager;
     protected final SocketClient client;
 
-    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ShardInfo shardInfo, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
+    public LibraryImpl(final byte[] token, final SocketAddress address, final Compression compression, final ThreadingConfig threadConfig, final SessionConfig sessionConfig, final IEventManager eventManager)
     {
         this.token = token;
         this.threadConfig = threadConfig;
         this.sessionConfig = sessionConfig;
-        this.shardInfo = shardInfo;
-        this.client = new SocketClient(this, address, compression);
-        this.requester = new Requester(this);
         this.shutdownHook = sessionConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "Library Shutdown Hook") : null;
         this.eventManager = new EventManagerProxy(eventManager, threadConfig.getEventPool());
+        this.client = new SocketClient(this, address, compression);
+
+        if (client.getContext() == null)
+        {
+            throw new RuntimeException("Client context is null!");
+        }
+
+        this.requester = new Requester(this);
     }
 
     public SocketClient getClient()
@@ -237,6 +245,40 @@ public class LibraryImpl implements Library
         }
     }
 
+    @Nonnull
+    @Override
+    public Library awaitStatus(@Nonnull Status status, @Nonnull Status... failOn) throws InterruptedException
+    {
+        Checks.notNull(status, "Status");
+        if (getStatus() == Status.CONNECTED)
+            return this;
+
+        MiscUtil.tryLock(statusLock);
+        try
+        {
+            EnumSet<Status> endCondition = EnumSet.of(status, failOn);
+            Status current = getStatus();
+
+            while (!current.isInit()                      // In case of disconnects during startup
+                    || current.ordinal() < status.ordinal()) // If we missed the status (e.g. LOGGING_IN -> CONNECTED happened while waiting for lock)
+            {
+                if (current == Status.SHUTDOWN)
+                    throw new IllegalStateException("Was shutdown trying to await status");
+                if (endCondition.contains(current))
+                    return this;
+
+                statusCondition.await();
+                current = getStatus();
+            }
+        }
+        finally
+        {
+            statusLock.unlock();
+        }
+
+        return this;
+    }
+
     public byte getVersion()
     {
         return LibraryInfo.PROTOCOL_VERSION;
@@ -247,16 +289,16 @@ public class LibraryImpl implements Library
         return shardInfo != null ? "Library " + shardInfo.getShardString() : "Library";
     }
 
-    public synchronized void connect()
+    public synchronized int login(ShardInfo shardInfo)
     {
+        this.shardInfo = shardInfo;
+
+        setStatus(Status.LOGGING_IN);
+
         if (shutdownHook != null)
             Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-        try
-        {
-            this.client.connect();
-        }
-        catch (IOException ignored) {}
+        return shardInfo == null ? -1 : shardInfo.getShardTotal();
     }
 
     @Override
@@ -271,6 +313,7 @@ public class LibraryImpl implements Library
     public synchronized void shutdown()
     {
         Status status = getStatus();
+
         if (status == Status.SHUTDOWN || status == Status.SHUTTING_DOWN)
             return;
 
@@ -307,15 +350,19 @@ public class LibraryImpl implements Library
 
     public void shutdownRequester()
     {
-        boolean signal = MiscUtil.locked(statusLock, () -> !requesterShutdown.getAndSet(true) && shutdownEvent.get() != null);
 
-        if (signal)
-            signalShutdown();
     }
 
     private void signalShutdown()
     {
         setStatus(Status.SHUTDOWN);
         handleEvent(shutdownEvent.get());
+    }
+
+    public void setGatewayPing(long ping)
+    {
+        long oldPing = this.gatewayPing;
+        this.gatewayPing = ping;
+        //LOG.info("ping: {}", ping);
     }
 }

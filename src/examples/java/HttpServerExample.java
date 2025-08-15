@@ -15,21 +15,29 @@
  */
 
 import com.github.adamorgan.api.LibraryBuilder;
+import com.github.adamorgan.api.events.StatusChangeEvent;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.internal.LibraryImpl;
+import com.github.adamorgan.internal.utils.LibraryLogger;
 import io.netty.util.ResourceLeakDetector;
+import org.apache.commons.collections4.*;
+import org.apache.commons.collections4.iterators.EntrySetMapIterator;
+import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
 
+import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
 public class HttpServerExample extends ListenerAdapter
 {
-
     public static final String TEST_QUERY = "SELECT * FROM system.local WHERE bootstrapped = 'COMPLETED' ALLOW FILTERING";
     public static final String TEST_QUERY_PREPARED = "SELECT * FROM system.local WHERE bootstrapped = ? ALLOW FILTERING";
+    public static final String PREPARED = "COMPLETED";
 
     public static void main(String[] args) throws InterruptedException
     {
@@ -47,8 +55,7 @@ public class HttpServerExample extends ListenerAdapter
                 .setEnableDebug(false)
                 .build();
 
-
-        int count = 20_000;
+        int count = 1;
         ConcurrentMap<Integer, Response> responseMap = new ConcurrentHashMap<>();
         CountDownLatch latch = new CountDownLatch(count);
 
@@ -63,11 +70,13 @@ public class HttpServerExample extends ListenerAdapter
                 {
                     responseMap.put(finalI, response);
                     latch.countDown();
+                }, error -> {
+                    System.out.println(error.getMessage());
                 });
             }
             catch (Exception e)
             {
-                e.printStackTrace();
+                api.shutdown();
             }
         }
 

@@ -12,26 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
-
-package com.github.adamorgan.api.utils.binary;
-
-import io.netty.buffer.ByteBufConvertible;
-
-import javax.annotation.Nonnull;
-import java.io.Serializable;
-
-/**
- * Allows custom serialization for Binary Payloads of an Object.
  */
-interface SerializableBinary extends ByteBufConvertible, Serializable
-{
-    /**
-     * Serialized {@link BinaryObject BinaryObject} for this object.
-     *
-     * @return {@link BinaryObject BinaryObject}
-     */
-    @Nonnull
-    BinaryObject toBinary();
-}
 
+package com.github.adamorgan.annotations;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+public @interface ReplaceWith
+{
+    String name() default "N/A";
+}

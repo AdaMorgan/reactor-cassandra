@@ -16,12 +16,12 @@
 
 package com.github.adamorgan.internal.utils.request;
 
-import com.github.adamorgan.api.utils.request.ObjectCreateRequest;
+import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 
-interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>, R extends AbstractObjectBuilder<R>> extends ObjectCreateRequest<T>
+interface AbstractObjectBuilderMixin<T extends ObjectRequest<T>, R extends AbstractObjectBuilder<R>> extends ObjectRequest<T>
 {
     @Nonnull
     R getBuilder();
@@ -32,8 +32,4 @@ interface AbstractObjectBuilderMixin<T extends ObjectCreateRequest<T>, R extends
     {
         return getBuilder().getContent();
     }
-
-    @Nonnull
-    @Override
-    ByteBuf getBody();
 }

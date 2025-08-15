@@ -20,6 +20,7 @@ import com.github.adamorgan.api.events.Event;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.CheckReturnValue;
@@ -45,7 +46,7 @@ public class BinaryRequestEvent extends Event
     }
 
     @Nullable
-    public ByteBuf getRequestBody()
+    public ObjectData getRequestBody()
     {
         return !this.api.isDebug() ? this.request.getBody() : null;
     }

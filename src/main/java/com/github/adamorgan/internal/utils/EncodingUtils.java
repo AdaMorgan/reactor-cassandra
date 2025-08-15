@@ -333,10 +333,10 @@ public class EncodingUtils
     }
 
     @Nonnull
-    public static ByteBuf pack(@Nonnull ByteBuf buffer, Map.Entry<String, ? extends Serializable> entry)
+    public static ByteBuf pack(@Nonnull ByteBuf buffer, Map.Entry<String, ? super Serializable> entry)
     {
         EncodingUtils.packUTF84(buffer, entry.getKey());
-        return pack(buffer, entry.getValue());
+        return pack(buffer, (Serializable) entry.getValue());
     }
 
     @Nullable

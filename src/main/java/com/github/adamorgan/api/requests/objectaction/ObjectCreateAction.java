@@ -30,7 +30,7 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public interface ObjectCreateAction extends ObjectAction<Response>, ObjectCreateRequest<ObjectCreateAction>, CacheObjectAction<Response>
+public interface ObjectCreateAction extends ObjectAction<Response>, ObjectCreateRequest<ObjectCreateAction>
 {
     @Nonnull
     Compression getCompression();

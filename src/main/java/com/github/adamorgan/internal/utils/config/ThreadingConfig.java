@@ -77,12 +77,10 @@ public class ThreadingConfig
 
     public void shutdown()
     {
-        System.out.println(shutdownCallbackPool);
-
         if (shutdownCallbackPool)
             callbackPool.shutdownGracefully();
         if (shutdownEventPool && eventPool != null)
-            eventPool.shutdownNow();
+            eventPool.shutdown();
     }
 
     public void shutdownNow()

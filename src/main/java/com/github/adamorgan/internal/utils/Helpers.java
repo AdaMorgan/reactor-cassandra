@@ -19,23 +19,16 @@ import java.util.stream.Collectors;
 public final class Helpers
 {
     private static final ZoneOffset OFFSET = ZoneOffset.of("+00:00");
+
     @SuppressWarnings("rawtypes")
     private static final Consumer EMPTY_CONSUMER = (v) ->
     {
     };
 
-    public static void setContent(StringBuilder builder, String content)
+    @SuppressWarnings("unchecked")
+    public static <T> Consumer<T> emptyConsumer()
     {
-        if (content != null)
-        {
-            content = content.trim();
-            builder.setLength(0);
-            builder.append(content);
-        }
-        else
-        {
-            builder.setLength(0);
-        }
+        return (Consumer<T>) EMPTY_CONSUMER;
     }
 
     public static boolean isDecimal(String number)
@@ -49,12 +42,6 @@ public final class Helpers
         {
             return false;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> Consumer<T> emptyConsumer()
-    {
-        return (Consumer<T>) EMPTY_CONSUMER;
     }
 
     public static OffsetDateTime toOffset(long instant)

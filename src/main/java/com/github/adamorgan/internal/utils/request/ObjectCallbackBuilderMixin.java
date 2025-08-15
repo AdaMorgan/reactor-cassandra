@@ -12,26 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
-
-package com.github.adamorgan.api.utils.binary;
-
-import io.netty.buffer.ByteBufConvertible;
-
-import javax.annotation.Nonnull;
-import java.io.Serializable;
-
-/**
- * Allows custom serialization for Binary Payloads of an Object.
  */
-interface SerializableBinary extends ByteBufConvertible, Serializable
-{
-    /**
-     * Serialized {@link BinaryObject BinaryObject} for this object.
-     *
-     * @return {@link BinaryObject BinaryObject}
-     */
-    @Nonnull
-    BinaryObject toBinary();
-}
 
+package com.github.adamorgan.internal.utils.request;
+
+import com.github.adamorgan.api.utils.request.ObjectCallbackRequest;
+import com.github.adamorgan.internal.utils.request.callback.ObjectCallbackBuilder;
+
+public interface ObjectCallbackBuilderMixin<T extends ObjectCallbackRequest<T>> extends AbstractObjectBuilderMixin<T, ObjectCallbackBuilder>, ObjectCallbackRequest<T>
+{
+
+}

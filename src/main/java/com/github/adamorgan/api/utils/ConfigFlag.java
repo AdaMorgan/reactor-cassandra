@@ -28,8 +28,6 @@ public enum ConfigFlag
 
     private final boolean isDefault;
 
-    public static final EnumSet<ConfigFlag> DEFAULT = EnumSet.allOf(ConfigFlag.class).stream().filter(ConfigFlag::isDefault).collect(Collectors.toCollection(() -> EnumSet.noneOf(ConfigFlag.class)));
-
     ConfigFlag()
     {
         this(false);
@@ -40,8 +38,14 @@ public enum ConfigFlag
         this.isDefault = isDefault;
     }
 
-    public boolean isDefault()
+    public static EnumSet<ConfigFlag> getDefault()
     {
-        return isDefault;
+        EnumSet<ConfigFlag> set = EnumSet.noneOf(ConfigFlag.class);
+        for (ConfigFlag flag : values())
+        {
+            if (flag.isDefault)
+                set.add(flag);
+        }
+        return set;
     }
 }

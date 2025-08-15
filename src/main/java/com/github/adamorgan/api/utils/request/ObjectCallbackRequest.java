@@ -12,27 +12,27 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
+ */
 
 package com.github.adamorgan.api.utils.request;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
-import com.github.adamorgan.internal.utils.Checks;
-import com.github.adamorgan.internal.utils.EncodingUtils;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collector;
 
-public interface ObjectCreateRequest<T extends ObjectCreateRequest<T>> extends ObjectRequest<T>
+public interface ObjectCallbackRequest<T extends ObjectCallbackRequest<T>> extends ObjectRequest<T>
 {
     @Nonnull
-    T addContent(@Nonnull String content);
+    List<? extends ByteBuf> getAttachments();
 
     @Nonnull
-    T setContent(@Nonnull String content);
+    T setContent(@Nullable String content, @Nonnull Collection<? super Serializable> args);
+
+    @Nonnull
+    T setContent(@Nullable String content, @Nonnull Map<String, ? super Serializable> args);
 }

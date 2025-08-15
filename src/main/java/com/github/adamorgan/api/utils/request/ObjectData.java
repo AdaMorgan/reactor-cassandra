@@ -16,17 +16,12 @@
 
 package com.github.adamorgan.api.utils.request;
 
-import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
-import io.netty.buffer.ByteBuf;
+import com.github.adamorgan.annotations.ReplaceWith;
+import io.netty.buffer.ByteBufConvertible;
 
-import javax.annotation.Nonnull;
-import java.util.EnumSet;
-
-public interface ObjectData
+@ReplaceWith
+public interface ObjectData extends ByteBufConvertible
 {
-    @Nonnull
-    EnumSet<ObjectCreateAction.Field> getFields();
+    int HEADER_BYTES = 9;
 
-    @Nonnull
-    ByteBuf applyData();
 }

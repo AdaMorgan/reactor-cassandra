@@ -23,6 +23,7 @@ import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
 import com.github.adamorgan.internal.requests.action.operator.MapObjectAction;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.api.utils.request.ObjectData;
+import io.netty.buffer.ByteBuf;
 import org.jetbrains.annotations.Blocking;
 
 import javax.annotation.CheckReturnValue;
@@ -39,8 +40,6 @@ import java.util.stream.Collectors;
 
 public interface ObjectAction<T>
 {
-    int HEADER_BYTES = 9;
-
     @Nonnull
     Library getLibrary();
 
@@ -53,10 +52,6 @@ public interface ObjectAction<T>
 
     @Nonnull
     ObjectData finalizeData();
-
-    @Nonnull
-    @CheckReturnValue
-    ObjectAction<T> useTrace(boolean enable);
 
     default void queue()
     {

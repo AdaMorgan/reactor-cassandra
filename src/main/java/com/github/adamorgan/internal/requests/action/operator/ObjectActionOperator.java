@@ -19,6 +19,7 @@ package com.github.adamorgan.internal.requests.action.operator;
 import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.utils.request.ObjectData;
+import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -64,14 +65,6 @@ public abstract class ObjectActionOperator<I, O> implements ObjectAction<O>
                 doFailure(failure, ex);
             }
         }, failure);
-    }
-
-    @Nonnull
-    @Override
-    public ObjectAction<O> useTrace(boolean enable)
-    {
-        this.action.useTrace(enable);
-        return this;
     }
 
     @Nonnull

@@ -23,6 +23,7 @@ import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.utils.LibraryLogger;
 import com.github.adamorgan.internal.utils.UnlockHook;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.collection.IntObjectHashMap;
@@ -61,7 +62,7 @@ public class Requester implements RequestManager
     {
         this.api = api;
         this.client = api.getClient();
-        this.cleanupWorker = new CompletableFuture<>();
+        this.cleanupWorker = api.getCallbackPool().schedule(this::cleanup, 30, TimeUnit.SECONDS);
     }
 
     @Nonnull
@@ -90,27 +91,7 @@ public class Requester implements RequestManager
         }
     }
 
-    public void execute(WorkTask task)
-    {
-        ChannelHandlerContext context = client.context;
-        try
-        {
-            if (context == null)
-                throw new IOException("Socket couldn't be created or access failed");
-        }
-        catch (IOException e)
-        {
-            LOG.error("I/O error while executing request: {}", e.getMessage());
-            task.handleResponse(context, e);
-        }
-        catch (Exception e)
-        {
-            LOG.error("Unexpected error while executing request", e);
-            task.handleResponse(context, e);
-        }
-    }
-
-    public void handleResponse(@Nonnull ChannelHandlerContext context, byte flags, int stream, byte opcode, int length, Exception failure, ByteBuf body)
+    public void handleResponse(@Nonnull ChannelHandlerContext context, byte flags, int stream, byte opcode, int length, Exception exception, ByteBuf body)
     {
         try
         {
@@ -119,15 +100,16 @@ public class Requester implements RequestManager
             Bucket bucket = buckets.get(stream);
 
             WorkTask mainTask = hitRateLimit.remove(stream);
+
+            //the error is within the driver implementation
             if (mainTask == null)
             {
-                LOG.warn("Late or unknown response: bucketId={}, requests.size={}, hitRateLimit={}", stream, bucket.requests.size(), hitRateLimit.size());
-                return;
+                throw new IOException("Target resource is no longer available at the origin server");
             }
 
             ByteBuf retainedBody = body.retain();
 
-            mainTask.handleResponse(context, rawData, failure, retainedBody.duplicate());
+            mainTask.handleResponse(context, rawData, exception, retainedBody.duplicate());
 
             Iterator<WorkTask> it = bucket.requests.iterator();
             while (it.hasNext())
@@ -136,14 +118,17 @@ public class Requester implements RequestManager
                 if (mainTask.equals(req))
                 {
                     it.remove();
-                    req.handleResponse(context, rawData, failure, retainedBody.duplicate());
+                    req.handleResponse(context, rawData, exception, retainedBody.duplicate());
                 }
             }
 
             retainedBody.release();
 
-            bucket.run = false;
             bucket.backoff();
+        }
+        catch (IOException failure)
+        {
+            failure.printStackTrace();
         }
         finally
         {
@@ -162,12 +147,15 @@ public class Requester implements RequestManager
                 shutdownHandle.thenRun(callback);
                 if (!doShutdown)
                 {
-                    int count = buckets.size();
+                    int count = buckets.values().stream()
+                            .mapToInt(bucket -> bucket.getRequests().size())
+                            .sum();
 
                     if (count > 0)
                     {
                         LOG.info("Waiting for {} requests to finish.", count);
                     }
+
                     doShutdown = count == 0;
                 }
             }
@@ -210,7 +198,7 @@ public class Requester implements RequestManager
     {
         try (UnlockHook hook = readLock())
         {
-            int bucketId = MiscUtil.getShardForGuild(request);
+            int bucketId = request.hashCode();
             return this.buckets.computeIfAbsent(bucketId, Bucket::new);
         }
     }
@@ -295,7 +283,6 @@ public class Requester implements RequestManager
 
         public void enqueue(@Nonnull WorkTask request)
         {
-            request.request.getBody().setShort(2, bucketId);
             requests.addLast(request);
         }
 
@@ -341,21 +328,21 @@ public class Requester implements RequestManager
             }
         }
 
-        public boolean run;
-
         @Override
         public void run()
         {
             try (UnlockHook hook = readLock())
             {
-                if (run || requests.isEmpty())
+                if (hitRateLimit.containsKey(bucketId) || requests.isEmpty())
                     return;
 
-                run = true;
+                WorkTask request = requests.removeFirst();
 
-                WorkTask task = requests.removeFirst();
-                hitRateLimit.put(bucketId, task);
-                ByteBuf body = task.request.getBody();
+                if (request.isCancelled())
+                    return;
+
+                hitRateLimit.put(bucketId, request);
+                ByteBuf body = request.request.getBody().asByteBuf();
                 client.context.writeAndFlush(body.retain());
             }
         }
@@ -386,12 +373,6 @@ public class Requester implements RequestManager
         public Library getLibrary()
         {
             return this.request.getLibrary();
-        }
-
-        @Override
-        public void execute()
-        {
-            Requester.this.execute(this);
         }
 
         @Override

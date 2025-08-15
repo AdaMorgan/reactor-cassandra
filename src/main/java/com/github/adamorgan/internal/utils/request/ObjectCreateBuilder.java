@@ -24,23 +24,32 @@ import com.github.adamorgan.internal.utils.Helpers;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuilder> implements ObjectCreateRequest<ObjectCreateBuilder>
 {
     @Nonnull
     @Override
-    public ObjectCreateBuilder setContent(@Nonnull String content, @Nonnull ByteBuf body, int size, boolean named)
+    public ObjectCreateBuilder setContent(@Nullable String content)
     {
-        Checks.notNull(body, "Body");
-        Helpers.setContent(this.content, content);
-
-        if (body.readableBytes() > 0)
+        if (content != null)
         {
-            this.fields |= ObjectCreateAction.Field.VALUES.getRawValue() | (named ? ObjectCreateAction.Field.VALUE_NAMES.getRawValue() : 0);
-            this.body.writeShort(size);
-            this.body.writeBytes(body);
+            content = content.trim();
+            this.content.setLength(0);
+            this.content.append(content);
         }
-        body.release();
+        else
+        {
+            this.content.setLength(0);
+        }
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCreateBuilder useTrace(boolean enabled)
+    {
+        this.traceEnabled = enabled;
         return this;
     }
 
@@ -55,7 +64,7 @@ public class ObjectCreateBuilder extends AbstractObjectBuilder<ObjectCreateBuild
 
     @Nonnull
     @Override
-    public ObjectCreateBuilder setConsistency(ObjectCreateAction.Consistency consistency)
+    public ObjectCreateBuilder setConsistency(@Nonnull ObjectCreateAction.Consistency consistency)
     {
         Checks.notNull(consistency, "Consistency");
         this.consistency = consistency;

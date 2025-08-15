@@ -16,10 +16,12 @@
 
 package com.github.adamorgan.api.utils.request;
 
+import com.github.adamorgan.annotations.ReplaceWith;
+import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.internal.utils.Checks;
-import io.netty.buffer.ByteBuf;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,21 +32,30 @@ import java.util.stream.Collectors;
 public interface ObjectRequest<T extends ObjectRequest<T>>
 {
     @Nonnull
+    T setTimestamp(long timestamp);
+
+    @Nonnull
+    @ReplaceWith
+    T setConsistency(@Nonnull ObjectCreateAction.Consistency consistency);
+
+    @Nonnull
+    @CheckReturnValue
+    T useTrace(boolean enabled);
+
+    @Nonnull
     String getContent();
+
+    boolean isTrace();
 
     int getFieldsRaw();
 
     @Nonnull
     EnumSet<ObjectCreateAction.Field> getFields();
 
-    @Nonnull
-    ByteBuf getBody();
-
     int getMaxBufferSize();
 
-    boolean isEmpty();
-
     @Nonnull
+    @ReplaceWith
     Consistency getConsistency();
 
     long getTimestamp();

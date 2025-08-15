@@ -18,6 +18,7 @@ package com.github.adamorgan.api.requests;
 
 import com.github.adamorgan.api.events.ExceptionEvent;
 import com.github.adamorgan.api.events.binary.BinaryRequestEvent;
+import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.internal.LibraryImpl;
 import com.github.adamorgan.internal.requests.CallbackContext;
 import com.github.adamorgan.internal.requests.action.ObjectActionImpl;
@@ -34,7 +35,7 @@ public class Request<T>
 {
     protected final LibraryImpl api;
     protected final ObjectActionImpl<T> objAction;
-    protected final ByteBuf body;
+    protected final ObjectData body;
     protected final Consumer<? super T> onSuccess;
     protected final Consumer<? super Throwable> onFailure;
     protected final long deadline;
@@ -42,7 +43,7 @@ public class Request<T>
     protected boolean done = false;
     protected boolean isCancelled = false;
 
-    public Request(ObjectActionImpl<T> objAction, ByteBuf body, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure, long deadline)
+    public Request(ObjectActionImpl<T> objAction, ObjectData body, Consumer<? super T> onSuccess, Consumer<? super Throwable> onFailure, long deadline)
     {
         this.objAction = objAction;
         this.body = body;
@@ -67,7 +68,7 @@ public class Request<T>
     }
 
     @Nonnull
-    public ByteBuf getBody()
+    public ObjectData getBody()
     {
         return body;
     }

@@ -31,6 +31,22 @@ public class Checks
     }
 
     @Contract("null, _ -> fail")
+    public static void notEmpty(final CharSequence argument, final String name)
+    {
+        notNull(argument, name);
+        if (Helpers.isEmpty(argument))
+            throw new IllegalArgumentException(name + " may not be empty");
+    }
+
+    @Contract("null, _ -> fail")
+    public static void notBlank(final CharSequence argument, final String name)
+    {
+        notNull(argument, name);
+        if (Helpers.isBlank(argument))
+            throw new IllegalArgumentException(name + " may not be blank");
+    }
+
+    @Contract("null, _ -> fail")
     public static void noneNull(final Collection<?> argument, final String name)
     {
         notNull(argument, name);
@@ -91,4 +107,11 @@ public class Checks
     {
         check(min <= input && input <= max, "%s must be between %d and %d characters long! Provided: \"%s\"", name, min, max, input);
     }
+
+    public static void notLonger(final String input, final int length, final String name)
+    {
+        notNull(input, name);
+        check(Helpers.codePointLength(input) <= length, "%s may not be longer than %d characters! Provided: \"%s\"", name, length, input);
+    }
+
 }

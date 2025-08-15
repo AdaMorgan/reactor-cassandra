@@ -24,8 +24,7 @@ import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.request.ObjectCacheData;
-import com.github.adamorgan.internal.utils.request.ObjectCreateData;
+import com.github.adamorgan.internal.utils.request.callback.ObjectCacheData;
 import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.internal.utils.request.*;
 import io.netty.buffer.ByteBuf;
@@ -33,12 +32,10 @@ import io.netty.buffer.ByteBuf;
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
 
-public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>, CacheObjectAction<Response>
+public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implements ObjectCreateAction, ObjectCreateBuilderMixin<ObjectCreateAction>
 {
     protected final ObjectCreateBuilder builder = new ObjectCreateBuilder();
-    protected boolean useCache = true;
     protected boolean useTrace = false;
-    protected long timestamp;
 
     public ObjectCreateActionImpl(Library api)
     {
@@ -46,25 +43,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     }
 
     @Override
-    protected void handleSuccess(@Nonnull Request<Response> request, @Nonnull Response response)
+    protected void handleSuccess(Request<Response> request, Response response)
     {
-        switch (response.getType())
-        {
-            case ERROR:
-            case VOID:
-            case ROWS:
-            case SET_KEYSPACE:
-            case SCHEMA_CHANGE:
-            {
-                request.onSuccess(response);
-                break;
-            }
-            case PREPARED:
-            {
-                new ObjectCallbackActionImpl(this, response).queue(request::onSuccess, request::onFailure);
-                break;
-            }
-        }
+        request.onSuccess(response);
     }
 
     @Nonnull
@@ -76,10 +57,16 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 
     @Nonnull
     @Override
-    public ObjectAction<Response> useTrace(boolean enable)
+    public ObjectCreateAction useTrace(boolean enabled)
     {
-        this.useTrace = enable;
+        getBuilder().useTrace(enabled);
         return this;
+    }
+
+    @Override
+    public boolean isTrace()
+    {
+        return getBuilder().isTrace();
     }
 
     @Override
@@ -117,13 +104,6 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 
     @Nonnull
     @Override
-    public ByteBuf getBody()
-    {
-        return this.getBuilder().getBody();
-    }
-
-    @Nonnull
-    @Override
     public Consistency getConsistency()
     {
         return this.getBuilder().getConsistency();
@@ -132,7 +112,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public long getTimestamp()
     {
-        return timestamp;
+        return getBuilder().getTimestamp();
     }
 
     @Nonnull
@@ -145,7 +125,7 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 
     @Nonnull
     @Override
-    public ObjectCreateAction setConsistency(Consistency consistency)
+    public ObjectCreateAction setConsistency(@Nonnull Consistency consistency)
     {
         getBuilder().setConsistency(consistency);
         return this;
@@ -162,17 +142,9 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
 
     @Nonnull
     @Override
-    public ObjectCreateAction setContent(@Nonnull String content, @Nonnull ByteBuf body, int size, boolean named)
+    public ObjectCreateAction setContent(@Nonnull String content)
     {
-        getBuilder().setContent(content, body, size, named);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CacheObjectAction<Response> useCache(boolean useCache)
-    {
-        this.useCache = useCache;
+        getBuilder().setContent(content);
         return this;
     }
 
@@ -180,18 +152,18 @@ public class ObjectCreateActionImpl extends ObjectActionImpl<Response> implement
     @Override
     public ObjectData finalizeData()
     {
-        return this.api.getObjectCache().containsKey(hashCode()) ? new ObjectCacheData(this) : new ObjectCreateData(this);
+        return ObjectCreateData.create(getContent(), getRawFlags())
+                .setCompression(getCompression())
+                .setLargeThreshold(getConsistency().getCode())
+                .setFields(getFieldsRaw())
+                .setMaxBufferSize(getMaxBufferSize())
+                .setTimestamp(getTimestamp())
+                .build();
     }
 
     @Override
     public int getMaxBufferSize()
     {
         return this.builder.getMaxBufferSize() != 5000 ? this.builder.getMaxBufferSize() : this.api.getMaxBufferSize();
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return this.builder.isEmpty();
     }
 }

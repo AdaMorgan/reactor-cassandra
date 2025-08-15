@@ -17,7 +17,10 @@
 package com.github.adamorgan.api.utils;
 
 import com.github.adamorgan.annotations.UnknownNullability;
+import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.RequestManager;
+import com.github.adamorgan.api.utils.request.ObjectData;
+import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -29,13 +32,9 @@ import java.util.function.Supplier;
  */
 public class MiscUtil
 {
-    public static int getShardForGuild(RequestManager.Work task)
+    public static int getBucketId(ByteBuf request)
     {
-        return getShardForGuild(task.hashCode());
-    }
-
-    public static int getShardForGuild(int hash)
-    {
+        int hash = request.hashCode();
         hash = (hash ^ (hash >>> 16)) * 0x5BD1E995;
         return (int) (((hash & 0x7FFFFFFFL) * ((1 << 15) - 1)) >>> 31);
     }

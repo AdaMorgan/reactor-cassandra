@@ -16,138 +16,211 @@
 
 package com.github.adamorgan.internal.requests.action;
 
-import com.github.adamorgan.api.requests.ObjectAction;
+import com.github.adamorgan.api.Library;
 import com.github.adamorgan.api.requests.Request;
 import com.github.adamorgan.api.requests.Response;
+import com.github.adamorgan.api.requests.action.CacheObjectAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.internal.LibraryImpl;
-import com.github.adamorgan.internal.utils.request.ObjectCallbackData;
 import com.github.adamorgan.api.utils.request.ObjectData;
+import com.github.adamorgan.internal.requests.SocketCode;
+import com.github.adamorgan.internal.utils.Checks;
+import com.github.adamorgan.internal.utils.request.ObjectCallbackBuilderMixin;
+import com.github.adamorgan.internal.utils.request.callback.ObjectCacheData;
+import com.github.adamorgan.internal.utils.request.callback.ObjectCallbackBuilder;
+import com.github.adamorgan.internal.utils.request.callback.ObjectCallbackData;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
+import javax.annotation.Nullable;
+import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
-public final class ObjectCallbackActionImpl extends ObjectActionImpl<Response> implements ObjectCallbackAction
+public class ObjectCallbackActionImpl extends ObjectActionImpl<Response> implements ObjectCallbackAction, ObjectCallbackBuilderMixin<ObjectCallbackAction>, CacheObjectAction<Response>
 {
-    private final ByteBuf token;
-    private final ObjectCreateActionImpl action;
-    private final ByteBuf response;
-    private final int length;
+    protected final ObjectCallbackBuilder builder = new ObjectCallbackBuilder();
+    protected boolean useCache = true;
+    protected boolean useTrace = false;
+    protected long timestamp;
 
-    public ObjectCallbackActionImpl(@Nonnull ObjectCreateActionImpl action, @Nonnull Response response)
+    public ObjectCallbackActionImpl(@Nonnull Library api)
     {
-        super((LibraryImpl) action.getLibrary());
-        this.action = action;
-        this.response = response.getBody();
-        this.length = this.response.readUnsignedShort();
-        this.token = this.response.readSlice(length);
+        super((LibraryImpl) api);
     }
 
     @Override
     protected void handleSuccess(Request<Response> request, Response response)
     {
-        this.action.handleSuccess(request, response);
+        if (response.getType().equals(Response.Type.PREPARED))
+        {
+            this.api.getObjectCache().cache(hashCode(), finalizeData().asByteBuf());
+
+            short length = response.getBody().readShort();
+            byte[] id = new byte[length];
+            response.getBody().readBytes(id);
+        }
+        else
+        {
+            request.onSuccess(response);
+        }
     }
 
     @Nonnull
     @Override
-    public ObjectAction<Response> useTrace(boolean enable)
+    public ObjectCallbackBuilder getBuilder()
     {
-        return this.action.useTrace(enable);
+        return builder;
     }
 
     @Nonnull
+    @Override
+    public ObjectCallbackAction useTrace(boolean enabled)
+    {
+        getBuilder().useTrace(enabled);
+        return this;
+    }
+
+    @Override
+    public boolean isTrace()
+    {
+        return getBuilder().isTrace();
+    }
+
+    @Nullable
     @Override
     public ByteBuf getToken()
     {
-        return this.token;
+        return this.api.getObjectCache().get(hashCode());
     }
 
     @Nonnull
     @Override
     public Compression getCompression()
     {
-        return this.action.getCompression();
+        return this.api.getCompression();
     }
 
     @Override
     public int getRawFlags()
     {
-        return this.action.getRawFlags();
+        return (this.getCompression().equals(Compression.NONE) ? 0 : 0x01) | (this.useTrace ? 0x02 : 0);
     }
 
     @Nonnull
     @Override
     public EnumSet<Flags> getFlags()
     {
-        return this.action.getFlags();
+        return Flags.fromBitField(getRawFlags());
     }
 
     @Nonnull
     @Override
     public ObjectCreateAction.Consistency getConsistency()
     {
-        return this.action.getConsistency();
+        return getBuilder().getConsistency();
     }
 
     @Override
     public long getTimestamp()
     {
-        return this.action.getTimestamp();
+        return getBuilder().getTimestamp();
+    }
+
+    @Nonnull
+    @Override
+    public List<? extends ByteBuf> getAttachments()
+    {
+        return getBuilder().getAttachments();
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCallbackAction setContent(@Nullable String content, @Nonnull Collection<? super Serializable> args)
+    {
+        Checks.notNull(content, "args");
+        getBuilder().setContent(content, args);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCallbackAction setContent(@Nullable String content, @Nonnull Map<String, ? super Serializable> args)
+    {
+        Checks.notNull(args, "args");
+        getBuilder().setContent(content, args);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCallbackAction setTimestamp(long timestamp)
+    {
+        getBuilder().setTimestamp(timestamp);
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public ObjectCallbackAction setConsistency(@Nonnull Consistency consistency)
+    {
+        getBuilder().setConsistency(consistency);
+        return this;
     }
 
     @Nonnull
     @Override
     public String getContent()
     {
-        return this.action.getContent();
+        return getBuilder().getContent();
     }
 
     @Override
     public int getFieldsRaw()
     {
-        return this.action.getFieldsRaw();
+        return getBuilder().getFieldsRaw();
     }
 
     @Nonnull
     @Override
     public EnumSet<ObjectCreateAction.Field> getFields()
     {
-        return this.action.getFields();
+        return getBuilder().getFields();
     }
 
     @Override
     public boolean useCache()
     {
-        return this.action.useCache;
-    }
-
-    @Nonnull
-    @Override
-    public ByteBuf getBody()
-    {
-        return this.action.getBody();
+        return useCache;
     }
 
     @Override
     public int getMaxBufferSize()
     {
-        return this.action.getMaxBufferSize();
+        return getBuilder().getMaxBufferSize();
     }
 
     @Nonnull
     @Override
     public ObjectData finalizeData()
     {
-        return new ObjectCallbackData(this);
+        return ObjectCallbackData.create(getContent(), getAttachments(), getRawFlags())
+                .setCompression(getCompression())
+                .setLargeThreshold(getConsistency().getCode())
+                .setFields(getFieldsRaw())
+                .setMaxBufferSize(getMaxBufferSize())
+                .setTimestamp(getTimestamp())
+                .build();
     }
 
+    @Nonnull
     @Override
-    public boolean isEmpty()
+    public CacheObjectAction<Response> useCache(boolean enabled)
     {
-        return this.action.isEmpty();
+        this.useCache = enabled;
+        return this;
     }
 }

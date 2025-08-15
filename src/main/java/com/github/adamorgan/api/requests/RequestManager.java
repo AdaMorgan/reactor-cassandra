@@ -51,8 +51,6 @@ public interface RequestManager
         @Nonnull
         Library getLibrary();
 
-        void execute();
-
         boolean isSkipped();
 
         boolean isDone();

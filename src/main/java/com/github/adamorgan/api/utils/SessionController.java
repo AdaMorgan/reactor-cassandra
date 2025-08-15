@@ -22,6 +22,13 @@ import javax.annotation.Nonnull;
 
 public interface SessionController
 {
+    /**
+     * The default delay (in seconds) to wait between running {@link SessionConnectNode SessionConnectNodes}
+     */
+    int IDENTIFY_DELAY = 5;
+
+    default void setConcurrency(int level) {}
+
     void appendSession(@Nonnull SessionConnectNode node);
 
     void removeSession(@Nonnull SessionConnectNode node);
@@ -30,5 +37,16 @@ public interface SessionController
     {
         @Nonnull
         Library getLibrary();
+
+        /**
+         * The {@link com.github.adamorgan.api.Library.ShardInfo ShardInfo} for this request.
+         * <br>Can be used for a priority system.
+         *
+         * @return The ShardInfo
+         */
+        @Nonnull
+        Library.ShardInfo getShardInfo();
+
+        void run(boolean isLast) throws InterruptedException;
     }
 }

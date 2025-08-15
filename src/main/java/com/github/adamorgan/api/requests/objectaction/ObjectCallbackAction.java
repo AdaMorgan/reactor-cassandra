@@ -19,14 +19,16 @@ package com.github.adamorgan.api.requests.objectaction;
 import com.github.adamorgan.api.requests.ObjectAction;
 import com.github.adamorgan.api.requests.Response;
 import com.github.adamorgan.api.utils.Compression;
+import com.github.adamorgan.api.utils.request.ObjectCallbackRequest;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
 import io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-public interface ObjectCallbackAction extends ObjectAction<Response>, ObjectRequest<ObjectCallbackAction>
+public interface ObjectCallbackAction extends ObjectAction<Response>, ObjectCallbackRequest<ObjectCallbackAction>
 {
-    @Nonnull
+    @Nullable
     ByteBuf getToken();
 
     @Nonnull

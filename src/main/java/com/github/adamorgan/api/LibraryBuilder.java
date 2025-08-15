@@ -62,14 +62,15 @@ public class LibraryBuilder
     protected ExecutorService eventPool = null;
     protected boolean shutdownEventPool = true;
 
-    protected final EnumSet<ConfigFlag> flags = ConfigFlag.DEFAULT;
+    protected boolean shutdownCallbackPool = true;
+
+    protected final EnumSet<ConfigFlag> flags = ConfigFlag.getDefault();
 
     protected IEventManager eventManager = null;
     protected SessionController controller = null;
     protected int maxBufferSize = 1 << 6; // 64 KB
     protected int maxReconnectDelay = 900;
     protected Compression compression = Compression.NONE;
-    protected boolean shutdownCallbackPool;
 
     protected LibraryBuilder(@Nonnull InetSocketAddress address, @Nullable String username, @Nullable String password)
     {
@@ -298,12 +299,12 @@ public class LibraryBuilder
         SessionController controller = this.controller == null ? new ConcurrentSessionController() : this.controller;
         SessionConfig sessionConfig = new SessionConfig(controller, maxBufferSize, maxReconnectDelay, flags);
 
-        LibraryImpl library = new LibraryImpl(token, address, compression, shardInfo, config, sessionConfig, eventManager);
+        LibraryImpl library = new LibraryImpl(token, address, compression, config, sessionConfig, eventManager);
 
         listeners.forEach(library::addEventListener);
         library.setStatus(Library.Status.INITIALIZED);
 
-        library.connect();
+        library.login(shardInfo);
 
         return library;
     }

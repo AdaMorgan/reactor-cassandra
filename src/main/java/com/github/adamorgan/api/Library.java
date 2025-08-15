@@ -20,9 +20,10 @@ import com.github.adamorgan.api.hooks.EventListener;
 import com.github.adamorgan.api.hooks.InterfacedEventManager;
 import com.github.adamorgan.api.hooks.ListenerAdapter;
 import com.github.adamorgan.api.requests.ObjectAction;
+import com.github.adamorgan.api.requests.objectaction.ObjectCallbackAction;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
-import com.github.adamorgan.api.utils.SessionController;
+import com.github.adamorgan.internal.requests.action.ObjectCallbackActionImpl;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.internal.utils.Checks;
 import com.github.adamorgan.internal.utils.cache.ObjectCacheViewImpl;
@@ -46,23 +47,20 @@ public interface Library
         INITIALIZING(true),
         /**{@link Library} has finished setting up supporting systems and is ready to log in.*/
         INITIALIZED(true),
-        /**{@link Library} is currently attempting to connect it's socket to CQL Binary Protocol.*/
+        /**{@link Library} is currently attempting to log in.*/
+        LOGGING_IN(true),
+        /**{@link Library} is currently attempting to login it's socket to CQL Binary Protocol.*/
         CONNECTING_TO_SOCKET(true),
         /**{@link Library} has successfully connected it's socket to CQL Binary Protocol and is sending authentication*/
         IDENTIFYING_SESSION(true),
-        /**{@link Library} is currently attempting to log in.*/
-        LOGGING_IN(true),
         /**{@link Library} has sent authentication to CQL Binary Protocol and is received confirmation.*/
-        LOGIN_CONFIRMATION(true),
+        AWAITING_LOGIN_CONFIRMATION(true),
         /**{@link Library} has finished loading everything, is receiving information from CQL Binary Protocol and is can now send requests.*/
         CONNECTED(true),
         /**{@link Library}'s main socket has been disconnected. This <b>DOES NOT</b> mean {@link Library} has shutdown permanently.
          * This is an in-between status. Most likely {@link Status#ATTEMPTING_TO_RECONNECT}
          * or {@link Status#SHUTTING_DOWN}/{@link Status#SHUTDOWN} will soon follow.*/
         DISCONNECTED,
-        /** {@link Library} session has been added to {@link SessionController SessionController}
-         * and is awaiting to be dequeued for reconnecting.*/
-        RECONNECT_QUEUED,
         /**When trying to reconnect to CQL Binary Protocol {@link Library} encountered an issue, most likely related to a lack of internet connection,
          * and is waiting to try reconnecting again.*/
         WAITING_TO_RECONNECT,
@@ -253,26 +251,34 @@ public interface Library
 
     @Nonnull
     @CheckReturnValue
-    default ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Serializable... args)
+    default ObjectCreateAction sendRequest(@Nonnull CharSequence text)
     {
         Checks.notNull(text, "Content");
-        return new ObjectCreateActionImpl(this).setContent(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
+        return new ObjectCreateActionImpl(this).setContent(text.toString());
     }
 
     @Nonnull
     @CheckReturnValue
-    default <R extends Serializable> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Collection<? extends R> args)
+    default ObjectCallbackAction sendRequest(@Nonnull CharSequence text, @Nonnull Serializable... args)
     {
         Checks.notNull(text, "Content");
-        return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
+        return sendRequest(text.toString(), args.length == 0 ? Collections.emptyList() : Arrays.asList(args));
     }
 
     @Nonnull
     @CheckReturnValue
-    default <R extends Serializable> ObjectCreateAction sendRequest(@Nonnull CharSequence text, @Nonnull Map<String, ? extends R> args)
+    default ObjectCallbackAction sendRequest(@Nonnull CharSequence text, @Nonnull Collection<? super Serializable> args)
     {
         Checks.notNull(text, "Content");
-        return new ObjectCreateActionImpl(this).setContent(text.toString(), args);
+        return new ObjectCallbackActionImpl(this).setContent(text.toString(), args);
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    default ObjectCallbackAction sendRequest(@Nonnull CharSequence text, @Nonnull Map<String, ? super Serializable> args)
+    {
+        Checks.notNull(text, "Content");
+        return new ObjectCallbackActionImpl(this).setContent(text.toString(), args);
     }
 
     /**
@@ -314,6 +320,23 @@ public interface Library
      * @see #shutdownNow()
      */
     void shutdown();
+
+    @Nonnull
+    default Library awaitReady() throws InterruptedException
+    {
+        return awaitStatus(Status.CONNECTED);
+    }
+
+    @Nonnull
+    default Library awaitStatus(@Nonnull Library.Status status) throws InterruptedException
+    {
+        //This is done to retain backwards compatible ABI as it would otherwise change the signature of the method
+        // which would require recompilation for all users (including extension libraries)
+        return awaitStatus(status, new Library.Status[0]);
+    }
+
+    @Nonnull
+    Library awaitStatus(@Nonnull Status status, @Nonnull Status... failOn) throws InterruptedException;
 
     /**
      * Shutdown this {@link Library Library} instance instantly, closing all its connections.

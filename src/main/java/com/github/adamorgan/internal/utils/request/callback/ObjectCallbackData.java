@@ -1,4 +1,4 @@
-package com.github.adamorgan.internal.utils.request;/*
+/*
  * Copyright 2025 Ada Morgan, John Regan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,9 @@ package com.github.adamorgan.internal.utils.request;/*
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+ */ 
+
+package com.github.adamorgan.internal.utils.request.callback;
 
 import com.github.adamorgan.annotations.ReplaceWith;
 import com.github.adamorgan.api.LibraryInfo;
@@ -20,21 +22,22 @@ import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.MiscUtil;
 import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.internal.requests.SocketCode;
-import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import com.github.adamorgan.internal.utils.Checks;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.*;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-public class ObjectCreateData implements ObjectData
+public class ObjectCallbackData implements ObjectData
 {
-    public static final int CODE = SocketCode.QUERY;
+    public static final int CODE = SocketCode.PREPARE;
 
     private final int flags;
     private final byte[] content;
+    private final List<? extends ByteBuf> args;
+    private final ByteBuf argsBody;
     private final Compression compression;
     private final int largeThreshold;
     private final int fields;
@@ -44,22 +47,26 @@ public class ObjectCreateData implements ObjectData
     private final ByteBuf body;
     private final int bucketId;
 
-    private ObjectCreateData(int flags, byte[] content, Compression compression, int largeThreshold, int fields, int bufferSize, long timestamp)
+    private ObjectCallbackData(int flags, byte[] content, List<? extends ByteBuf> args, Compression compression, int largeThreshold, int fields, int bufferSize, long timestamp)
     {
         this.flags = flags;
         this.content = content;
+        this.args = args;
         this.compression = compression;
         this.largeThreshold = largeThreshold;
         this.fields = fields;
         this.maxBufferSize = bufferSize;
         this.timestamp = timestamp;
 
+        this.argsBody = args.stream().collect(Unpooled::directBuffer, ByteBuf::writeBytes, ByteBuf::writeBytes);
+
         ByteBuf rawBody = applyBody();
         this.body = compression.pack(rawBody);
         this.bucketId = MiscUtil.getBucketId(body);
     }
 
-    public ByteBuf applyBody()
+    @Nonnull
+    private ByteBuf applyBody()
     {
         return Unpooled.directBuffer()
                 .writeInt(content.length)
@@ -71,14 +78,13 @@ public class ObjectCreateData implements ObjectData
     }
 
     @Nonnull
-    public static ObjectCreateData.Builder create(@Nonnull String content, int flags)
+    public static ObjectCallbackData.Builder create(@Nonnull String content, List<? extends ByteBuf> args, int flags)
     {
         Checks.notBlank(content, "Content");
         Checks.notNegative(flags, "Flags");
-        return new Builder(content, flags);
+        return new ObjectCallbackData.Builder(content, args, flags);
     }
 
-    @Nonnull
     @Override
     public ByteBuf asByteBuf()
     {
@@ -100,6 +106,7 @@ public class ObjectCreateData implements ObjectData
     public static class Builder
     {
         protected final byte[] content;
+        protected final List<? extends ByteBuf> args;
         protected final int flags;
 
         protected Compression compression = Compression.NONE;
@@ -108,9 +115,10 @@ public class ObjectCreateData implements ObjectData
         protected int maxBufferSize = 2048;
         protected long timestamp = System.currentTimeMillis();
 
-        protected Builder(@Nonnull String content, int flags)
+        protected Builder(@Nonnull String content, List<? extends ByteBuf> args, int flags)
         {
             this.content = StringUtils.getBytes(content, StandardCharsets.UTF_8);
+            this.args = args;
             this.flags = flags;
         }
 
@@ -156,10 +164,9 @@ public class ObjectCreateData implements ObjectData
         }
 
         @Nonnull
-        public ObjectCreateData build()
+        public ObjectCallbackData build()
         {
-            return new ObjectCreateData(flags, content, compression, largeThreshold, fields, maxBufferSize, timestamp);
+            return new ObjectCallbackData(flags, content, args, compression, largeThreshold, fields, maxBufferSize, timestamp);
         }
     }
 }
-

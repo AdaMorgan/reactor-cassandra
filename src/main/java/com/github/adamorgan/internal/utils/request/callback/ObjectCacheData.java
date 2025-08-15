@@ -14,24 +14,27 @@
  * limitations under the License.
  */
 
-package com.github.adamorgan.internal.utils.request;
+package com.github.adamorgan.internal.utils.request.callback;
 
 import com.github.adamorgan.api.utils.request.ObjectData;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
+import com.github.adamorgan.internal.requests.SocketClient;
 import com.github.adamorgan.internal.requests.SocketCode;
 import com.github.adamorgan.internal.requests.action.ObjectCreateActionImpl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import javax.annotation.Nonnull;
-import java.util.EnumSet;
 
 public class ObjectCacheData implements ObjectData
 {
+    public static final int CODE = SocketCode.EXECUTE;
+
     private final ObjectCreateActionImpl action;
     private final byte version, opcode;
     private final int flags;
-    private final ByteBuf token, header, body;
+    private final ByteBuf token;
+    private final ByteBuf body;
     private final short consistency;
     private final int fields, maxBufferSize;
     private final long timestamp;
@@ -49,25 +52,6 @@ public class ObjectCacheData implements ObjectData
         this.timestamp = action.getTimestamp();
 
         this.body = action.getCompression().pack(applyBody());
-        this.header = applyHeader();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<ObjectCreateAction.Field> getFields()
-    {
-        return ObjectCreateAction.Field.fromBitFields(fields);
-    }
-
-    @Nonnull
-    private ByteBuf applyHeader()
-    {
-        return Unpooled.directBuffer()
-                .writeByte(this.version)
-                .writeByte(this.flags)
-                .writeShort(0)
-                .writeByte(this.opcode)
-                .writeInt(body.readableBytes());
     }
 
     @Nonnull
@@ -78,15 +62,21 @@ public class ObjectCacheData implements ObjectData
                 .writeBytes(this.token)
                 .writeShort(this.consistency)
                 .writeByte(this.fields)
-                .writeBytes(action.getBody())
+                .writeBytes(Unpooled.buffer()) // PARAMETERS
                 .writeInt(this.maxBufferSize)
                 .writeLong(this.timestamp);
     }
 
     @Nonnull
     @Override
-    public ByteBuf applyData()
+    public ByteBuf asByteBuf()
     {
-        return Unpooled.compositeBuffer(2).addComponents(true, header, body);
+        return Unpooled.directBuffer()
+                .writeByte(this.version)
+                .writeByte(this.flags)
+                .writeShort(0)
+                .writeByte(CODE)
+                .writeInt(body.readableBytes())
+                .writeBytes(body);
     }
 }

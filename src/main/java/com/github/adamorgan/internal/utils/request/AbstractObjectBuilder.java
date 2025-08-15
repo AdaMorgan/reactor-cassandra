@@ -19,7 +19,6 @@ package com.github.adamorgan.internal.utils.request;
 import com.github.adamorgan.api.requests.objectaction.ObjectCreateAction;
 import com.github.adamorgan.api.utils.Compression;
 import com.github.adamorgan.api.utils.request.ObjectRequest;
-import io.netty.buffer.*;
 
 import javax.annotation.Nonnull;
 import java.util.EnumSet;
@@ -32,15 +31,7 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     protected Compression compression = Compression.NONE;
     protected int maxBufferSize = 5000;
     protected long timestamp = 0;
-
-    protected final ByteBuf body = UnpooledByteBufAllocator.DEFAULT.directBuffer(maxBufferSize);
-
-    @Nonnull
-    @Override
-    public ByteBuf getBody()
-    {
-        return body;
-    }
+    protected boolean traceEnabled = false;
 
     @Nonnull
     @Override
@@ -55,6 +46,12 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
         return this.fields;
     }
 
+    @Override
+    public boolean isTrace()
+    {
+        return traceEnabled;
+    }
+
     @Nonnull
     @Override
     public EnumSet<ObjectCreateAction.Field> getFields()
@@ -66,12 +63,6 @@ public abstract class AbstractObjectBuilder<T extends AbstractObjectBuilder<T>> 
     public int getMaxBufferSize()
     {
         return this.maxBufferSize;
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return !this.body.isReadable();
     }
 
     @Nonnull

@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
@@ -83,11 +84,17 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
         return DEFAULT_SUCCESS;
     }
 
+    @Nonnull
+    @Override
+    public EnumSet<Flags> getFlags()
+    {
+        return Flags.fromBitField(getRawFlags());
+    }
+
     @Override
     public void queue(@Nullable Consumer<? super T> success, @Nullable Consumer<? super Throwable> failure)
     {
-        ObjectData objectData = finalizeData();
-        ByteBuf body = objectData.applyData();
+        ObjectData body = finalizeData();
 
         if (success == null)
         {
@@ -128,7 +135,7 @@ public abstract class ObjectActionImpl<T> implements ObjectAction<T>
     @Override
     public CompletableFuture<T> submit(boolean shouldQueue)
     {
-        ByteBuf body = this.finalizeData().applyData();
+        ObjectData body = finalizeData();
         return new ObjectFuture<>(this, body, getDeadline());
     }
 
